@@ -509,9 +509,9 @@ After=network.target
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/proyecto
+WorkingDirectory=/home/ubuntu/TuEden-bot
 Environment="PATH=/home/ubuntu/venv_proyecto/bin"
-EnvironmentFile=/home/ubuntu/proyecto/.env
+EnvironmentFile=/home/ubuntu/TuEden-bot/.env
 ExecStart=/home/ubuntu/venv_proyecto/bin/streamlit run app.py \
     --server.port 8501 \
     --server.address 127.0.0.1 \
