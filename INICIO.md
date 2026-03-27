@@ -1,5 +1,5 @@
 # ✅ INICIO.md — Estado del Proyecto y Próximos Pasos
-> Última actualización: 23 de marzo de 2026
+> Última actualización: 27 de marzo de 2026 · **Migrado de Streamlit → Flask**
 
 ---
 
@@ -10,7 +10,7 @@
 ```
 proyecto/
 │
-├── ✅ app.py                        ← Interfaz Streamlit (GUI principal + sidebar tokens)
+├── ✅ app.py                        ← Aplicación Flask (servidor web + API REST)
 ├── ✅ requirements.txt              ← Todas las dependencias Python
 ├── ✅ .env.example                  ← Plantilla de variables de entorno
 ├── ✅ .gitignore                    ← Excluye .env, venv, drafts_output, logs
@@ -25,6 +25,13 @@ proyecto/
 │   ├── ✅ wp_client.py              ← Cliente WP modo SIMULADO + modo REAL
 │   ├── ✅ prompt_templates.py       ← 3 plantillas de prompt (Comparativa/Guía/Reseña)
 │   └── ✅ amazon_parser.py          ← Extrae nombre de producto desde URLs Amazon
+│
+├── templates/                       ← Plantillas Jinja2 (HTML con Bootstrap 5)
+│   ├── ✅ base.html                 ← Layout base con navbar, sidebar tokens (offcanvas)
+│   ├── ✅ index.html                ← Página principal: formulario de generación
+│   ├── ✅ historial.html            ← Historial de generaciones con filtros
+│   ├── ✅ topicos.html              ← Descubrimiento de tópicos del día
+│   └── ✅ borrador.html             ← Editor WYSIWYG de borradores
 │
 ├── models/
 │   ├── ✅ __init__.py
@@ -50,6 +57,7 @@ proyecto/
   ```cmd
   pip install -r requirements.txt
   ```
+  Esto instala: **Flask** (servidor web), Gemini SDK, Pydantic, Loguru y demás.
 
 - [ ] **Crear tu archivo `.env`** (copiar desde `.env.example`)
   ```cmd
@@ -71,9 +79,9 @@ proyecto/
 
 - [ ] **Lanzar la aplicación**
   ```cmd
-  streamlit run app.py
+  python app.py
   ```
-  Abre tu navegador en: http://localhost:8501
+  Abre tu navegador en: http://localhost:5000
 
 - [ ] **Prueba de humo en modo simulado**
   - Escribe un tópico: `auriculares inalámbricos Sony WH-1000XM5`
@@ -274,7 +282,7 @@ Al inicio del día siguiente los contadores diarios se resetean automáticamente
 
 ### Panel de tokens en la GUI (Sidebar)
 
-El sidebar de Streamlit muestra en tiempo real:
+El panel de tokens (offcanvas lateral de Flask) muestra en tiempo real:
 - ▶ Clave activa actualmente en uso
 - Barra de progreso por clave (% del límite diario usado)
 - Requests y tokens consumidos hoy / histórico
@@ -299,7 +307,7 @@ El sidebar de Streamlit muestra en tiempo real:
 
 | Problema | Causa probable | Solución |
 |---|---|---|
-| `Import "streamlit" could not be resolved` | El IDE no ve los paquetes globales | Advertencia del linter, no es error real — la app corre igual |
+| `ModuleNotFoundError: No module named 'flask'` | Flask no instalado | Ejecutar `pip install -r requirements.txt` |
 | `No se encontraron API Keys` | Faltan `GEMINI_API_KEY_1..N` en `.env` | Añadir al menos `GEMINI_API_KEY_1=...` o activar `GEMINI_MOCK_MODE=true` |
 | `Error 429 / ResourceExhausted` | Cuota diaria agotada en esa clave | El sistema rota automáticamente; si todas están agotadas, esperar al día siguiente |
 | `401 Unauthorized` en WordPress | Application Password mal copiada | Regenerar en WP Admin → Perfil |
@@ -311,4 +319,4 @@ El sidebar de Streamlit muestra en tiempo real:
 
 ---
 
-*Blog Content Generator v1.0 · Human-in-the-Loop · Gemini + WordPress*
+*Blog Content Generator v2.0 · Human-in-the-Loop · Gemini + WordPress · Flask*

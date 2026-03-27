@@ -1,12 +1,12 @@
-# 🌐 Guía: Migrar de IP a Dominio Propio
+﻿# ðŸŒ GuÃ­a: Migrar de IP a Dominio Propio
 
-> Sigue esta guía cuando hayas comprado tu dominio. El servidor ya está funcionando con IP, solo hay que apuntar el dominio y actualizar la configuración.
+> Sigue esta guÃ­a cuando hayas comprado tu dominio. El servidor ya estÃ¡ funcionando con IP, solo hay que apuntar el dominio y actualizar la configuraciÃ³n.
 
 ---
 
 ## Resumen de cambios necesarios
 
-| Qué cambiar | Dónde |
+| QuÃ© cambiar | DÃ³nde |
 |-------------|-------|
 | Apuntar el dominio al servidor | Panel del registrador de dominio |
 | Nginx: `server_name` | Servidor SSH |
@@ -16,7 +16,7 @@
 
 ---
 
-## Paso 1 — Apuntar el dominio al servidor
+## Paso 1 â€” Apuntar el dominio al servidor
 
 En el panel de tu registrador de dominio (Namecheap, GoDaddy, etc.), crea estos registros DNS:
 
@@ -24,20 +24,20 @@ En el panel de tu registrador de dominio (Namecheap, GoDaddy, etc.), crea estos 
 |------|--------|-------|
 | A | `@` | `13.38.47.68` |
 | A | `www` | `13.38.47.68` |
-| A | `app` | `13.38.47.68` ← para Streamlit |
+| A | `app` | `13.38.47.68` â† para Streamlit |
 
-> ⏳ Los cambios DNS pueden tardar entre 5 minutos y 48 horas en propagarse.
+> â³ Los cambios DNS pueden tardar entre 5 minutos y 48 horas en propagarse.
 > Puedes verificar en: https://dnschecker.org
 
 ---
 
-## Paso 2 — Actualizar Nginx con el dominio
+## Paso 2 â€” Actualizar Nginx con el dominio
 
-Reemplaza la configuración actual (que usa `server_name _`) por una con tu dominio real. Sustituye `tudominio.com` por tu dominio:
+Reemplaza la configuraciÃ³n actual (que usa `server_name _`) por una con tu dominio real. Sustituye `tudominio.com` por tu dominio:
 
 ```bash
 sudo tee /etc/nginx/sites-available/blog-seo > /dev/null <<'EOF'
-# WordPress — dominio principal
+# WordPress â€” dominio principal
 server {
     listen 80;
     server_name tudominio.com www.tudominio.com;
@@ -51,13 +51,13 @@ server {
     }
 }
 
-# Streamlit — subdominio app
+# Streamlit â€” subdominio app
 server {
     listen 80;
     server_name app.tudominio.com;
 
     location / {
-        proxy_pass http://127.0.0.1:8501;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_http_version 1.1;
@@ -78,9 +78,9 @@ sudo systemctl reload nginx
 
 ---
 
-## Paso 3 — Actualizar la URL de WordPress
+## Paso 3 â€” Actualizar la URL de WordPress
 
-WordPress guarda su propia URL en la base de datos. Actualízala:
+WordPress guarda su propia URL en la base de datos. ActualÃ­zala:
 
 ```bash
 sudo mysql
@@ -96,13 +96,13 @@ EXIT;
 
 ---
 
-## Paso 4 — Actualizar el archivo `.env` del proyecto
+## Paso 4 â€” Actualizar el archivo `.env` del proyecto
 
 ```bash
 nano /home/ubuntu/TuEden-bot/.env
 ```
 
-Cambia la línea:
+Cambia la lÃ­nea:
 ```
 WP_BASE_URL=https://tu-blog.com
 ```
@@ -113,32 +113,32 @@ WP_BASE_URL=http://tudominio.com
 
 Reinicia Streamlit:
 ```bash
-sudo systemctl restart streamlit-seo
+sudo systemctl restart flask-app
 ```
 
 ---
 
-## Paso 5 — Instalar SSL (HTTPS) con Certbot
+## Paso 5 â€” Instalar SSL (HTTPS) con Certbot
 
-Una vez que el DNS esté propagado y puedas acceder por `http://tudominio.com`, instala el certificado SSL gratuito:
+Una vez que el DNS estÃ© propagado y puedas acceder por `http://tudominio.com`, instala el certificado SSL gratuito:
 
 ```bash
 sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d tudominio.com -d www.tudominio.com -d app.tudominio.com
 ```
 
-Certbot actualiza Nginx automáticamente y añade la renovación automática.
+Certbot actualiza Nginx automÃ¡ticamente y aÃ±ade la renovaciÃ³n automÃ¡tica.
 
-Verifica que la renovación automática funciona:
+Verifica que la renovaciÃ³n automÃ¡tica funciona:
 ```bash
 sudo certbot renew --dry-run
 ```
 
 ---
 
-## Paso 6 — Actualizar WordPress a HTTPS
+## Paso 6 â€” Actualizar WordPress a HTTPS
 
-Después de instalar SSL, actualiza la URL en la base de datos de `http` a `https`:
+DespuÃ©s de instalar SSL, actualiza la URL en la base de datos de `http` a `https`:
 
 ```bash
 sudo mysql
@@ -150,7 +150,7 @@ UPDATE wordpress_db.wp_options SET option_value = 'https://tudominio.com' WHERE 
 EXIT;
 ```
 
-Y actualiza también el `.env`:
+Y actualiza tambiÃ©n el `.env`:
 ```bash
 nano /home/ubuntu/TuEden-bot/.env
 ```
@@ -160,23 +160,24 @@ WP_BASE_URL=https://tudominio.com
 
 Reinicia Streamlit:
 ```bash
-sudo systemctl restart streamlit-seo
+sudo systemctl restart flask-app
 ```
 
 ---
 
-## Paso 7 — Verificación final
+## Paso 7 â€” VerificaciÃ³n final
 
 | URL | Debe mostrar |
 |-----|-------------|
-| `https://tudominio.com` | Blog WordPress ✅ |
-| `https://www.tudominio.com` | Blog WordPress ✅ |
-| `https://app.tudominio.com` | App Streamlit ✅ |
-| `http://tudominio.com` | Redirige a HTTPS ✅ |
+| `https://tudominio.com` | Blog WordPress âœ… |
+| `https://www.tudominio.com` | Blog WordPress âœ… |
+| `https://app.tudominio.com` | App Streamlit âœ… |
+| `http://tudominio.com` | Redirige a HTTPS âœ… |
 
 ---
 
 ## Notas adicionales
 
-- El acceso directo por IP (`http://13.38.47.68:8080`) dejará de funcionar una vez que Nginx tenga `server_name` con el dominio. Si quieres mantenerlo temporalmente, añade un bloque `server` adicional con `listen 8080; server_name _;`.
+- El acceso directo por IP (`http://13.38.47.68:8080`) dejarÃ¡ de funcionar una vez que Nginx tenga `server_name` con el dominio. Si quieres mantenerlo temporalmente, aÃ±ade un bloque `server` adicional con `listen 8080; server_name _;`.
 - Guarda siempre una snapshot de Lightsail antes de hacer cambios importantes.
+

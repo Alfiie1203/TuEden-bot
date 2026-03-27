@@ -210,6 +210,119 @@ Relación calidad-precio difícil de superar en su rango de precio.</p>
 </script>
 """,
     },
+
+    "opinion": {
+        "title": "[MOCK] {topic}: Opinión y reflexión desde la evidencia 2026",
+        "meta_description": "¿Qué dice la evidencia sobre {topic}? Análisis crítico con datos reales para entender su impacto en tu vida diaria.",
+        "focus_keyword": "{topic} opinión",
+        "content": """
+<h2>Por qué {topic} genera tanto debate</h2>
+<p>Este es un <strong>post de demostración (modo MOCK)</strong>.
+No se realizó ninguna llamada a la API de Gemini — <em>0 tokens gastados</em>.</p>
+
+<h2>Lo que dice la evidencia</h2>
+<p>Numerosos estudios publicados en revistas de referencia apuntan a que <strong>{topic}</strong>
+tiene un impacto medible y consistente en el bienestar cotidiano. Sin embargo, el contexto importa.</p>
+
+<h2>La cara oculta: lo que nadie te cuenta</h2>
+<ul>
+  <li>La mayoría de los titulares simplifican en exceso la realidad.</li>
+  <li>Los resultados varían significativamente según el perfil de cada persona.</li>
+  <li>Existen alternativas igualmente válidas que se pasan por alto.</li>
+</ul>
+
+<h2>Nuestra opinión honesta</h2>
+<p>Después de analizar el panorama completo, creemos que <strong>{topic}</strong> merece una
+valoración equilibrada: ni el entusiasmo desmedido ni el escepticismo absoluto hacen justicia
+a la realidad.</p>
+
+<h2>Conclusión</h2>
+<p>La clave está en la información de calidad y en adaptar cada decisión a tus circunstancias
+particulares. Comparte tu opinion en los comentarios.</p>
+""",
+    },
+
+    "listicle": {
+        "title": "[MOCK] Los 8 aspectos clave de {topic} que debes conocer en 2026",
+        "meta_description": "Descubre los 8 puntos esenciales sobre {topic} con datos y ejemplos reales para aplicar desde hoy mismo.",
+        "focus_keyword": "mejores {topic}",
+        "content": """
+<h2>Introducción: por qué importa {topic}</h2>
+<p>Este es un <strong>post de demostración (modo MOCK)</strong>.
+No se realizó ninguna llamada a la API de Gemini — <em>0 tokens gastados</em>.</p>
+
+<h2>1. El origen y contexto</h2>
+<p>Entender de dónde viene <strong>{topic}</strong> es fundamental para aprovecharlo al máximo.</p>
+
+<h2>2. Los beneficios principales</h2>
+<p>Tres beneficios clave que hacen que <strong>{topic}</strong> destaque en su categoría.</p>
+
+<h2>3. Los errores más comunes</h2>
+<p>La mayoría de personas cometen estos fallos al empezar con <strong>{topic}</strong>.</p>
+
+<h2>4. Cómo elegir la mejor opción</h2>
+<p>Criterios objetivos para no equivocarte al seleccionar entre las alternativas disponibles.</p>
+
+<h2>5. Herramientas y recursos útiles</h2>
+<p>Las mejores fuentes y herramientas relacionadas con <strong>{topic}</strong> en 2026.</p>
+
+<h2>6. Casos de éxito reales</h2>
+<p>Ejemplos documentados de personas que obtuvieron resultados con <strong>{topic}</strong>.</p>
+
+<h2>7. Lo que los expertos recomiendan</h2>
+<p>Consenso profesional sobre las mejores prácticas en torno a <strong>{topic}</strong>.</p>
+
+<h2>8. El futuro de {topic}</h2>
+<p>Tendencias y proyecciones para los próximos años en este campo.</p>
+
+<h2>Conclusión</h2>
+<p>Con estos 8 puntos claros, ya tienes todo lo necesario para tomar decisiones informadas sobre
+<strong>{topic}</strong>.</p>
+""",
+    },
+
+    "howto": {
+        "title": "[MOCK] Cómo {topic}: Guía paso a paso completa 2026",
+        "meta_description": "Aprende cómo {topic} con esta guía práctica paso a paso. Incluye errores comunes y consejos de experto para empezar hoy.",
+        "focus_keyword": "cómo {topic}",
+        "content": """
+<h2>¿Qué necesitas antes de empezar?</h2>
+<p>Este es un <strong>post de demostración (modo MOCK)</strong>.
+No se realizó ninguna llamada a la API de Gemini — <em>0 tokens gastados</em>.</p>
+
+<h2>Paso 1: Preparación inicial</h2>
+<p>Antes de comenzar con <strong>{topic}</strong>, reúne los materiales o conocimientos básicos
+que necesitarás. La preparación marca la diferencia entre el éxito y la frustración.</p>
+
+<h2>Paso 2: Configuración del entorno</h2>
+<p>Asegúrate de tener el contexto adecuado. Un entorno bien preparado reduce los errores
+en un 70% según estudios de productividad.</p>
+
+<h2>Paso 3: Ejecución principal</h2>
+<p>Sigue estos sub-pasos en orden para obtener los mejores resultados con <strong>{topic}</strong>:</p>
+<ol>
+  <li>Realiza una prueba pequeña antes de escalar.</li>
+  <li>Documenta cada resultado para poder ajustar.</li>
+  <li>Itera basándote en los datos obtenidos.</li>
+</ol>
+
+<h2>Paso 4: Resolución de problemas comunes</h2>
+<ul>
+  <li><strong>Problema:</strong> No obtienes los resultados esperados. <strong>Solución:</strong> Revisa el Paso 2.</li>
+  <li><strong>Problema:</strong> El proceso tarda demasiado. <strong>Solución:</strong> Automatiza las tareas repetitivas.</li>
+</ul>
+
+<h2>Paso 5: Verificación y ajuste final</h2>
+<p>Valida que todo funciona correctamente antes de dar el proceso por terminado.</p>
+
+<h2>Consejos de experto</h2>
+<p>Los profesionales más experimentados en <strong>{topic}</strong> recomiendan revisar
+el proceso completo una vez al mes para identificar mejoras.</p>
+
+<h2>Conclusión</h2>
+<p>Siguiendo estos pasos habrás dominado <strong>{topic}</strong>. ¿Tienes dudas? Déjalas en comentarios.</p>
+""",
+    },
 }
 
 
@@ -531,6 +644,106 @@ class GeminiClient:
                 time.sleep(wait)
 
         raise RuntimeError(f"Gemini falló tras 3 intentos: {last_exc}") from last_exc
+
+    # ------------------------------------------------------------------
+    # Llamada raw (texto libre, sin post_type ni JSON forzado)
+    # ------------------------------------------------------------------
+
+    def call_raw(self, prompt: str) -> str:
+        """
+        Realiza una llamada directa a Gemini con un prompt libre.
+        Devuelve el texto de la respuesta como string (sin parsear a dict).
+        En modo MOCK devuelve una respuesta simulada de tópicos del día.
+        """
+        if self.mock_mode:
+            return self._call_raw_mock()
+        return self._call_raw_real(prompt)
+
+    def _call_raw_mock(self) -> str:
+        """Respuesta pre-fabricada de tópicos del día para modo MOCK."""
+        from datetime import date as _date
+        today = str(_date.today())
+        time.sleep(0.4)
+        return json.dumps({
+            "fecha": today,
+            "medicina_relacionados": [
+                "El secreto de la microbiota: cómo tus bacterias intestinales controlan tu humor",
+                "Alerta sanitaria: nueva cepa resistente a antibióticos avanza en Europa",
+                "Descubierto el gen que triplica el riesgo de Alzheimer antes de los 60",
+                "Ayuno intermitente: lo que los estudios de 2026 realmente dicen sobre tu salud",
+                "La vacuna contra el cáncer de páncreas que promete cambiar la oncología para siempre",
+            ],
+            "medicina_no_relacionados": [
+                "Cómo los récords de calor de este verano están disparando los ingresos por golpe de calor",
+                "La verdad médica detrás de la fiebre del oro por la IA: burnout digital en cifras récord",
+                "Copa del Mundo 2026: lo que el estrés de los partidos le hace realmente a tu corazón",
+                "Subida histórica de la luz: el impacto silencioso de la pobreza energética en tu salud",
+                "Pantallas 24/7: la epidemia de miopía infantil que nadie quiere ver",
+            ],
+            "psicologia_relacionados": [
+                "Ansiedad anticipatoria: por qué tu cerebro sufre más por lo que aún no ocurrió",
+                "El efecto del trauma colectivo en una generación que creció con pandemias y crisis",
+                "Dopamina secuestrada: cómo el diseño de las apps está reescribiendo tu motivación",
+                "Terapia de exposición virtual: el método que está revolucionando el tratamiento de fobias",
+                "Síndrome del impostor en profesionales de éxito: datos y estrategias para superarlo",
+            ],
+            "psicologia_no_relacionados": [
+                "Cómo explicar la inflación a tus hijos sin sembrar el miedo al dinero para siempre",
+                "La psicología del fanatismo deportivo: por qué una derrota duele como una pérdida personal",
+                "Redes sociales y adolescentes: el lado oscuro que TikTok no quiere que veas",
+                "Despido masivo en tecnología: guía psicológica para sobrevivir la incertidumbre laboral",
+                "Elecciones y estrés político: cómo proteger tu salud mental en tiempos de polarización",
+            ],
+        }, ensure_ascii=False)
+
+    def _call_raw_real(self, prompt: str) -> str:
+        """Llama a la API de Gemini con un prompt libre y devuelve el texto plano."""
+        self.token_manager.rotate_if_exhausted()
+        self._init_model(self.token_manager.get_active_key())
+
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                response = _call_with_timeout(self._model, prompt, timeout=_CALL_TIMEOUT)
+
+                prompt_tokens = 0
+                response_tokens = 0
+                if hasattr(response, "usage_metadata") and response.usage_metadata:
+                    meta = response.usage_metadata
+                    prompt_tokens   = getattr(meta, "prompt_token_count", 0) or 0
+                    response_tokens = getattr(meta, "candidates_token_count", 0) or 0
+                    logger.info(
+                        f"[Tokens][raw] {self.token_manager.active_key.alias} | "
+                        f"prompt: {prompt_tokens} + resp: {response_tokens} "
+                        f"= {prompt_tokens + response_tokens} tokens"
+                    )
+
+                self.token_manager.record_usage(prompt_tokens, response_tokens)
+                return _strip_markdown_codeblock(response.text.strip())
+
+            except Exception as exc:
+                last_exc = exc
+                error_str = str(exc)
+
+                if _is_quota_error(error_str):
+                    self.token_manager.record_error()
+                    rotated = self.token_manager.rotate(reason="quota-raw")
+                    if rotated:
+                        self._init_model(self.token_manager.get_active_key())
+                        continue
+                    time.sleep(30)
+                    continue
+
+                wait = _RETRY_WAITS[attempt - 1]
+                logger.warning(
+                    f"[Gemini raw] Intento {attempt}/3 falló: {exc}. "
+                    f"Reintentando en {wait}s…"
+                )
+                time.sleep(wait)
+
+        raise RuntimeError(
+            f"Gemini (raw) falló tras 3 intentos: {last_exc}"
+        ) from last_exc
 
     def test_connection(self) -> bool:
         """Prueba rápida de conectividad. En modo MOCK siempre devuelve True."""

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Historial de Generaciones · Blog Content Generator{% endblock %}
+
+{% block content %}
+<div class="main-card p-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="section-title mb-0">📜 Historial de Generaciones</h5>
+    <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+  </div>
+  <p class="text-muted small">Todas las sesiones de generación registradas localmente.</p>
+
+  <!-- Filtros -->
+  <div class="row g-2 mb-3">
+    <div class="col-md-5">
+      <input id="searchInput" type="text" class="form-control form-control-sm"
+        placeholder="🔍 Buscar por título o keyword…" oninput="filtrar()">
+    </div>
+    <div class="col-md-3">
+      <select id="typeFilter" class="form-select form-select-sm" onchange="filtrar()">
+        <option value="">Todos los tipos</option>
+        <option value="comparativa">Comparativa</option>
+        <option value="guia">Guía</option>
+        <option value="resena_seo">Reseña SEO</option>
+        <option value="opinion">Opinión</option>
+        <option value="listicle">Listicle</option>
+        <option value="howto">How-to</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select id="modeFilter" class="form-select form-select-sm" onchange="filtrar()">
+        <option value="">Todos los modos</option>
+        <option value="simulado">Simulado</option>
+        <option value="real">Real</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-sm btn-outline-secondary w-100" onclick="cargarHistorial()">🔃 Refrescar</button>
+    </div>
+  </div>
+
+  <div id="historialCount" class="text-muted small mb-2"></div>
+
+  <!-- Contenido del historial -->
+  <div id="historialContent">
+    <div class="text-center text-muted py-5">Cargando historial…</div>
+  </div>
+
+  <!-- Estadísticas -->
+  <hr>
+  <h6 class="section-title">📊 Estadísticas</h6>
+  <div class="row g-2 text-center" id="statsRow">
+    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statTotal">—</div><div class="text-muted small">Posts generados</div></div></div>
+    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statSessions">—</div><div class="text-muted small">Sesiones</div></div></div>
+    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statTokens">—</div><div class="text-muted small">Tokens consumidos</div></div></div>
+    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statDrafts">—</div><div class="text-muted small">Borradores en disco</div></div></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_ICONS  = {comparativa:"📊",guia:"📖",resena_seo:"🔍",opinion:"💬",listicle:"📋",howto:"🛠️"};
+const TYPE_LABELS = {comparativa:"Comparativa",guia:"Guía",resena_seo:"Reseña SEO",opinion:"Opinión",listicle:"Listicle",howto:"How-to"};
+
+let _allEntries = [];
+
+function cargarHistorial() {
+  document.getElementById('historialContent').innerHTML = '<div class="text-center text-muted py-4">Cargando…</div>';
+  fetch('/api/historial').then(r=>r.json()).then(data => {
+    _allEntries = data;
+    filtrar();
+    calcularStats(data);
+  }).catch(e => {
+    document.getElementById('historialContent').innerHTML = `<div class="alert alert-danger">Error: ${e}</div>`;
+  });
+}
+
+function filtrar() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const typeF  = document.getElementById('typeFilter').value;
+  const modeF  = document.getElementById('modeFilter').value;
+
+  const filtered = _allEntries.filter(e => {
+    if (search) {
+      const hay = ((e.title||'') + ' ' + (e.focus_keyword||'')).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    if (typeF && e.post_type !== typeF) return false;
+    if (modeF && e.wp_mode !== modeF) return false;
+    return true;
+  });
+
+  document.getElementById('historialCount').textContent =
+    `Mostrando ${filtered.length} entrada(s) de ${_allEntries.length} totales.`;
+
+  if (filtered.length === 0) {
+    document.getElementById('historialContent').innerHTML =
+      '<div class="alert alert-info">No hay entradas que coincidan con los filtros.</div>';
+    return;
+  }
+
+  // Agrupar por sesión
+  const sessions = {};
+  filtered.forEach(e => {
+    const sid = e.session_id || '?';
+    if (!sessions[sid]) sessions[sid] = [];
+    sessions[sid].push(e);
+  });
+
+  let html = '';
+  for (const [sid, entries] of Object.entries(sessions)) {
+    const ts      = (entries[0].timestamp||'').substring(0,16).replace('T',' ');
+    const wpMode  = entries[0].wp_mode || '?';
+    const modeIcon = wpMode === 'simulado' ? '🟡' : '✅';
+    const shortSid = sid.length > 8 ? sid.slice(-8) : sid;
+
+    html += `<div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor:pointer"
+           onclick="toggleSession('sess_${shortSid}')">
+        <span>${modeIcon} <code>${ts}</code> — ${entries.length} post(s) · sesión <code>${shortSid}</code></span>
+        <span id="chevron_${shortSid}">▼</span>
+      </div>
+      <div id="sess_${shortSid}" class="card-body p-0">`;
+
+    entries.forEach(e => {
+      const pt    = e.post_type || '';
+      const icon  = TYPE_ICONS[pt] || '📄';
+      const label = TYPE_LABELS[pt] || pt;
+      const title = e.title || '(sin título)';
+      const kw    = e.focus_keyword || '';
+      const wpId  = e.wp_post_id || '?';
+      const tokens = e.tokens_used || 0;
+      const df    = e.draft_file || '';
+      const exists = e.draft_exists;
+
+      html += `<div class="d-flex justify-content-between align-items-start p-3 border-bottom">
+        <div>
+          <strong>${icon} ${label}</strong> — ${title}<br>
+          <span class="badge bg-secondary">${kw}</span>
+          <span class="text-muted small ms-1">ID: <code>${wpId}</code> · ${tokens.toLocaleString()} tokens</span>
+        </div>
+        <div class="ms-2 flex-shrink-0">`;
+
+      if (df && exists) {
+        html += `<a href="/borrador?file=${encodeURIComponent(df)}" class="btn btn-sm btn-primary">📝 Ver / Editar</a>`;
+      } else if (wpMode === 'real' && wpId !== '?') {
+        html += `<button class="btn btn-sm btn-outline-info" onclick="recuperarDesdeWP(${JSON.stringify(wpId)}, '${pt}', ${JSON.stringify(e)})">⬇️ Recuperar</button>`;
+      } else {
+        html += `<span class="text-muted small">${df ? '_(archivo borrado)_' : '—'}</span>`;
+      }
+
+      html += `</div></div>`;
+    });
+
+    html += `</div></div>`;
+  }
+
+  document.getElementById('historialContent').innerHTML = html || '<div class="text-muted">Sin entradas.</div>';
+}
+
+function toggleSession(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function calcularStats(entries) {
+  const totalTokens = entries.reduce((a,e) => a + (e.tokens_used||0), 0);
+  const sessions    = new Set(entries.map(e=>e.session_id)).size;
+  document.getElementById('statTotal').textContent    = entries.length;
+  document.getElementById('statSessions').textContent = sessions;
+  document.getElementById('statTokens').textContent   = totalTokens.toLocaleString();
+  fetch('/api/borradores').then(r=>r.json()).then(d => {
+    document.getElementById('statDrafts').textContent = d.length;
+  });
+}
+
+function recuperarDesdeWP(wpId, postType, entry) {
+  if (!confirm('¿Descargar el post desde WordPress y guardarlo localmente?')) return;
+  fetch('/api/historial/recuperar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({wp_post_id: wpId, post_type: postType, entry})
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) {
+      showToast('Recuperado: ' + d.filename);
+      window.location.href = '/borrador?file=' + encodeURIComponent(d.filename);
+    } else {
+      showToast(d.error || 'Error al recuperar', 'danger');
+    }
+  });
+}
+
+// Cargar al inicio
+cargarHistorial();
+</script>
+{% endblock %}

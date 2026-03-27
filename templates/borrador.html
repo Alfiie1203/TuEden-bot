@@ -1,0 +1,575 @@
+{% extends "base.html" %}
+{% block title %}Editor de Borrador · Blog Content Generator{% endblock %}
+
+{% block head %}
+<style>
+  .wy-block { border-radius:4px; padding:2px 6px; transition:background .15s; cursor:text; position:relative; }
+  .wy-block:hover { background:rgba(99,179,237,.10); outline:1.5px dashed #90cdf4; }
+  .wy-edit-hint { font-size:.65rem; color:#aaa; margin-left:6px; display:none; }
+  .wy-block:hover .wy-edit-hint { display:inline; }
+  .wy-h1 { font-size:2rem;   font-weight:700; }
+  .wy-h2 { font-size:1.5rem; font-weight:600; color:#1a5276; }
+  .wy-h3 { font-size:1.2rem; font-weight:600; color:#1f618d; }
+  .wy-h4 { font-size:1rem;   font-weight:600; }
+  .wy-p  { font-size:1rem;   line-height:1.75; }
+  .wy-bq { border-left:4px solid #aaa; padding:.3rem 1rem; color:#555; font-style:italic; }
+  .edit-toolbar { position:sticky; top:60px; z-index:100; }
+  .img-thumb { width:60px; height:60px; object-fit:cover; border-radius:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Lista de borradores (si no hay filename en la URL) -->
+<div id="draftListPanel" style="display:none">
+  <div class="main-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0">✏️ Seleccionar Borrador</h5>
+      <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+    </div>
+    <div id="draftListContent"><div class="text-muted text-center py-4">Cargando borradores…</div></div>
+  </div>
+</div>
+
+<!-- Editor principal -->
+<div id="editorPanel" style="display:none">
+  <div class="row g-3">
+    <!-- ── Columna principal: editor ──────────────────────────────────── -->
+    <div class="col-lg-8">
+      <div class="main-card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span id="postTypeIcon" class="me-1"></span>
+            <code id="postTypeLabel" class="text-muted small"></code>
+            <code id="filenameLabel" class="text-muted small ms-2"></code>
+          </div>
+          <a href="/borrador" class="btn btn-sm btn-outline-secondary">← Otros borradores</a>
+        </div>
+        <hr>
+
+        <!-- Metadatos SEO -->
+        <h6 class="section-title">📋 Metadatos SEO</h6>
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Título del post</label>
+          <input id="metaTitle" type="text" class="form-control">
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Focus keyword</label>
+            <input id="metaKw" type="text" class="form-control">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Affiliate URL</label>
+            <input id="metaAff" type="text" class="form-control" placeholder="https://amazon.es/…">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Meta description <span class="text-muted fw-normal">(máx. 160 caracteres)</span></label>
+          <textarea id="metaDesc" class="form-control" rows="2" maxlength="160"></textarea>
+        </div>
+
+        <!-- Taxonomía WP -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Categorías <span class="text-muted fw-normal">(IDs, coma)</span></label>
+            <input id="metaCats" type="text" class="form-control" placeholder="1, 5, 12">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Etiquetas <span class="text-muted fw-normal">(IDs, coma)</span></label>
+            <input id="metaTags" type="text" class="form-control" placeholder="3, 7">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Autor WP</label>
+            <select id="metaAuthor" class="form-select">
+              <option value="luis">🧑‍💼 Luis (admin)</option>
+              <option value="alejandra">🧠 Alejandra (Psicología)</option>
+              <option value="angela">🏥 Angela (Medicina)</option>
+            </select>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-info" onclick="autoClasificar()">🔄 Auto-clasificar con IA</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="autoDetectarAutor()">🔍 Auto-detectar autor</button>
+        </div>
+
+        <hr>
+        <!-- Contenido -->
+        <h6 class="section-title">📝 Contenido del artículo</h6>
+        <p class="text-muted small">Haz doble clic en cualquier párrafo/título para editarlo.</p>
+        <div id="wysiwyg" class="mb-3"></div>
+      </div>
+    </div>
+
+    <!-- ── Columna lateral: acciones e imágenes ─────────────────────── -->
+    <div class="col-lg-4">
+      <!-- Acciones rápidas (sticky) -->
+      <div class="main-card p-3 mb-3 edit-toolbar">
+        <h6 class="section-title">⚡ Acciones</h6>
+        <button class="btn btn-secondary w-100 mb-2" onclick="guardarBorrador()">💾 Guardar borrador</button>
+        <button id="btnPublicar" class="btn btn-primary w-100 mb-2" onclick="publicarEnWP()" disabled>
+          🚀 {% if simulate_wp %}Enviar a WP (simulado){% else %}Publicar en WordPress{% endif %}
+        </button>
+        <div id="publishNote" class="text-muted small mb-2">Agrega 1 imagen para habilitar el botón.</div>
+        <a id="btnDescargar" class="btn btn-outline-secondary w-100 mb-2" download>⬇️ Descargar JSON</a>
+        <button class="btn btn-outline-danger w-100" onclick="eliminarBorrador()">🗑️ Eliminar borrador</button>
+        <div id="actionMsg" class="mt-2"></div>
+      </div>
+
+      <!-- Panel de imágenes -->
+      <div class="main-card p-3 mb-3">
+        <h6 class="section-title">🖼️ Imágenes</h6>
+
+        <!-- Lista de imágenes existentes -->
+        <div id="imageList" class="mb-3"></div>
+
+        <!-- Añadir imagen -->
+        <div class="border rounded p-2">
+          <strong class="small">➕ Añadir imagen</strong>
+          <ul class="nav nav-tabs mt-2 mb-2" id="imgTabs">
+            <li class="nav-item"><a class="nav-link active" href="#" onclick="switchImgTab('url',this);return false">URL</a></li>
+            <li class="nav-item"><a class="nav-link" href="#" onclick="switchImgTab('file',this);return false">Subir archivo</a></li>
+          </ul>
+          <div id="imgTabUrl">
+            <input id="imgUrl" type="text" class="form-control form-control-sm mb-1" placeholder="https://…">
+          </div>
+          <div id="imgTabFile" style="display:none">
+            <input id="imgFile" type="file" class="form-control form-control-sm mb-1" accept=".jpg,.jpeg,.png,.gif,.webp">
+          </div>
+          <input id="imgAlt" type="text" class="form-control form-control-sm mb-1" placeholder="Alt text SEO…">
+          <select id="imgPos" class="form-select form-select-sm mb-2">
+            <option value="-1">Al inicio del artículo</option>
+            <option value="99999">Al final del artículo</option>
+          </select>
+          <button class="btn btn-sm btn-success w-100" onclick="agregarImagen()">✅ Añadir imagen</button>
+        </div>
+      </div>
+
+      <!-- Prompts de imagen IA -->
+      <div class="main-card p-3">
+        <h6 class="section-title">🎨 Prompts de Imagen IA</h6>
+        <p class="text-muted small">Copia cada prompt en Gemini (chat) para generar la imagen.</p>
+        <div id="imagePrompts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_ICONS = {comparativa:"📊",guia:"📖",resena_seo:"🔍",opinion:"💬",listicle:"📋",howto:"🛠️"};
+const BLOCK_TAGS = new Set(['h1','h2','h3','h4','p','li','blockquote','pre']);
+const filename   = "{{ filename }}";
+
+let _draftData  = null;
+let _blocks     = [];
+let _images     = [];
+let _editingIdx = null;
+
+// ── Inicialización ─────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  if (filename) {
+    cargarBorrador(filename);
+  } else {
+    cargarListaBorradores();
+  }
+});
+
+function cargarListaBorradores() {
+  document.getElementById('draftListPanel').style.display = '';
+  fetch('/api/borradores').then(r=>r.json()).then(data => {
+    if (!data.length) {
+      document.getElementById('draftListContent').innerHTML =
+        '<div class="alert alert-info">No hay borradores. <a href="/">Genera uno desde el inicio.</a></div>';
+      return;
+    }
+    let html = '<div class="list-group">';
+    data.forEach(d => {
+      const icon = TYPE_ICONS[d.post_type] || '📄';
+      const ts   = (d.created_at||'').substring(0,10);
+      html += `<a href="/borrador?file=${encodeURIComponent(d.filename)}"
+          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div>
+          <strong>${icon} ${d.title}</strong><br>
+          <span class="text-muted small">${d.post_type} · ${ts}</span>
+        </div>
+        <span class="badge bg-primary">Editar →</span>
+      </a>`;
+    });
+    html += '</div>';
+    document.getElementById('draftListContent').innerHTML = html;
+  });
+}
+
+function cargarBorrador(fname) {
+  fetch(`/api/borrador/${encodeURIComponent(fname)}`).then(r=>r.json()).then(data => {
+    if (data.error) {
+      document.getElementById('draftListPanel').style.display = '';
+      document.getElementById('draftListContent').innerHTML =
+        `<div class="alert alert-danger">${data.error}</div>`;
+      cargarListaBorradores();
+      return;
+    }
+    _draftData = data;
+    _images    = data.images || [];
+    _blocks    = parseBlocks(data.content || '');
+    poblarFormulario(data, fname);
+    renderWysiwyg();
+    renderImagenes();
+    renderImagePrompts();
+    document.getElementById('draftListPanel').style.display = 'none';
+    document.getElementById('editorPanel').style.display   = '';
+
+    // Configurar enlace de descarga
+    document.getElementById('btnDescargar').href = `/api/borrador/${encodeURIComponent(fname)}/descargar`;
+  }).catch(e => {
+    showToast('Error cargando borrador: ' + e, 'danger');
+  });
+}
+
+function poblarFormulario(d, fname) {
+  document.getElementById('metaTitle').value  = d.title              || '';
+  document.getElementById('metaKw').value     = d.focus_keyword      || '';
+  document.getElementById('metaDesc').value   = d.meta_description   || '';
+  document.getElementById('metaAff').value    = d.affiliate_url      || '';
+  document.getElementById('metaCats').value   = (d.categories||[]).join(', ');
+  document.getElementById('metaTags').value   = (d.tags||[]).join(', ');
+  document.getElementById('postTypeIcon').textContent  = TYPE_ICONS[d.post_type] || '📄';
+  document.getElementById('postTypeLabel').textContent = d.post_type || '';
+  document.getElementById('filenameLabel').textContent = fname;
+
+  // Auto-detectar autor
+  const titleLower   = (d.title||'').toLowerCase();
+  const contentLower = (d.content||'').toLowerCase();
+  const psiKeys = ['psicolog','ansiedad','depresión','depresion','mental','terapia','emocional','trauma'];
+  const medKeys = ['medicin','salud','clínic','clinic','enfermed','tratamiento','síntom','sintom','pacient'];
+  const author = psiKeys.some(k => titleLower.includes(k)||contentLower.includes(k)) ? 'alejandra'
+               : medKeys.some(k => titleLower.includes(k)||contentLower.includes(k)) ? 'angela' : 'luis';
+  document.getElementById('metaAuthor').value = author;
+
+  // Poblar posiciones de imagen con headings
+  const pos = document.getElementById('imgPos');
+  const headings = _blocks.filter(b => ['h1','h2','h3'].includes(b.tag));
+  headings.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b.idx;
+    opt.textContent = `Después de <${b.tag}> ${b.text.substring(0,40)}`;
+    pos.insertBefore(opt, pos.options[pos.options.length-1]);
+  });
+}
+
+// ── HTML Parser ────────────────────────────────────────────────────────────
+function parseBlocks(html) {
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const blocks = [];
+  let idx = 0;
+  tmp.childNodes.forEach(node => {
+    if (node.nodeType !== 1) return;
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'ul' || tag === 'ol') {
+      blocks.push({idx: idx++, tag, text: node.outerHTML, raw: node.outerHTML, isList:true});
+    } else if (BLOCK_TAGS.has(tag)) {
+      blocks.push({idx: idx++, tag, text: node.innerHTML, raw: node.innerHTML, isList:false});
+    }
+  });
+  return blocks;
+}
+
+function blocksToHtml() {
+  return _blocks.map(b => b.isList ? b.text : `<${b.tag}>${b.text}</${b.tag}>`).join('\n');
+}
+
+// ── WYSIWYG renderer ──────────────────────────────────────────────────────
+function renderWysiwyg() {
+  const container = document.getElementById('wysiwyg');
+  container.innerHTML = '';
+
+  if (_editingIdx !== null) {
+    renderEditingBlock(_editingIdx, container);
+    return;
+  }
+
+  _blocks.forEach((b, i) => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'wy-block';
+    wrapper.dataset.idx = i;
+
+    // Renderizar contenido del bloque
+    let inner = '';
+    const hint = '<span class="wy-edit-hint">✏ doble clic para editar</span>';
+    if (b.isList) {
+      inner = `${b.text}${hint}`;
+    } else if (b.tag === 'h1') {
+      inner = `<div class="wy-h1">${b.text}${hint}</div>`;
+    } else if (b.tag === 'h2') {
+      inner = `<div class="wy-h2">${b.text}${hint}</div>`;
+    } else if (b.tag === 'h3') {
+      inner = `<div class="wy-h3">${b.text}${hint}</div>`;
+    } else if (b.tag === 'h4') {
+      inner = `<div class="wy-h4">${b.text}${hint}</div>`;
+    } else if (b.tag === 'blockquote') {
+      inner = `<div class="wy-bq">${b.text}${hint}</div>`;
+    } else if (b.tag === 'pre') {
+      inner = `<pre>${b.text}</pre>`;
+    } else {
+      inner = `<p class="wy-p">${b.text}${hint}</p>`;
+    }
+    wrapper.innerHTML = inner;
+    wrapper.addEventListener('dblclick', () => { _editingIdx = i; renderWysiwyg(); });
+
+    // Imágenes después de este bloque
+    const blockImgs = _images.filter(img => String(img.after_block) === String(i));
+    container.appendChild(wrapper);
+    blockImgs.forEach(img => renderImgThumbnail(img, container));
+  });
+
+  // Imágenes al inicio (after_block == -1)
+  const initImgs = _images.filter(img => String(img.after_block) === '-1');
+  if (initImgs.length && container.firstChild) {
+    initImgs.forEach(img => {
+      const thumb = buildImgThumb(img);
+      container.insertBefore(thumb, container.firstChild);
+    });
+  }
+
+  // Imágenes al final
+  const endImgs = _images.filter(img => String(img.after_block) === '99999');
+  endImgs.forEach(img => renderImgThumbnail(img, container));
+}
+
+function renderEditingBlock(i, container) {
+  const b = _blocks[i];
+  const isShort = ['h1','h2','h3','h4'].includes(b.tag);
+  const before = document.createElement('div');
+  before.className = 'alert alert-secondary py-1 small';
+  before.textContent = `Editando <${b.tag}> (bloque ${i+1}/${_blocks.length})`;
+  container.appendChild(before);
+
+  const ta = document.createElement('textarea');
+  ta.className = 'form-control mb-2';
+  ta.rows = isShort ? 2 : 8;
+  ta.value = b.isList ? b.text : b.text;
+  container.appendChild(ta);
+
+  const row = document.createElement('div');
+  row.className = 'd-flex gap-2 mb-3';
+
+  const btnSave = document.createElement('button');
+  btnSave.className = 'btn btn-success';
+  btnSave.textContent = '✅ Guardar';
+  btnSave.onclick = () => {
+    _blocks[i].text = ta.value;
+    _blocks[i].raw  = ta.value;
+    if (_blocks[i].isList) _blocks[i].text = ta.value;
+    _editingIdx = null;
+    renderWysiwyg();
+  };
+
+  const btnCancel = document.createElement('button');
+  btnCancel.className = 'btn btn-outline-secondary';
+  btnCancel.textContent = '❌ Cancelar';
+  btnCancel.onclick = () => { _editingIdx = null; renderWysiwyg(); };
+
+  row.appendChild(btnSave);
+  row.appendChild(btnCancel);
+  container.appendChild(row);
+  ta.focus();
+}
+
+function renderImgThumbnail(img, container) {
+  container.appendChild(buildImgThumb(img));
+}
+
+function buildImgThumb(img) {
+  const d = document.createElement('div');
+  d.className = 'd-flex align-items-center gap-2 my-1 p-2 bg-light rounded';
+  let srcAttr = img.src || '';
+  if (srcAttr.startsWith('[LOCAL]')) {
+    const localName = srcAttr.replace('[LOCAL]', '').trim().split(/[/\\]/).pop();
+    srcAttr = `/api/imagen/${encodeURIComponent(localName)}`;
+  }
+  d.innerHTML = `<img src="${srcAttr}" class="img-thumb" alt="${img.alt||''}">
+    <div class="small flex-grow-1"><strong>${img.alt||'sin alt'}</strong><br><span class="text-muted">${(img.name||'').substring(0,40)}</span></div>`;
+  return d;
+}
+
+// ── Imágenes - lista lateral ───────────────────────────────────────────────
+function renderImagenes() {
+  const list = document.getElementById('imageList');
+  if (!_images.length) {
+    list.innerHTML = '<p class="text-muted small">Sin imágenes. Agrega 1 para habilitar la publicación.</p>';
+    document.getElementById('btnPublicar').disabled = true;
+    document.getElementById('publishNote').textContent = 'Agrega 1 imagen para habilitar el botón.';
+    return;
+  }
+  let html = '';
+  _images.forEach((img, i) => {
+    let src = img.src || '';
+    if (src.startsWith('[LOCAL]')) {
+      const n = src.replace('[LOCAL]','').trim().split(/[/\\]/).pop();
+      src = `/api/imagen/${encodeURIComponent(n)}`;
+    }
+    html += `<div class="d-flex align-items-center gap-2 mb-2">
+      <img src="${src}" class="img-thumb" alt="${img.alt||''}">
+      <div class="flex-grow-1 small">
+        <strong>${(img.alt||'sin alt').substring(0,30)}</strong><br>
+        <span class="text-muted">${(img.name||'').substring(0,25)}</span>
+      </div>
+      <button class="btn btn-sm btn-outline-danger" onclick="eliminarImagen(${i})">🗑️</button>
+    </div>`;
+  });
+  list.innerHTML = html;
+  document.getElementById('btnPublicar').disabled = false;
+  document.getElementById('publishNote').textContent = `${_images.length} imagen(es) añadida(s).`;
+}
+
+function renderImagePrompts() {
+  const panel = document.getElementById('imagePrompts');
+  const prompts = (_draftData && _draftData.image_prompts) || {};
+  const labels = {portada:'🖼️ Portada — Hero 16:9', img1:'📷 Imagen 1 — Introducción',
+                  img2:'📷 Imagen 2 — Contenido', img3:'📷 Imagen 3 — Cierre'};
+  if (!Object.keys(prompts).length) {
+    panel.innerHTML = '<p class="text-muted small">Se generan automáticamente al crear el post.</p>';
+    return;
+  }
+  let html = '';
+  for (const [k,v] of Object.entries(labels)) {
+    if (prompts[k]) html += `<strong class="small">${v}</strong><pre class="bg-light rounded p-2 small" style="font-size:.75rem;white-space:pre-wrap">${prompts[k]}</pre>`;
+  }
+  panel.innerHTML = html || '<p class="text-muted small">Sin prompts.</p>';
+}
+
+// ── Imágenes - añadir ──────────────────────────────────────────────────────
+function switchImgTab(tab, linkEl) {
+  document.getElementById('imgTabUrl').style.display  = tab==='url'  ? '' : 'none';
+  document.getElementById('imgTabFile').style.display = tab==='file' ? '' : 'none';
+  document.querySelectorAll('#imgTabs .nav-link').forEach(l => l.classList.remove('active'));
+  linkEl.classList.add('active');
+}
+
+async function agregarImagen() {
+  const fileInput = document.getElementById('imgFile');
+  const urlInput  = document.getElementById('imgUrl');
+  const alt       = document.getElementById('imgAlt').value.trim();
+  const pos       = document.getElementById('imgPos').value;
+
+  let src = '', name = '';
+
+  if (document.getElementById('imgTabFile').style.display !== 'none' && fileInput.files.length) {
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/imagen`, {method:'POST', body:fd});
+    const d = await r.json();
+    if (!d.ok) { showToast(d.error || 'Error al subir', 'danger'); return; }
+    src  = d.src;
+    name = d.name;
+  } else {
+    src  = urlInput.value.trim();
+    name = src.split('/').pop();
+    if (!src) { showToast('Introduce una URL de imagen', 'warning'); return; }
+  }
+
+  _images.push({id: crypto.randomUUID(), src, alt, caption:'', after_block: parseInt(pos), name,
+                marker: `<!-- img:${Math.random().toString(36).slice(2,8)} -->`});
+  renderImagenes();
+  renderWysiwyg();
+  // Reset form
+  fileInput.value = ''; urlInput.value = ''; document.getElementById('imgAlt').value = '';
+  showToast('Imagen añadida');
+}
+
+function eliminarImagen(idx) {
+  _images.splice(idx, 1);
+  renderImagenes();
+  renderWysiwyg();
+}
+
+// ── Guardar ────────────────────────────────────────────────────────────────
+function buildDraftData() {
+  const cats = document.getElementById('metaCats').value.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n));
+  const tags  = document.getElementById('metaTags').value.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n));
+  return {
+    ..._draftData,
+    title:            document.getElementById('metaTitle').value,
+    focus_keyword:    document.getElementById('metaKw').value,
+    meta_description: document.getElementById('metaDesc').value,
+    affiliate_url:    document.getElementById('metaAff').value || null,
+    categories:       cats,
+    tags,
+    content:          blocksToHtml(),
+    images:           _images,
+  };
+}
+
+function guardarBorrador() {
+  const data = buildDraftData();
+  fetch(`/api/borrador/${encodeURIComponent(filename)}/guardar`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) showToast('💾 Borrador guardado');
+    else showToast(d.error || 'Error al guardar', 'danger');
+  });
+}
+
+function publicarEnWP() {
+  if (!confirm('¿Enviar este borrador a WordPress?')) return;
+  const data = buildDraftData();
+  const payload = {
+    ...data,
+    author_key: document.getElementById('metaAuthor').value,
+  };
+  document.getElementById('btnPublicar').disabled = true;
+  document.getElementById('actionMsg').innerHTML = '<span class="text-muted small">Enviando a WordPress…</span>';
+
+  fetch(`/api/borrador/${encodeURIComponent(filename)}/publicar`, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+  }).then(r=>r.json()).then(d => {
+    document.getElementById('btnPublicar').disabled = false;
+    document.getElementById('actionMsg').innerHTML = '';
+    if (d.ok) {
+      if (d.simulated) {
+        showToast(`✅ [Simulado] Borrador enviado — ID: ${d.wp_post_id}`);
+      } else {
+        showToast('✅ Borrador enviado a WordPress. El archivo local fue eliminado.');
+        setTimeout(() => { window.location.href = '/historial'; }, 2000);
+      }
+    } else {
+      showToast(d.error || 'Error al publicar', 'danger');
+    }
+  });
+}
+
+function eliminarBorrador() {
+  if (!confirm('¿Eliminar este borrador permanentemente?')) return;
+  fetch(`/api/borrador/${encodeURIComponent(filename)}/eliminar`, {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      showToast('Borrador eliminado');
+      setTimeout(() => { window.location.href = '/borrador'; }, 1000);
+    });
+}
+
+function autoClasificar() {
+  fetch(`/api/borrador/${encodeURIComponent(filename)}/autoclasificar`, {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      if (d.ok) {
+        document.getElementById('metaCats').value = d.categories.join(', ');
+        document.getElementById('metaTags').value = d.tags.join(', ');
+        showToast('✅ Clasificación completada');
+      } else {
+        showToast(d.error || 'Error al clasificar', 'danger');
+      }
+    });
+}
+
+function autoDetectarAutor() {
+  const title   = document.getElementById('metaTitle').value.toLowerCase();
+  const content = blocksToHtml().toLowerCase();
+  const psiKeys = ['psicolog','ansiedad','depresión','depresion','mental','terapia','emocional'];
+  const medKeys = ['medicin','salud','clínic','clinic','enfermed','tratamiento','síntom'];
+  const author  = psiKeys.some(k=>title.includes(k)||content.includes(k)) ? 'alejandra'
+                : medKeys.some(k=>title.includes(k)||content.includes(k)) ? 'angela' : 'luis';
+  document.getElementById('metaAuthor').value = author;
+  showToast(`Autor detectado: ${author}`);
+}
+</script>
+{% endblock %}

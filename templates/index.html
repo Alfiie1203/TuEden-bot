@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% block title %}Generar Borradores · Blog Content Generator{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- ── Columna izquierda: formulario ──────────────────────────────────── -->
+  <div class="col-lg-7">
+    <div class="main-card p-4">
+      <h5 class="section-title">🚀 Nueva Generación</h5>
+
+      <!-- Aviso de modo -->
+      {% if mock_mode %}
+      <div class="alert alert-warning py-2 small mb-3">
+        🟡 <strong>Modo MOCK activo</strong> — 0 tokens gastados.
+        Para usar Gemini real: cambia <code>GEMINI_MOCK_MODE=false</code> en <code>.env</code>.
+      </div>
+      {% elif simulate_wp %}
+      <div class="alert alert-info py-2 small mb-3">
+        ℹ️ <strong>WordPress en modo simulado.</strong> Los borradores se guardan en <code>drafts_output/</code>.
+      </div>
+      {% else %}
+      <div class="alert alert-success py-2 small mb-3">
+        ✅ WordPress real: <code>{{ wp_url }}</code>
+      </div>
+      {% endif %}
+
+      <!-- Formulario -->
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Tópico o URL de Amazon</label>
+        <input id="inputTopico" type="text" class="form-control"
+          placeholder="Ej: medicina moderna  ·  auriculares Sony  ·  https://amazon.es/dp/XXXX">
+        <div class="form-text">Escribe any tópico o pega una URL de Amazon para modo afiliado.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label fw-semibold">Enfoque del artículo <span class="text-muted fw-normal">(opcional)</span></label>
+        <textarea id="inputFocus" class="form-control" rows="2"
+          placeholder="Ej: el impacto de las pantallas azules en niños menores de 12 años…"></textarea>
+        <div class="form-text">Define el ángulo específico. Si lo dejas vacío, Gemini eligirá el más relevante.</div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Modo de generación</label>
+          <select id="selMode" class="form-select">
+            <option value="auto">🔍 Auto-detectar</option>
+            <option value="amazon">🛒 Amazon / Afiliado</option>
+            <option value="libre">📝 Tópico libre</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Revisado por</label>
+          <select id="selReviewer" class="form-select">
+            <option value="">— Sin revisor —</option>
+            <option value="Médico">🩺 Médico</option>
+            <option value="Psicólogo">🧠 Psicólogo</option>
+            <option value="Editor">✍️ Editor</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">Modelo Gemini</label>
+          <select id="selModel" class="form-select">
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="btnGenerar" class="btn btn-primary w-100 btn-lg" onclick="iniciarGeneracion()">
+        ✨ Generar 3 Borradores
+      </button>
+    </div>
+
+    <!-- ── Progreso ─────────────────────────────────────────────────────── -->
+    <div id="progressSection" class="main-card p-4 mt-4" style="display:none">
+      <h6 class="section-title">⏳ Generando…</h6>
+      <div class="progress mb-2" style="height:12px">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:5%"></div>
+      </div>
+      <div id="progressMsg" class="text-muted small"></div>
+    </div>
+
+    <!-- ── Resultados ───────────────────────────────────────────────────── -->
+    <div id="resultsSection" class="main-card p-4 mt-4" style="display:none">
+      <h6 class="section-title">📋 Borradores Generados</h6>
+      <div id="resultsContent"></div>
+    </div>
+  </div>
+
+  <!-- ── Columna derecha: accesos rápidos ─────────────────────────────── -->
+  <div class="col-lg-5">
+    <div class="main-card p-4 mb-4">
+      <h6 class="section-title">📰 Tópicos del Día</h6>
+      <p class="text-muted small">Consulta los temas más relevantes del momento y genera posts con un solo clic.
+        La consulta a Gemini se realiza <strong>una vez al día</strong>.</p>
+      <a href="/topicos" class="btn btn-primary w-100">📰 Tópicos del día →</a>
+    </div>
+
+    <div class="main-card p-4 mb-4">
+      <h6 class="section-title">📜 Historial</h6>
+      <p class="text-muted small">Consulta el historial completo de todas las generaciones realizadas,
+        con filtros por tipo y modo.</p>
+      <a href="/historial" class="btn btn-outline-secondary w-100">📜 Ver historial completo →</a>
+    </div>
+
+    <div class="main-card p-4 mb-4">
+      <h6 class="section-title">✏️ Borradores guardados</h6>
+      <p class="text-muted small">Abre el editor para revisar, modificar o publicar cualquier borrador guardado.</p>
+      <a href="/borrador" class="btn btn-outline-secondary w-100">📝 Ver / Editar borradores →</a>
+    </div>
+
+    <!-- Estadísticas rápidas -->
+    <div class="main-card p-4">
+      <h6 class="section-title">📊 Estadísticas</h6>
+      <div id="statsBox" class="row g-2 text-center">
+        <div class="col-6">
+          <div class="bg-light rounded p-2">
+            <div class="fw-bold fs-5" id="statBorradores">—</div>
+            <div class="text-muted small">Borradores guardados</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="bg-light rounded p-2">
+            <div class="fw-bold fs-5" id="statPosts">—</div>
+            <div class="text-muted small">Posts en historial</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_ICONS  = {comparativa:"📊",guia:"📖",resena_seo:"🔍",evergreen:"💬",listicle:"📋",howto:"🛠️",opinion:"✍️"};
+const TYPE_LABELS = {comparativa:"Post A — Comparativa",guia:"Post B — Guía de Beneficios",
+  resena_seo:"Post C — Reseña SEO",evergreen:"Post A — Artículo de Opinión",
+  listicle:"Post B — Listicle / Top N",howto:"Post C — Guía Paso a Paso",opinion:"Post — Opinión"};
+
+function iniciarGeneracion() {
+  const topico = document.getElementById('inputTopico').value.trim();
+  if (!topico) { showToast('Por favor escribe un tópico o URL antes de generar.','warning'); return; }
+
+  document.getElementById('btnGenerar').disabled = true;
+  document.getElementById('progressSection').style.display = '';
+  document.getElementById('resultsSection').style.display  = 'none';
+  document.getElementById('progressBar').style.width = '5%';
+  document.getElementById('progressMsg').textContent = 'Iniciando…';
+
+  const payload = {
+    topico:       topico,
+    focus:        document.getElementById('inputFocus').value.trim(),
+    mode:         document.getElementById('selMode').value,
+    reviewer:     document.getElementById('selReviewer').value,
+    gemini_model: document.getElementById('selModel').value,
+  };
+
+  fetch('/api/generar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+    .then(r=>r.json())
+    .then(d => {
+      if (d.error) { showToast(d.error,'danger'); resetBtn(); return; }
+      listenProgress(d.task_id);
+    })
+    .catch(e => { showToast('Error: ' + e,'danger'); resetBtn(); });
+}
+
+function listenProgress(taskId) {
+  const es = new EventSource(`/api/progreso/${taskId}`);
+  const bar = document.getElementById('progressBar');
+  const msg = document.getElementById('progressMsg');
+
+  es.onmessage = evt => {
+    const d = JSON.parse(evt.data);
+    if (d.type === 'progress') {
+      const pct = Math.round((d.step / d.total) * 100);
+      bar.style.width = pct + '%';
+      msg.textContent = `Paso ${d.step}/${d.total}: ${d.message}`;
+    } else if (d.type === 'done') {
+      es.close();
+      bar.style.width = '100%';
+      bar.classList.remove('progress-bar-animated');
+      msg.textContent = '¡Completado!';
+      mostrarResultados(d.drafts, d.topic);
+      resetBtn();
+      cargarEstadisticas();
+    } else if (d.type === 'error') {
+      es.close();
+      showToast('Error: ' + d.message, 'danger');
+      resetBtn();
+    }
+  };
+  es.onerror = () => { es.close(); showToast('Se perdió la conexión con el servidor.','danger'); resetBtn(); };
+}
+
+function mostrarResultados(drafts, topic) {
+  const sec = document.getElementById('resultsSection');
+  sec.style.display = '';
+  let html = `<p class="text-muted small mb-3">✅ 3 borradores generados para: <em>${topic}</em></p>`;
+
+  drafts.forEach(d => {
+    const icon  = TYPE_ICONS[d.post_type] || '📄';
+    const label = TYPE_LABELS[d.post_type] || d.post_type;
+    if (d.is_error) {
+      html += `<div class="alert alert-danger small">❌ <strong>${label}</strong>: ${d.error_msg}</div>`;
+    } else {
+      html += `<div class="d-flex justify-content-between align-items-start border-bottom pb-2 mb-3">
+        <div>
+          <strong>${icon} ${label}</strong><br>
+          <span class="badge bg-secondary">${d.focus_keyword}</span>
+          <span class="text-muted small ms-1">${(d.meta_description||'').substring(0,80)}…</span>
+        </div>
+        <div class="ms-3 flex-shrink-0">`;
+      if (d.draft_file) {
+        html += `<a href="/borrador?file=${encodeURIComponent(d.draft_file)}" class="btn btn-sm btn-primary">📝 Ver / Editar</a>`;
+      } else {
+        html += `<span class="text-muted small">(sin archivo)</span>`;
+      }
+      html += `</div></div>`;
+    }
+  });
+  document.getElementById('resultsContent').innerHTML = html;
+}
+
+function resetBtn() {
+  document.getElementById('btnGenerar').disabled = false;
+}
+
+function cargarEstadisticas() {
+  fetch('/api/borradores').then(r=>r.json()).then(data => {
+    document.getElementById('statBorradores').textContent = data.length;
+  });
+  fetch('/api/historial').then(r=>r.json()).then(data => {
+    document.getElementById('statPosts').textContent = data.length;
+  });
+}
+
+// Cargar estadísticas al abrir la página
+cargarEstadisticas();
+</script>
+{% endblock %}

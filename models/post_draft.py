@@ -38,6 +38,9 @@ class PostDraft(BaseModel):
     draft_file:       Optional[str] = None   # Nombre del archivo JSON local (modo simulado)
     created_at:       str = ""               # Timestamp ISO
     images:           List[Dict[str, Any]] = []  # [{src, alt, caption, position_label, marker}]
+    image_prompts:    Dict[str, str] = {}    # {portada, img1, img2, img3} — prompts IA
+    categories:       List[int] = []         # IDs de categorías WordPress
+    tags:             List[int] = []         # IDs de etiquetas WordPress
 
     def model_post_init(self, __context) -> None:
         if not self.created_at:

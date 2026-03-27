@@ -201,8 +201,18 @@ def _init_state(draft_data: dict, fname: str):
         st.session_state["_loaded_file"] = fname
         st.session_state["draft_data"]   = dict(draft_data)
         st.session_state["blocks"]       = parse_blocks(draft_data.get("content", ""))
-        st.session_state["editing_idx"]  = None
-        st.session_state["images"]       = list(draft_data.get("images", []))
+        st.session_state["editing_idx"]      = None
+        st.session_state["images"]           = list(draft_data.get("images", []))
+        st.session_state["image_prompts"]    = draft_data.get("image_prompts", {})
+        st.session_state["adding_img_after"] = None
+        st.session_state["wp_categories"]    = list(draft_data.get("categories", []))
+        st.session_state["wp_tags"]          = list(draft_data.get("tags", []))
+        # Auto-detectar autor según el contenido
+        from core.wp_author_router import detect_author
+        st.session_state["wp_author"] = detect_author(
+            title   = draft_data.get("title", ""),
+            content = draft_data.get("content", ""),
+        )
 
 
 def _rebuild_content():
@@ -244,24 +254,67 @@ def _render_blocks():
     }
     .wy-block:hover .wy-hint { display:inline; }
     /* Botón oculto que sirve de receptor del doble clic JS */
-    .wy-hidden-btn {
-        visibility: hidden;
-        height: 0 !important;
-        overflow: hidden;
-        margin: 0 !important;
-        padding: 0 !important;
-        line-height: 0;
-    }
-    .wy-hidden-btn > div,
-    .wy-hidden-btn > div > div,
-    .wy-hidden-btn [data-testid="stButton"],
-    .wy-hidden-btn button {
+    /* Botón invisible del doble-clic — ocultado por su clase de clave Streamlit */
+    [class*="st-key-dbl_"] {
+        visibility: hidden !important;
         height: 0 !important;
         min-height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        border: none !important;
+    }
+    [class*="st-key-dbl_"] * {
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
         padding: 0 !important;
         margin: 0 !important;
         border: none !important;
         overflow: hidden !important;
+    }
+    /* Botón invisible de insertar imagen — mismo sistema que dbl_ */
+    [class*="st-key-imgadd_"] {
+        visibility: hidden !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 0 !important;
+        border: none !important;
+    }
+    [class*="st-key-imgadd_"] * {
+        height: 0 !important;
+        min-height: 0 !important;
+        max-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+    }
+    /* Botón flotante "+" generado por JS al hover de cada bloque */
+    .wy-block { position: relative; }
+    .wy-img-btn {
+        position: absolute; right: 8px; top: 50%;
+        transform: translateY(-50%);
+        width: 22px; height: 22px; border-radius: 50%;
+        background: #0d6efd; color: white; border: none;
+        cursor: pointer; font-size: 14px; line-height: 22px;
+        text-align: center; opacity: 0;
+        transition: opacity 0.15s; z-index: 10; padding: 0;
+    }
+    .wy-block:hover .wy-img-btn { opacity: 1; }
+    /* Formulario inline de imagen */
+    .wy-inline-img-form {
+        background: #f0f9ff;
+        border: 1px dashed #90cdf4;
+        border-radius: 6px;
+        padding: 0.5rem;
+        margin: 0.25rem 0;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -320,14 +373,18 @@ def _render_blocks():
         else:
             st.markdown(f'<div class="wy-block"><p class="wy-p">{text}{hint}</p></div>', unsafe_allow_html=True)
 
-        # Botón invisible — oculto por CSS global (.wy-hidden-btn)
-        st.markdown('<div class="wy-hidden-btn">', unsafe_allow_html=True)
+        # Botón invisible de edición — oculto por CSS
         if st.button("·", key=f"dbl_{i}", use_container_width=True):
             st.session_state["editing_idx"] = i
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
 
-        # JS: escucha doble clic en el bloque y hace click en el botón oculto
+        # Botón invisible para insertar imagen — oculto por CSS
+        if st.button("📷", key=f"imgadd_{i}", use_container_width=True):
+            cur = st.session_state.get("adding_img_after")
+            st.session_state["adding_img_after"] = None if cur == i else i
+            st.rerun()
+
+        # JS: doble clic → edición; click "+" → insertar imagen
         components.html(f"""
         <script>
         (function() {{
@@ -337,20 +394,45 @@ def _render_blocks():
                 var blocks = parent.querySelectorAll('.wy-block');
                 var block  = blocks[BLOCK_IDX];
                 if (!block) {{ setTimeout(init, 200); return; }}
+                if (block.dataset['wyInit' + BLOCK_IDX]) return;
+                block.dataset['wyInit' + BLOCK_IDX] = '1';
+
+                // Doble clic → modo edición
                 block.addEventListener('dblclick', function(e) {{
                     e.preventDefault(); e.stopPropagation();
-                    // Buscar todos los botones invisibles (texto '·')
                     var allBtns = Array.from(parent.querySelectorAll('button'));
-                    var hiddenBtns = allBtns.filter(function(b) {{
+                    var dblBtns = allBtns.filter(function(b) {{
                         return b.textContent.trim() === '·';
                     }});
-                    if (hiddenBtns[BLOCK_IDX]) hiddenBtns[BLOCK_IDX].click();
+                    if (dblBtns[BLOCK_IDX]) dblBtns[BLOCK_IDX].click();
+                }});
+
+                // Crear botón "+" flotante
+                var imgBtn = parent.createElement('button');
+                imgBtn.textContent = '+';
+                imgBtn.className   = 'wy-img-btn';
+                block.appendChild(imgBtn);
+                imgBtn.addEventListener('click', function(e) {{
+                    e.preventDefault(); e.stopPropagation();
+                    var camIcon = String.fromCodePoint(0x1F4F7);
+                    var allBtns = Array.from(parent.querySelectorAll('button'));
+                    var addBtns = allBtns.filter(function(b) {{
+                        return b.textContent.trim() === camIcon;
+                    }});
+                    if (addBtns[BLOCK_IDX]) addBtns[BLOCK_IDX].click();
                 }});
             }}
             init();
         }})();
         </script>
         """, height=0)
+
+        # Formulario inline de inserción de imagen
+        if st.session_state.get("adding_img_after") == i:
+            _render_inline_image_form(i)
+
+        # Miniaturas de imágenes asignadas a este bloque
+        _render_image_thumbnails(i)
 
 
 def _render_image_thumbnails(after_block_idx: int):
@@ -376,6 +458,104 @@ def _render_image_thumbnails(after_block_idx: int):
 # ─────────────────────────────────────────────────────────────────────────────
 # Panel de imágenes
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _render_inline_image_form(after_idx: int):
+    """Formulario inline para insertar imagen tras el bloque `after_idx`."""
+    st.markdown('<div class="wy-inline-img-form">', unsafe_allow_html=True)
+    st.markdown("**📷 Insertar imagen aquí**")
+    c1, c2, c3 = st.columns([3, 2, 1])
+    with c1:
+        url_in = st.text_input(
+            "URL",
+            key=f"iurl_{after_idx}",
+            placeholder="https://...",
+            label_visibility="collapsed",
+        )
+    with c2:
+        alt_in = st.text_input(
+            "Alt text SEO",
+            key=f"ialt_{after_idx}",
+            placeholder="Descripción de la imagen...",
+            label_visibility="collapsed",
+        )
+    with c3:
+        cc1, cc2 = st.columns(2)
+        with cc1:
+            ok = st.button("✅", key=f"iconfirm_{after_idx}", help="Añadir imagen")
+        with cc2:
+            cancel = st.button("✖", key=f"icancel_{after_idx}", help="Cancelar")
+
+    with st.expander("📁 O sube un archivo"):
+        uploaded = st.file_uploader(
+            "Imagen",
+            type=["jpg", "jpeg", "png", "gif", "webp"],
+            key=f"ifile_{after_idx}",
+        )
+        file_alt = st.text_input(
+            "Alt text archivo",
+            key=f"ifilealt_{after_idx}",
+            placeholder="Alt text SEO...",
+        )
+        if uploaded and st.button("✅ Añadir archivo", key=f"ifileadd_{after_idx}"):
+            ext  = Path(uploaded.name).suffix
+            safe = f"img_{uuid.uuid4().hex[:8]}{ext}"
+            dest = IMAGES_DIR / safe
+            dest.write_bytes(uploaded.read())
+            st.session_state["images"].append({
+                "id":          str(uuid.uuid4()),
+                "src":         str(dest),
+                "alt":         file_alt.strip(),
+                "caption":     "",
+                "after_block": after_idx,
+                "marker":      f"<!-- img:{uuid.uuid4().hex[:6]} -->",
+                "name":        uploaded.name,
+            })
+            st.session_state["adding_img_after"] = None
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if ok:
+        if url_in.strip():
+            st.session_state["images"].append({
+                "id":          str(uuid.uuid4()),
+                "src":         url_in.strip(),
+                "alt":         alt_in.strip(),
+                "caption":     "",
+                "after_block": after_idx,
+                "marker":      f"<!-- img:{uuid.uuid4().hex[:6]} -->",
+                "name":        url_in.strip().split("/")[-1],
+            })
+        st.session_state["adding_img_after"] = None
+        st.rerun()
+
+    if cancel:
+        st.session_state["adding_img_after"] = None
+        st.rerun()
+
+
+def _image_prompts_panel():
+    """Panel lateral con los 4 prompts de imagen generados por IA."""
+    st.subheader("🎨 Prompts de Imagen IA")
+    st.caption("Copia cada prompt en Gemini (chat) para generar la imagen.")
+
+    prompts = st.session_state.get("image_prompts", {})
+    if not prompts:
+        st.info("Los prompts se generan automáticamente al crear el post.", icon="ℹ️")
+        return
+
+    labels = {
+        "portada": "🖼️ Portada — Hero 16:9",
+        "img1":    "📷 Imagen 1 — Introducción",
+        "img2":    "📷 Imagen 2 — Contenido",
+        "img3":    "📷 Imagen 3 — Cierre",
+    }
+    for key, label in labels.items():
+        text = prompts.get(key, "")
+        if text:
+            st.markdown(f"**{label}**")
+            st.code(text, language=None)
+
 
 def _heading_options() -> list[tuple[int, str]]:
     blocks  = st.session_state.get("blocks", [])
@@ -476,6 +656,52 @@ def _image_panel():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Auto-clasificación de taxonomía con Gemini + WP REST API
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _autoclassify_taxonomy():
+    """Llama a wp_taxonomy.assign_taxonomy y actualiza el session_state."""
+    import os
+    from dotenv import load_dotenv
+    from requests.auth import HTTPBasicAuth
+    from core.wp_taxonomy import assign_taxonomy
+    from core.gemini_client import GeminiClient
+
+    load_dotenv()
+    base_url     = os.getenv("WP_BASE_URL", "").rstrip("/")
+    wp_user      = os.getenv("WP_USERNAME", "")
+    wp_pass      = os.getenv("WP_APP_PASSWORD", "")
+
+    if not base_url or not wp_user or not wp_pass:
+        st.error("Configura WP_BASE_URL, WP_USERNAME y WP_APP_PASSWORD en el .env para usar esta función.")
+        return
+
+    data      = st.session_state["draft_data"]
+    auth      = HTTPBasicAuth(wp_user, wp_pass)
+    gemini    = GeminiClient()
+
+    with st.spinner("Consultando WordPress y clasificando con IA…"):
+        try:
+            cat_ids, tag_ids = assign_taxonomy(
+                gemini    = gemini,
+                base_url  = base_url,
+                auth      = auth,
+                title     = data.get("title", ""),
+                content   = data.get("content", ""),
+                post_type = data.get("post_type", ""),
+            )
+            st.session_state["wp_categories"] = cat_ids
+            st.session_state["wp_tags"]       = tag_ids
+            st.success(
+                f"✅ Clasificación completada: "
+                f"categorías={cat_ids}, etiquetas={tag_ids}"
+            )
+            st.rerun()
+        except Exception as exc:
+            st.error(f"Error al clasificar: {exc}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Metadatos SEO
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -505,6 +731,71 @@ def _meta_section():
     st.session_state["draft_data"]["focus_keyword"]    = new_kw
     st.session_state["draft_data"]["meta_description"] = new_meta
 
+    # ── Categorías y Etiquetas WP ─────────────────────────────────────────
+    st.subheader("🏷️ Categorías y Etiquetas WordPress")
+
+    col_cat, col_tags = st.columns([1, 2])
+    with col_cat:
+        cats_raw = st.text_input(
+            "Categorías (IDs separados por coma)",
+            value=", ".join(str(c) for c in st.session_state.get("wp_categories", [])),
+            key="meta_cats",
+            help="IDs numéricos de las categorías WP existentes, separados por coma.",
+        )
+        parsed_cats = [int(x.strip()) for x in cats_raw.split(",") if x.strip().isdigit()]
+        st.session_state["wp_categories"] = parsed_cats
+
+    with col_tags:
+        tags_raw = st.text_input(
+            "Etiquetas (IDs separados por coma)",
+            value=", ".join(str(t) for t in st.session_state.get("wp_tags", [])),
+            key="meta_tags",
+            help="IDs numéricos de las etiquetas WP. Se asignarán al publicar.",
+        )
+        parsed_tags = [int(x.strip()) for x in tags_raw.split(",") if x.strip().isdigit()]
+        st.session_state["wp_tags"] = parsed_tags
+
+    if IS_LIVE:
+        if st.button("🔄 Auto-clasificar con IA", key="btn_autoclassify",
+                     help="Conecta con WordPress para obtener categorías/tags y clasificar con Gemini"):
+            _autoclassify_taxonomy()
+
+    # ── Autor WordPress ────────────────────────────────────────────
+    st.subheader("✍️ Autor del post")
+
+    from core.wp_author_router import user_options_for_selectbox, format_user_label, detect_author
+
+    options       = user_options_for_selectbox()           # ["luis", "alejandra", "angela"]
+    current_key   = st.session_state.get("wp_author", "luis")
+    current_index = options.index(current_key) if current_key in options else 0
+
+    col_sel, col_detect = st.columns([3, 1])
+    with col_sel:
+        selected = st.selectbox(
+            "Publicar como:",
+            options   = options,
+            index     = current_index,
+            format_func = format_user_label,
+            key       = "sel_wp_author",
+            help      = (
+                "🧠 Alejandra → Psicología y salud mental\n"
+                "🏥 Angela → Medicina y salud física\n"
+                "🧑‍💼 Luis → Temas generales y administración"
+            ),
+        )
+        st.session_state["wp_author"] = selected
+    with col_detect:
+        st.markdown("<br>", unsafe_allow_html=True)   # alinear verticalmente
+        if st.button("🔍 Auto-detectar", key="btn_detect_author",
+                     help="Analiza título y contenido para sugerir el autor correcto"):
+            data       = st.session_state["draft_data"]
+            suggestion = detect_author(
+                title   = data.get("title", ""),
+                content = data.get("content", ""),
+            )
+            st.session_state["wp_author"] = suggestion
+            st.rerun()
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Publicar en WordPress
@@ -512,7 +803,7 @@ def _meta_section():
 
 def _publish_to_wp(filepath: Path):
     from models.post_draft import PostDraft, PostType
-    from core.wp_client    import WPClient
+    from core.wp_client    import WordPressClient as WPClient
 
     data   = st.session_state["draft_data"]
     images = st.session_state["images"]
@@ -555,23 +846,61 @@ def _publish_to_wp(filepath: Path):
         focus_keyword    = data.get("focus_keyword", ""),
         affiliate_url    = data.get("affiliate_url") or None,
         images           = images,
+        categories       = st.session_state.get("wp_categories", []),
+        tags             = st.session_state.get("wp_tags", []),
     )
 
     with st.spinner("Enviando a WordPress..."):
         try:
-            wp  = WPClient.from_env()
-            wid = wp.create_draft(draft)
-            data["wp_post_id"] = draft.wp_post_id
-            data["images"]     = images
-            _save_draft(filepath, data)
+            # Siempre usamos el cliente REAL para publicar desde el editor.
+            # La generación siempre guarda local; aquí es donde va a WP.
             if IS_LIVE:
-                base     = os.getenv("WP_BASE_URL", "")
-                edit_url = f"{base}/wp-admin/post.php?post={wid}&action=edit"
+                author_key = st.session_state.get("wp_author", "luis")
+                wp = WPClient.from_env(user_key=author_key)
+            else:
+                wp = WPClient(simulate=True)
+
+            # Pre-flight en modo real
+            if IS_LIVE and not wp.test_connection():
+                st.error(
+                    "❌ **Autenticación fallida en WordPress (401 Unauthorized)**\n\n"
+                    "**Verifica en `.env`:**\n"
+                    "- `WP_USERNAME` — tu usuario de WordPress\n"
+                    "- `WP_APP_PASSWORD` — Application Password generada en "
+                    "Admin → Usuarios → Tu perfil → Application Passwords\n\n"
+                    "**Si las credenciales son correctas**, puede que Apache esté "
+                    "descartando el header `Authorization`. "
+                    "Añade esto al `.htaccess` de WordPress:\n"
+                    "```\n"
+                    "RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]\n"
+                    "```"
+                )
+                return
+
+            wid = wp.create_draft(draft)
+
+            if IS_LIVE:
+                # Éxito real: eliminar el JSON local
+                try:
+                    filepath.unlink(missing_ok=True)
+                    st.session_state.pop("_loaded_file", None)
+                except Exception:
+                    pass
+                base        = os.getenv("WP_BASE_URL", "")
+                edit_url    = f"{base}/wp-admin/post.php?post={wid}&action=edit"
+                from core.wp_author_router import format_user_label
+                author_lbl  = format_user_label(st.session_state.get("wp_author", "luis"))
                 st.success(
-                    f"Borrador creado en WordPress — ID **{wid}**\n\n"
+                    f"✅ Borrador creado en WordPress — ID **{wid}**  \n"
+                    f"Autor: **{author_lbl}**  \n"
+                    f"El archivo local fue eliminado.  \n\n"
                     f"[Abrir en WP Admin]({edit_url})"
                 )
+                st.info("El borrador ya no está disponible localmente. Puedes recuperarlo desde el historial si lo necesitas.", icon="ℹ️")
             else:
+                data["wp_post_id"] = draft.wp_post_id
+                data["images"]     = images
+                _save_draft(filepath, data)
                 st.success(f"[Simulado] Draft enviado — ID simulado: **{wid}**")
         except Exception as exc:
             st.error(f"Error al publicar: {exc}")
@@ -642,12 +971,9 @@ def main():
         _render_blocks()
 
     with col_side:
-        _image_panel()
-
-        st.divider()
-        st.subheader("Acciones")
-
         images = st.session_state["images"]
+
+        st.subheader("Acciones")
 
         if st.button("💾 Guardar borrador", use_container_width=True, type="secondary"):
             _rebuild_content()

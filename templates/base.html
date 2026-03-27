@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Blog Content Generator{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background:#f8f9fa; }
+    .navbar-brand { font-weight:700; letter-spacing:-0.5px; }
+    .badge-mock { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
+    .badge-sim  { background:#cfe2ff; color:#084298; border:1px solid #b6d4fe; }
+    .badge-real { background:#d1e7dd; color:#0f5132; border:1px solid #a3cfbb; }
+    .badge-mode { font-size:.75rem; font-weight:600; padding:3px 9px; border-radius:10px; }
+    .sidebar-token { font-size:.82rem; }
+    .progress { height:8px; }
+    .key-active  { border-left:3px solid #198754; }
+    .key-warn    { border-left:3px solid #ffc107; }
+    .key-dead    { border-left:3px solid #dc3545; }
+    .key-inactive{ border-left:3px solid #dee2e6; }
+    .main-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+    .section-title { font-size:1.05rem; font-weight:600; margin-bottom:.75rem; }
+    a { text-decoration:none; }
+    .nav-link.active { font-weight:600; }
+    #toastContainer { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; min-width:280px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── Navbar ───────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2 mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/">✍️ Blog Content Generator</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMenu">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='index' %}active{% endif %}" href="/">🏠 Inicio</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='topicos' %}active{% endif %}" href="/topicos">📰 Tópicos del día</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='historial' %}active{% endif %}" href="/historial">📜 Historial</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='borrador' %}active{% endif %}" href="/borrador">✏️ Editor</a></li>
+      </ul>
+      <div class="d-flex align-items-center gap-2">
+        <!-- Modo badge -->
+        {% if mock_mode %}
+          <span class="badge-mode badge-mock">🟡 MOCK</span>
+        {% elif simulate_wp %}
+          <span class="badge-mode badge-sim">⚠️ WP Simulado</span>
+        {% else %}
+          <span class="badge-mode badge-real">✅ WP Real</span>
+        {% endif %}
+        <!-- Token toggle -->
+        <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#tokenSidebar" id="btnTokens">
+          🔑 Tokens
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Token Sidebar (offcanvas) ─────────────────────────────────────────── -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="tokenSidebar" style="width:340px">
+  <div class="offcanvas-header bg-dark text-white">
+    <h6 class="offcanvas-title mb-0">🔑 Gestión de Tokens</h6>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body sidebar-token" id="tokenSidebarBody">
+    <div class="text-center text-muted py-4">Cargando…</div>
+  </div>
+</div>
+
+<!-- ── Contenido principal ──────────────────────────────────────────────── -->
+<div class="container-fluid px-4">
+  {% block content %}{% endblock %}
+</div>
+
+<!-- ── Toast notificaciones ─────────────────────────────────────────────── -->
+<div id="toastContainer"></div>
+
+<!-- ── Footer ───────────────────────────────────────────────────────────── -->
+<footer class="text-center text-muted small py-4 mt-5 border-top">
+  Blog Content Generator · Human-in-the-Loop · Gemini API + WordPress REST API · v2.0 Flask
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Toast helper ───────────────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast align-items-center text-bg-${type} border-0 show mb-2`;
+  el.setAttribute('role','alert');
+  el.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
+  document.getElementById('toastContainer').prepend(el);
+  setTimeout(()=>el.remove(), 4000);
+}
+
+// ── Token Sidebar ─────────────────────────────────────────────────────────
+document.getElementById('tokenSidebar').addEventListener('show.bs.offcanvas', loadTokens);
+
+function loadTokens() {
+  fetch('/api/tokens').then(r=>r.json()).then(data => {
+    const body = document.getElementById('tokenSidebarBody');
+    if (data.error && !data.mock_mode) {
+      body.innerHTML = `<div class="alert alert-warning small">${data.error}</div>`;
+      return;
+    }
+    let html = '';
+    if (data.mock_mode) {
+      html += `<div class="alert alert-warning py-2 small">🟡 <strong>Modo MOCK activo</strong><br>0 tokens gastados.</div>`;
+    } else {
+      const { valid_keys=0, total_keys=0 } = data;
+      if (valid_keys === 0) {
+        html += `<div class="alert alert-danger small">❌ No hay API keys válidas configuradas.</div>`;
+      } else {
+        html += `<div class="alert alert-success py-2 small">✅ <strong>${valid_keys}/${total_keys} claves activas</strong></div>`;
+      }
+    }
+    // Pool summary
+    html += `<div class="mb-3">
+      <div class='section-title'>📊 Uso del Pool</div>
+      <div class="row g-2 text-center">
+        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_today_tokens||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Tokens hoy</div></div></div>
+        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_today_requests||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Requests hoy</div></div></div>
+        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_total_tokens||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Tokens total</div></div></div>
+        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${data.pool_blogs_remaining||0}</div><div class="text-muted" style="font-size:.7rem">Blogs restantes</div></div></div>
+      </div>
+    </div><hr>`;
+    // Keys
+    const keys = data.keys || [];
+    const rpd  = data.free_tier_rpd || 1500;
+    const activeAlias = data.active_alias || '';
+    html += `<div class='section-title'>🗝️ Estado por Clave</div>`;
+    keys.forEach(k => {
+      const pct = Math.min(100, (k.today_requests/rpd)*100);
+      const isActive = k.alias === activeAlias;
+      const isInvalid = k.key_preview === '(no configurada)';
+      const isExhausted = k.today_requests >= rpd;
+      let cls = 'key-inactive', statusIcon = '⚪';
+      if (isActive && !data.mock_mode) { cls='key-active'; statusIcon='▶ 🟢'; }
+      else if (isExhausted) { cls='key-dead'; statusIcon='🔴'; }
+      else if (pct >= 80) { cls='key-warn'; statusIcon='🟡'; }
+      html += `<div class="card mb-2 ${cls}">
+        <div class="card-body py-2 px-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <strong>${statusIcon} ${k.alias}</strong>
+            <code style="font-size:.7rem">${k.key_preview}</code>
+          </div>`;
+      if (!isInvalid && !data.mock_mode) {
+        html += `<div class="progress mt-1"><div class="progress-bar ${pct>=80?'bg-warning':pct>=95?'bg-danger':''}" style="width:${pct}%"></div></div>
+          <div class="d-flex justify-content-between mt-1 text-muted" style="font-size:.7rem">
+            <span>${k.today_requests}/${rpd} req</span>
+            <span>${(k.today_tokens||0).toLocaleString()} tokens</span>
+          </div>`;
+        if (!isActive && !isExhausted && !isInvalid) {
+          html += `<button class="btn btn-xs btn-outline-success btn-sm w-100 mt-1" onclick="activarClave('${k.alias}')">Activar</button>`;
+        }
+      } else if (isInvalid) {
+        html += `<div class="text-muted" style="font-size:.7rem">Configura en .env</div>`;
+      }
+      html += `</div></div>`;
+    });
+    // Estimator
+    const validK = data.mock_mode ? 0 : (data.valid_keys || 0);
+    const blogsDay = Math.floor((rpd * validK) / 3);
+    html += `<hr><div class='section-title'>🧮 Estimador</div>
+      <table class="table table-sm small"><tbody>
+        <tr><td>Por día</td><td class="fw-bold">${blogsDay.toLocaleString()}</td></tr>
+        <tr><td>Por semana</td><td class="fw-bold">${(blogsDay*7).toLocaleString()}</td></tr>
+        <tr><td>Por mes</td><td class="fw-bold">${(blogsDay*30).toLocaleString()}</td></tr>
+      </tbody></table>
+      <p class="text-muted" style="font-size:.7rem">${validK} clave(s) × ${rpd} req/día ÷ 3 req/blog</p>`;
+    if (!data.mock_mode) {
+      html += `<button class="btn btn-sm btn-outline-secondary w-100 mt-1" onclick="rotarClave()">🔄 Rotar clave</button>`;
+    }
+    body.innerHTML = html;
+  }).catch(e => {
+    document.getElementById('tokenSidebarBody').innerHTML = `<div class="alert alert-danger small">Error al cargar: ${e}</div>`;
+  });
+}
+
+function activarClave(alias) {
+  fetch('/api/tokens/activar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({alias})})
+    .then(r=>r.json()).then(()=>{ loadTokens(); showToast(`Clave activada: ${alias}`); });
+}
+
+function rotarClave() {
+  fetch('/api/tokens/rotar', {method:'POST'}).then(r=>r.json()).then(d=>{
+    if (d.ok) { showToast(`Clave rotada: ${d.alias}`); loadTokens(); }
+    else showToast(d.msg, 'warning');
+  });
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

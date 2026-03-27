@@ -55,15 +55,21 @@ class WordPressClient:
                 base_url     = kwargs["base_url"],
                 username     = kwargs["username"],
                 app_password = kwargs["app_password"],
+                output_dir   = kwargs.get("output_dir", "drafts_output"),
             )
             logger.info(f"✅ WordPress MODO REAL → {kwargs['base_url']}")
 
     @classmethod
-    def from_env(cls) -> "WordPressClient":
+    def from_env(cls, user_key: str = "luis") -> "WordPressClient":
         """
         Construye el cliente leyendo la configuración desde variables de entorno.
         Acepta tanto WP_MODE ('simulated'/'live') como WP_SIMULATE ('true'/'false').
         WP_MODE tiene prioridad si está definida.
+
+        Args:
+            user_key: Clave del usuario WP a usar para la autenticación.
+                      "luis" (default/admin), "alejandra" (psicología), "angela" (medicina).
+                      En modo simulado este parámetro se ignora.
         """
         wp_mode    = os.getenv("WP_MODE", "").strip().lower()
         wp_simulate = os.getenv("WP_SIMULATE", "true").strip().lower()
@@ -77,11 +83,26 @@ class WordPressClient:
 
         if simulate:
             return cls(simulate=True)
+
+        # Modo real: cargar credenciales del usuario indicado
+        from core.wp_author_router import get_user
+        user_data = get_user(user_key)
+        username     = user_data["username"]
+        app_password = user_data["app_password"]
+
+        if not username or not app_password:
+            raise ValueError(
+                f"Credenciales incompletas para el usuario '{user_key}'. "
+                f"Verifica WP_USERNAME_{user_key.upper()} y "
+                f"WP_APP_PASSWORD_{user_key.upper()} en el .env"
+            )
+
+        logger.info(f"[WPClient] Usando credenciales de '{user_key}' ({username})")
         return cls(
             simulate     = False,
             base_url     = os.environ["WP_BASE_URL"],
-            username     = os.environ["WP_USERNAME"],
-            app_password = os.environ["WP_APP_PASSWORD"],
+            username     = username,
+            app_password = app_password,
         )
 
     def create_draft(self, draft: PostDraft) -> int | str:
@@ -163,6 +184,9 @@ class _SimulatedWPClient:
             "affiliate_url":    draft.affiliate_url or "",
             "ai_generated":     True,
             "images":           getattr(draft, "images", []) or [],
+            "image_prompts":    getattr(draft, "image_prompts", {}) or {},
+            "categories":       getattr(draft, "categories", []) or [],
+            "tags":             getattr(draft, "tags", []) or [],
         }
 
         with open(filepath, "w", encoding="utf-8") as f:
@@ -215,11 +239,14 @@ class _RealWPClient:
         → Application Passwords → "Add New" → copiar contraseña al .env
     """
 
-    def __init__(self, base_url: str, username: str, app_password: str):
-        self.base_url = base_url.rstrip("/")
-        self.auth     = HTTPBasicAuth(username, app_password)
-        self.headers  = {"Content-Type": "application/json"}
-        self._api     = f"{self.base_url}/wp-json/wp/v2"
+    def __init__(self, base_url: str, username: str, app_password: str,
+                 output_dir: str = "drafts_output"):
+        self.base_url   = base_url.rstrip("/")
+        self.auth       = HTTPBasicAuth(username, app_password)
+        self.headers    = {"Content-Type": "application/json"}
+        self._api       = f"{self.base_url}/wp-json/wp/v2"
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def create_draft(self, draft: PostDraft) -> int:
         """
@@ -233,9 +260,11 @@ class _RealWPClient:
         content_with_images = self._inject_images(draft)
 
         payload = {
-            "title":   draft.title,
-            "content": content_with_images,
-            "status":  "draft",              # ← NUNCA se publica automáticamente
+            "title":      draft.title,
+            "content":    content_with_images,
+            "status":     "draft",              # ← NUNCA se publica automáticamente
+            "categories": getattr(draft, "categories", []) or [],
+            "tags":       getattr(draft, "tags", []) or [],
             "meta": {
                 "_yoast_wpseo_metadesc":  draft.meta_description,
                 "_yoast_wpseo_focuskw":   draft.focus_keyword,
@@ -267,6 +296,33 @@ class _RealWPClient:
         logger.success(f"[REAL] Draft creado en WP → ID {wp_id} | {edit_link}")
 
         draft.wp_post_id = wp_id
+
+        # Guardar copia local JSON para el editor de borradores
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename  = f"draft_{wp_id}_{draft.post_type}_{timestamp}.json"
+        filepath  = self.output_dir / filename
+        payload_local = {
+            "sim_id":           wp_id,
+            "wp_post_id":       wp_id,
+            "status":           "draft",
+            "created_at":       datetime.now().isoformat(),
+            "post_type":        str(draft.post_type),
+            "title":            draft.title,
+            "content":          draft.content,
+            "meta_description": draft.meta_description,
+            "focus_keyword":    draft.focus_keyword,
+            "affiliate_url":    draft.affiliate_url or "",
+            "ai_generated":     True,
+            "images":           getattr(draft, "images", []) or [],
+            "image_prompts":    getattr(draft, "image_prompts", {}) or {},
+            "categories":       getattr(draft, "categories", []) or [],
+            "tags":             getattr(draft, "tags", []) or [],
+        }
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(payload_local, f, ensure_ascii=False, indent=2)
+        draft.draft_file = filename
+        logger.info(f"[REAL] Copia local guardada → {filepath}")
+
         return wp_id
 
     def upload_media(self, file_path: str, alt_text: str = "") -> dict:

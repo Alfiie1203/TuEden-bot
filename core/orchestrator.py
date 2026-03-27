@@ -78,17 +78,22 @@ class ContentOrchestrator:
         mode: str = "auto",
         focus: str = "",
         reviewer: str = "",
+        custom_titles: dict[str, str] | None = None,
     ) -> list[PostDraft]:
         """
         Flujo completo: recibe 1 input → genera 3 borradores → los sube a WP.
 
         Args:
-            user_input: Tópico libre ("medicina moderna") o URL de Amazon.
-            mode:       "auto"   → detecta automáticamente según el input.
-                        "amazon" → fuerza modo Amazon (comparativa/guía/reseña).
-                        "libre"  → fuerza modo tópico libre (opinion/listicle/howto).
-            focus:      Enfoque específico del artículo (ángulo, perspectiva, audiencia).
-            reviewer:   Persona que revisará el contenido: "Médico", "Psicólogo", "Editor" o "".
+            user_input:    Tópico libre ("medicina moderna") o URL de Amazon.
+            mode:          "auto"   → detecta automáticamente según el input.
+                           "amazon" → fuerza modo Amazon.
+                           "libre"  → fuerza modo tópico libre.
+            focus:         Enfoque específico del artículo.
+            reviewer:      Persona que revisará: "Médico", "Psicólogo", "Editor" o "".
+            custom_titles: Mapa {post_type: titulo_sugerido} para forzar títulos
+                           específicos por tipo. Ej: {"opinion": "Mi título", "listicle": ...}
+                           Si se proporciona, el título sugerido se inyecta en el focus
+                           de ese tipo de post para que Gemini lo respete.
 
         Returns:
             Lista de 3 PostDraft con wp_post_id relleno.
@@ -127,13 +132,68 @@ class ContentOrchestrator:
             logger.info(f"[{step}/{total}] Generando {label}…")
 
             try:
+                # Construir focus individual: inyectar título sugerido si existe
+                if custom_titles and post_type in custom_titles:
+                    title_hint = custom_titles[post_type]
+                    individual_focus = (
+                        f'El título del artículo DEBE SER EXACTAMENTE: "{title_hint}". '
+                        f'Desarrolla el contenido para que encaje perfectamente con ese título.'
+                    )
+                    if focus:
+                        individual_focus += f' Enfoque adicional: {focus}'
+                else:
+                    individual_focus = focus
+
                 # Llamada a Gemini (pasamos el prompt_map y los nuevos parámetros)
                 raw = self.gemini.generate_draft(
                     post_type, topic, affiliate_url,
                     prompt_map = prompt_map,
-                    focus      = focus,
+                    focus      = individual_focus,
                     reviewer   = reviewer,
                 )
+
+                # Garantizar que meta_description siempre tiene contenido
+                if not raw.get("meta_description", "").strip():
+                    logger.warning(
+                        f"[Orchestrator] meta_description vacía para '{post_type}' "
+                        f"— generando fallback…"
+                    )
+                    _fallback_prompt = (
+                        f'Escribe una meta description SEO en español para un artículo titulado: '
+                        f'"{raw.get("title", topic)}". '
+                        f'Máximo 155 caracteres. '
+                        f'Responde SOLO con el texto de la meta description, sin comillas ni explicaciones.'
+                    )
+                    raw["meta_description"] = self.gemini.call_raw(_fallback_prompt)[:160]
+
+                # Generar prompts de imagen antes de guardar el borrador
+                self.progress_cb(step, total, f"Generando prompts de imagen para {label}…")
+                from core.image_prompt_generator import generate_image_prompts
+                img_prompts = generate_image_prompts(
+                    self.gemini,
+                    title     = raw["title"],
+                    content   = raw["content"],
+                    post_type = post_type,
+                    reviewer  = reviewer,
+                )
+
+                # Clasificar categoría y etiquetas (solo en modo real con WP configurado)
+                wp_categories: list[int] = []
+                wp_tags: list[int] = []
+                if hasattr(self, "_wp_auth") and self._wp_auth is not None:
+                    try:
+                        self.progress_cb(step, total, f"Clasificando categorías y etiquetas para {label}…")
+                        from core.wp_taxonomy import assign_taxonomy
+                        wp_categories, wp_tags = assign_taxonomy(
+                            gemini    = self.gemini,
+                            base_url  = self._wp_base_url,
+                            auth      = self._wp_auth,
+                            title     = raw["title"],
+                            content   = raw["content"],
+                            post_type = post_type,
+                        )
+                    except Exception as tax_exc:
+                        logger.warning(f"[Orchestrator] No se pudo clasificar taxonomy: {tax_exc}")
 
                 draft = PostDraft(
                     post_type        = PostType(post_type),
@@ -143,6 +203,9 @@ class ContentOrchestrator:
                     focus_keyword    = raw["focus_keyword"],
                     affiliate_url    = affiliate_url,
                     wp_post_id       = None,
+                    image_prompts    = img_prompts,
+                    categories       = wp_categories,
+                    tags             = wp_tags,
                 )
 
                 # Subir a WordPress (simulado o real)
@@ -238,6 +301,24 @@ class ContentOrchestrator:
             gemini_kwargs["model"] = gemini_model
 
         gemini = GeminiClient(**gemini_kwargs)
-        wp     = WordPressClient.from_env()
+        # La generación SIEMPRE guarda local primero; el usuario publica
+        # manualmente desde el editor. Se usa cliente simulado en ambos modos.
+        from core.wp_client import _SimulatedWPClient, WordPressClient
+        wp = WordPressClient(simulate=True)
 
-        return cls(gemini_client=gemini, wp_client=wp, **kwargs)
+        orch = cls(gemini_client=gemini, wp_client=wp, **kwargs)
+
+        # Exponer credenciales WP para clasificación de taxonomy en modo real
+        wp_mode = os.getenv("WP_MODE", "").strip().lower()
+        if wp_mode == "live":
+            from requests.auth import HTTPBasicAuth
+            orch._wp_base_url = os.getenv("WP_BASE_URL", "").rstrip("/")
+            orch._wp_auth     = HTTPBasicAuth(
+                os.getenv("WP_USERNAME", ""),
+                os.getenv("WP_APP_PASSWORD", ""),
+            )
+        else:
+            orch._wp_base_url = ""
+            orch._wp_auth     = None
+
+        return orch

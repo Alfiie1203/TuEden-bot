@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Tópicos del Día · Blog Content Generator{% endblock %}
+
+{% block content %}
+<div class="main-card p-4">
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <h5 class="section-title mb-0">📰 Tópicos del Día</h5>
+    <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+  </div>
+  <p class="text-muted small mb-3">Descubre los temas más relevantes del momento. La consulta a Gemini se realiza
+    <strong>una sola vez al día</strong> — las visitas posteriores cargan el listado guardado sin consumir tokens.</p>
+
+  <!-- Botones de carga -->
+  <div class="d-flex gap-2 mb-4">
+    <button class="btn btn-primary" onclick="cargarTopicos(false)">🔍 Cargar tópicos del día</button>
+    <button class="btn btn-outline-secondary" onclick="cargarTopicos(true)">🔄 Refrescar (nueva consulta)</button>
+  </div>
+
+  <!-- Panel de tópicos -->
+  <div id="topicsPanel" style="display:none">
+    <div id="topicsBadge" class="mb-3"></div>
+
+    <h6 class="section-title">📌 Selecciona los tópicos que deseas desarrollar</h6>
+    <p class="text-muted small">Marca uno o varios. Gemini sugerirá 3 títulos indexables por tópico antes de generar.</p>
+
+    <div class="row g-4" id="topicsGrid"></div>
+
+    <hr>
+    <!-- Tópico libre -->
+    <h6 class="section-title">✏️ O escribe un tópico libre</h6>
+    <input id="freeTopic" type="text" class="form-control mb-3"
+      placeholder="Ej: el impacto del insomnio en el rendimiento académico de los adolescentes">
+
+    <hr>
+    <!-- Opciones de generación -->
+    <h6 class="section-title">⚙️ Opciones de generación</h6>
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Revisado por</label>
+        <select id="selReviewer" class="form-select">
+          <option value="">— Sin revisor —</option>
+          <option value="Médico">🩺 Médico</option>
+          <option value="Psicólogo" selected>🧠 Psicólogo</option>
+          <option value="Editor">✍️ Editor</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Modelo Gemini</label>
+        <select id="selModel" class="form-select">
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+          <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+          <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Enfoque global <span class="text-muted fw-normal">(opcional)</span></label>
+        <input id="focusGlobal" type="text" class="form-control"
+          placeholder="Ej: orientado a padres con hijos entre 5 y 12 años">
+      </div>
+    </div>
+
+    <hr>
+    <div id="selectedCount" class="alert alert-secondary py-2 small mb-3" style="display:none"></div>
+
+    <button id="btnSugerir" class="btn btn-outline-primary me-2" onclick="sugerirTitulos()" disabled>
+      🔎 Sugerir títulos (1 request a Gemini)
+    </button>
+  </div>
+
+  <!-- Panel de sugerencias / edición de títulos -->
+  <div id="suggestionsPanel" class="mt-4" style="display:none">
+    <h6 class="section-title">✏️ Revisa y edita los títulos sugeridos</h6>
+    <p class="text-muted small">Puedes modificar cualquier título. Los posts se crearán con los títulos que veas aquí.</p>
+    <div id="suggestionsContent"></div>
+    <div class="mt-3">
+      <button id="btnGenerar" class="btn btn-primary btn-lg" onclick="iniciarGeneracion()">
+        ✨ Generar posts
+      </button>
+    </div>
+  </div>
+
+  <!-- Progreso global -->
+  <div id="progressSection" class="mt-4" style="display:none">
+    <h6 class="section-title">⏳ Generando…</h6>
+    <div class="progress mb-2" style="height:12px">
+      <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width:5%"></div>
+    </div>
+    <div id="progressMsg" class="text-muted small mb-2"></div>
+    <div id="topicsProgress"></div>
+  </div>
+
+  <!-- Resultados -->
+  <div id="resultsSection" class="mt-4" style="display:none">
+    <h6 class="section-title">✅ Resultados</h6>
+    <div id="resultsContent"></div>
+    <a href="/" class="btn btn-outline-secondary mt-3">← Volver al inicio</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const TYPE_ICONS  = {opinion:"💬",listicle:"📋",howto:"🛠️"};
+const TYPE_LABELS = {opinion:"Artículo de Opinión",listicle:"Listicle / Top N",howto:"Guía Paso a Paso"};
+
+let _selectedTopics = new Set();
+let _editedTitles   = {};   // {"tópico:tipo": "título editado"}
+let _suggestions    = [];
+
+function cargarTopicos(force) {
+  const btn = document.querySelector(force ? 'button[onclick="cargarTopicos(true)"]' : 'button[onclick="cargarTopicos(false)"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'Consultando Gemini…'; }
+
+  fetch('/api/topicos/cargar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({force})})
+    .then(r=>r.json())
+    .then(d => {
+      if (btn) { btn.disabled = false; btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día'; }
+      if (!d.ok) { showToast(d.error || 'Error al cargar tópicos', 'danger'); return; }
+      mostrarTopicos(d.data, d.from_cache);
+    })
+    .catch(e => { if(btn){btn.disabled=false;} showToast('Error: ' + e, 'danger'); });
+}
+
+function mostrarTopicos(data, fromCache) {
+  document.getElementById('topicsPanel').style.display = '';
+  const fecha = data.fecha || '';
+  document.getElementById('topicsBadge').innerHTML = fromCache
+    ? `<span class="badge" style="background:#d1e7dd;color:#0f5132;font-size:.8rem">💾 Desde cache · ${fecha}</span>`
+    : `<span class="badge" style="background:#cfe2ff;color:#084298;font-size:.8rem">✨ Consultado ahora · ${fecha}</span>`;
+
+  const sections = [
+    {key:'medicina_relacionados',    label:'🩺 MEDICINA · Actualidad del sector',  color:'#0d6efd'},
+    {key:'medicina_no_relacionados', label:'🌍 MEDICINA · Actualidad global',       color:'#6610f2'},
+    {key:'psicologia_relacionados',  label:'🧠 PSICOLOGÍA · Actualidad del sector', color:'#198754'},
+    {key:'psicologia_no_relacionados',label:'🌐 PSICOLOGÍA · Actualidad global',    color:'#fd7e14'},
+  ];
+
+  let html = '';
+  sections.forEach(sec => {
+    const topics = data[sec.key] || [];
+    html += `<div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header py-2" style="border-left:4px solid ${sec.color}">
+          <strong style="font-size:.9rem">${sec.label}</strong>
+        </div>
+        <div class="card-body py-2">`;
+    topics.forEach((t,i) => {
+      const eid = `t_${sec.key}_${i}`;
+      html += `<div class="form-check">
+        <input class="form-check-input" type="checkbox" id="${eid}" value="${t}" onchange="toggleTopic('${t}', this.checked)">
+        <label class="form-check-label" for="${eid}" style="font-size:.88rem">${t}</label>
+      </div>`;
+    });
+    html += `</div></div></div>`;
+  });
+  document.getElementById('topicsGrid').innerHTML = html;
+  actualizarConteo();
+}
+
+function toggleTopic(topic, checked) {
+  if (checked) _selectedTopics.add(topic);
+  else _selectedTopics.delete(topic);
+  actualizarConteo();
+}
+
+function actualizarConteo() {
+  const free = document.getElementById('freeTopic').value.trim();
+  const n = _selectedTopics.size + (free ? 1 : 0);
+  const countEl = document.getElementById('selectedCount');
+  const btnSug  = document.getElementById('btnSugerir');
+  if (n > 0) {
+    countEl.style.display = '';
+    countEl.innerHTML = `<strong>${n} tópico(s) seleccionado(s)</strong> — Paso 1: Gemini sugerirá 3 títulos por tópico (1 request).`;
+    btnSug.disabled = false;
+  } else {
+    countEl.style.display = 'none';
+    btnSug.disabled = true;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const ft = document.getElementById('freeTopic');
+  if (ft) ft.addEventListener('input', actualizarConteo);
+});
+
+function getSelectedTopics() {
+  const list = Array.from(_selectedTopics);
+  const free = (document.getElementById('freeTopic')||{}).value?.trim();
+  if (free) list.push(free);
+  return list;
+}
+
+function sugerirTitulos() {
+  const topics = getSelectedTopics();
+  if (!topics.length) { showToast('Selecciona al menos un tópico.','warning'); return; }
+  const btn = document.getElementById('btnSugerir');
+  btn.disabled = true; btn.textContent = 'Consultando Gemini…';
+
+  fetch('/api/topicos/sugerir', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({topics})})
+    .then(r=>r.json())
+    .then(d => {
+      btn.disabled = false; btn.textContent = '🔎 Sugerir títulos (1 request a Gemini)';
+      if (!d.ok) { showToast(d.error || 'Error', 'danger'); return; }
+      _suggestions = d.suggestions;
+      mostrarSugerencias(d.suggestions);
+    })
+    .catch(e => { btn.disabled = false; btn.textContent = '🔎 Sugerir títulos'; showToast('Error: '+e,'danger'); });
+}
+
+function mostrarSugerencias(suggs) {
+  const panel = document.getElementById('suggestionsPanel');
+  panel.style.display = '';
+  _editedTitles = {};
+
+  let html = '';
+  const typeMap = {opinion:'evergreen', listicle:'listicle', howto:'howto'};
+
+  suggs.forEach(sg => {
+    const short = sg.topico.length > 70 ? sg.topico.substring(0,70) + '…' : sg.topico;
+    html += `<div class="card mb-3">
+      <div class="card-header py-2"><strong>📂 ${short}</strong></div>
+      <div class="card-body">`;
+    [{pt:'opinion',field:'evergreen'},{pt:'listicle',field:'listicle'},{pt:'howto',field:'howto'}].forEach(({pt,field}) => {
+      const key = `${sg.topico}:${pt}`;
+      const val = sg[field] || '';
+      _editedTitles[key] = val;
+      html += `<div class="row g-2 mb-2 align-items-center">
+        <div class="col-md-3"><strong style="font-size:.85rem">${TYPE_ICONS[pt]||''} ${TYPE_LABELS[pt]||pt}</strong></div>
+        <div class="col-md-9">
+          <input type="text" class="form-control form-control-sm" value="${val.replace(/"/g,'&quot;')}"
+            data-key="${key}" oninput="_editedTitles[this.dataset.key]=this.value">
+        </div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+
+  const n = _suggestions.length * 3;
+  document.getElementById('btnGenerar').textContent = `✨ Generar ${n} posts (${_suggestions.length} tópico${_suggestions.length>1?'s':''})`;
+  document.getElementById('suggestionsContent').innerHTML = html;
+  panel.scrollIntoView({behavior:'smooth'});
+}
+
+function iniciarGeneracion() {
+  const topics = getSelectedTopics();
+  if (!topics.length) { showToast('Sin tópicos seleccionados','warning'); return; }
+
+  document.getElementById('btnGenerar').disabled = true;
+  document.getElementById('progressSection').style.display = '';
+  document.getElementById('resultsSection').style.display  = 'none';
+
+  const payload = {
+    topics,
+    edited_titles: _editedTitles,
+    reviewer:      document.getElementById('selReviewer').value,
+    gemini_model:  document.getElementById('selModel').value,
+    focus_global:  (document.getElementById('focusGlobal')||{}).value||'',
+  };
+
+  fetch('/api/topicos/generar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+    .then(r=>r.json())
+    .then(d => {
+      if (d.error) { showToast(d.error,'danger'); document.getElementById('btnGenerar').disabled=false; return; }
+      listenTopicProgress(d.task_id, topics.length);
+    })
+    .catch(e => { showToast('Error: '+e,'danger'); document.getElementById('btnGenerar').disabled=false; });
+}
+
+function listenTopicProgress(taskId, totalTopics) {
+  const es  = new EventSource(`/api/progreso/${taskId}`);
+  const bar = document.getElementById('progressBar');
+  const msg = document.getElementById('progressMsg');
+  const tp  = document.getElementById('topicsProgress');
+  let allResults = [];
+
+  es.onmessage = evt => {
+    const d = JSON.parse(evt.data);
+    if (d.type === 'topic_start') {
+      const pct = Math.round((d.idx / d.total) * 100);
+      bar.style.width = pct + '%';
+      msg.textContent = `Tópico ${d.idx+1}/${d.total}: ${d.topic}`;
+    } else if (d.type === 'progress') {
+      const basePct = (d.idx / totalTopics) * 100;
+      const addPct  = (d.step / d.total) * (100 / totalTopics);
+      bar.style.width = Math.min(99, basePct + addPct) + '%';
+      msg.textContent = `Tópico ${d.idx+1}/${totalTopics}: ${d.message}`;
+    } else if (d.type === 'topic_done') {
+      allResults.push({topic: d.topic, drafts: d.drafts});
+      tp.innerHTML += `<div class="text-success small">✅ ${d.topic} — ${d.drafts.length} posts</div>`;
+    } else if (d.type === 'topic_error') {
+      tp.innerHTML += `<div class="text-danger small">❌ ${d.topic}: ${d.message}</div>`;
+    } else if (d.type === 'done') {
+      es.close();
+      bar.style.width = '100%';
+      bar.classList.remove('progress-bar-animated');
+      mostrarResultados(d.results || allResults);
+    } else if (d.type === 'error') {
+      es.close();
+      showToast(d.message, 'danger');
+      document.getElementById('btnGenerar').disabled = false;
+    }
+  };
+  es.onerror = () => { es.close(); showToast('Se perdió conexión con el servidor.','danger'); };
+}
+
+function mostrarResultados(results) {
+  const sec = document.getElementById('resultsSection');
+  sec.style.display = '';
+  const total = results.reduce((a,r) => a + r.drafts.length, 0);
+  let html = `<div class="alert alert-success py-2">✅ <strong>${results.length} tópico(s) generados</strong> · ${total} posts.</div>`;
+
+  results.forEach(r => {
+    html += `<div class="card mb-3">
+      <div class="card-header py-2"><strong>📂 ${r.topic}</strong></div>
+      <div class="card-body">`;
+    if (r.error) {
+      html += `<div class="text-danger small">❌ ${r.error}</div>`;
+    } else {
+      r.drafts.forEach(d => {
+        const icon  = TYPE_ICONS[d.post_type] || '📄';
+        const label = TYPE_LABELS[d.post_type] || d.post_type;
+        if (d.is_error) {
+          html += `<div class="text-danger small mb-2">❌ ${label}: Error</div>`;
+        } else {
+          html += `<div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <strong>${icon} ${label}</strong> — ${d.title}
+              <span class="badge bg-secondary ms-1">${d.focus_keyword}</span>
+            </div>`;
+          html += d.draft_file
+            ? `<a href="/borrador?file=${encodeURIComponent(d.draft_file)}" class="btn btn-sm btn-primary">📝 Ver</a>`
+            : `<span class="text-muted small">—</span>`;
+          html += `</div>`;
+        }
+      });
+    }
+    html += `</div></div>`;
+  });
+  document.getElementById('resultsContent').innerHTML = html;
+  sec.scrollIntoView({behavior:'smooth'});
+}
+</script>
+{% endblock %}

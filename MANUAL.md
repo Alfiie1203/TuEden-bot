@@ -1,6 +1,6 @@
 # 📖 MANUAL DE USUARIO
 ## Blog Content Generator — Gemini + WordPress
-> Versión 1.0 · Marzo 2026
+> Versión 2.0 · Marzo 2026 · **Flask** (migrado desde Streamlit)
 
 ---
 
@@ -39,7 +39,7 @@ Abre una ventana de **cmd** en la carpeta del proyecto y ejecuta:
 pip install -r requirements.txt
 ```
 
-Esto instala: Streamlit (GUI), Gemini SDK, Pydantic, Loguru y el resto de librerías.
+Esto instala: **Flask** (servidor web), Gemini SDK, Pydantic, Loguru y el resto de librerías.
 
 ### Paso 2 — Crear el archivo de configuración
 
@@ -116,17 +116,17 @@ Si pegas una URL de Amazon como input, el sistema extrae el nombre del producto 
 Desde la carpeta del proyecto en **cmd**:
 
 ```cmd
-streamlit run app.py
+python app.py
 ```
 
 Después de unos segundos verás:
 
 ```
-  You can now view your Streamlit app in your browser.
-  Local URL: http://localhost:8501
+ * Running on http://127.0.0.1:5000
+ * Debug mode: on
 ```
 
-Abre tu navegador en **http://localhost:8501**.
+Abre tu navegador en **http://localhost:5000**.
 
 ### Para detener la aplicación
 
@@ -375,11 +375,11 @@ Sí. Los JSON en `drafts_output/` contienen toda la información necesaria. Pued
 | `Error 429 / ResourceExhausted` | Cuota diaria agotada | El sistema rota automáticamente. Si todas agotadas, esperar al día siguiente |
 | `401 Unauthorized` (WordPress) | Credenciales incorrectas | Regenerar Application Password en WP Admin |
 | `404 Not Found` (WordPress) | URL de WordPress mal configurada | Verificar `WP_BASE_URL` en `.env` (sin barra final) |
-| `ImportError: No module named 'streamlit'` | Dependencias no instaladas | Ejecutar `pip install -r requirements.txt` |
+| `ModuleNotFoundError: No module named 'flask'` | Dependencias no instaladas | Ejecutar `pip install -r requirements.txt` |
 | Los archivos JSON no aparecen | Carpeta `drafts_output/` no existe | Se crea sola al generar el primer post. Si no, créala manualmente |
-| El sidebar muestra 0 tokens siempre | `GEMINI_MOCK_MODE=true` activo | En modo mock no se consumen tokens reales, el contador en 0 es correcto |
+| El panel muestra 0 tokens siempre | `GEMINI_MOCK_MODE=true` activo | En modo mock no se consumen tokens reales, el contador en 0 es correcto |
 | `logs/token_usage.json` con error | Archivo corrupto | Bórralo manualmente — se recrea solo al reiniciar la app |
-| La app no abre en el navegador | Puerto 8501 ocupado | Cierra otras instancias de Streamlit o usa `streamlit run app.py --server.port 8502` |
+| La app no abre en el navegador | Puerto 5000 ocupado | Cambia el puerto en `app.py`: `app.run(port=5001)` |
 
 ---
 
@@ -387,7 +387,13 @@ Sí. Los JSON en `drafts_output/` contienen toda la información necesaria. Pued
 
 ```
 proyecto/
-├── app.py                  ← Punto de entrada. Ejecutar con: streamlit run app.py
+├── app.py                  ← Punto de entrada. Ejecutar con: python app.py
+├── templates/              ← Plantillas HTML Jinja2 (Flask)
+│   ├── base.html
+│   ├── index.html
+│   ├── historial.html
+│   ├── topicos.html
+│   └── borrador.html
 ├── requirements.txt        ← Dependencias Python
 ├── .env                    ← Tu configuración (NO subir a git)
 ├── .env.example            ← Plantilla de configuración (SÍ subir a git)

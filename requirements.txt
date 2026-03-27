@@ -4,8 +4,8 @@ google-generativeai>=0.8.0       # SDK oficial de Gemini API
 # ── WordPress Integration ────────────────────────────────
 requests>=2.31.0                 # Llamadas a WordPress REST API
 
-# ── Interfaz Gráfica ─────────────────────────────────────
-streamlit>=1.33.0                # GUI web local
+# ── Interfaz Web ─────────────────────────────────────────
+flask>=3.0.0                     # Framework web (reemplaza Streamlit)
 
 # ── Scraping de Amazon (para parsear URLs) ───────────────
 beautifulsoup4>=4.12.0           # Parsear HTML de páginas de producto
