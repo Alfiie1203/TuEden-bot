@@ -1,0 +1,545 @@
+{% extends "base.html" %}
+{% block title %}Panel de Administración · Blog Content Generator{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12">
+    <h4 class="fw-bold mb-0">⚙️ Panel de Administración</h4>
+    <p class="text-muted small">Gestiona usuarios, credenciales WordPress y claves Gemini.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCIÓN: USUARIOS
+  ═══════════════════════════════════════════════ -->
+  <div class="col-12 col-xl-7">
+    <div class="main-card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="section-title mb-0">👥 Usuarios</span>
+        <button class="btn btn-sm btn-primary" onclick="mostrarFormNuevoUsuario()">+ Nuevo usuario</button>
+      </div>
+
+      <!-- Formulario nuevo/editar usuario -->
+      <div id="formUsuario" class="border rounded p-3 mb-3 bg-light" style="display:none">
+        <div class="fw-semibold small mb-2" id="formUsuarioTitulo">Nuevo usuario</div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">Username</label>
+            <input type="text" id="uUsername" class="form-control form-control-sm" placeholder="solo letras/numeros" pattern="[a-z0-9_]+" title="Solo letras minúsculas, números y _">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Nombre</label>
+            <input type="text" id="uDisplayName" class="form-control form-control-sm" placeholder="Nombre completo">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Contraseña</label>
+            <input type="password" id="uPassword" class="form-control form-control-sm" placeholder="Dejar en blanco = sin cambio (editar)">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">Rol</label>
+            <select id="uRole" class="form-select form-select-sm" onchange="onRoleChange()">
+              <option value="admin">admin</option>
+              <option value="psicologa" selected>psicologa</option>
+              <option value="medico">medico</option>
+              <option value="editor">editor (todo)</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">WP Usuario</label>
+            <input type="text" id="uWpUsername" class="form-control form-control-sm" placeholder="usuario WordPress">
+          </div>
+          <div class="col-6">
+            <label class="form-label small mb-1">WP App Password</label>
+            <input type="text" id="uWpPass" class="form-control form-control-sm" placeholder="xxxx xxxx xxxx xxxx xxxx xxxx">
+          </div>
+          <div class="col-12" id="topicCatRow">
+            <label class="form-label small mb-1">Categorías de tópicos visibles</label>
+            <div class="d-flex gap-3 flex-wrap">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="catMedR" value="medicina_relacionados">
+                <label class="form-check-label small" for="catMedR">Medicina (directa)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="catMedN" value="medicina_no_relacionados">
+                <label class="form-check-label small" for="catMedN">Medicina (global)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="catPsiR" value="psicologia_relacionados">
+                <label class="form-check-label small" for="catPsiR">Psicología (directa)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="catPsiN" value="psicologia_no_relacionados">
+                <label class="form-check-label small" for="catPsiN">Psicología (global)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="catAll" onchange="toggleAllCats(this)">
+                <label class="form-check-label small text-muted" for="catAll">Ver todas (admin)</label>
+              </div>
+            </div>
+          </div>
+          <!-- Badge de verificación profesional -->
+          <div class="col-12">
+            <hr class="my-2">
+            <label class="form-label small fw-semibold mb-2">&#127942; Fragmento de verificación profesional</label>
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <input type="text" id="bProfName" class="form-control form-control-sm" placeholder="Nombre (ej: Dra. Ana García)" oninput="renderBadgePreview()">
+              </div>
+              <div class="col-md-3">
+                <input type="text" id="bProfTitle" class="form-control form-control-sm" placeholder="Especialidad (ej: Médico)" oninput="renderBadgePreview()">
+              </div>
+              <div class="col-md-3">
+                <input type="text" id="bProfLicense" class="form-control form-control-sm" placeholder="Nº tarjeta profesional" oninput="renderBadgePreview()">
+              </div>
+              <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="generarBadge()">&#9881;&#65039; Generar</button>
+              </div>
+            </div>
+            <textarea id="uProfBadge" class="form-control form-control-sm font-monospace" rows="4"
+              placeholder="HTML del badge (se añade automáticamente al final de cada artículo publicado)..."
+              oninput="renderBadgePreview()"></textarea>
+            <div id="badgePreview" class="mt-2"></div>
+          </div>
+          <div class="col-12 d-flex gap-2 mt-1">
+            <button class="btn btn-sm btn-success" onclick="guardarUsuario()">💾 Guardar</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="cancelarFormUsuario()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de usuarios -->
+      <div id="tablaUsuarios">
+        <div class="text-muted text-center py-3 small">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCIÓN: CLAVES GEMINI
+  ═══════════════════════════════════════════════ -->
+  <div class="col-12 col-xl-5">
+    <div class="main-card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="section-title mb-0">🔑 Claves Gemini API</span>
+        <button class="btn btn-sm btn-primary" onclick="mostrarFormNuevaClave()">+ Añadir clave</button>
+      </div>
+
+      <!-- Formulario nueva clave -->
+      <div id="formGemini" class="border rounded p-3 mb-3 bg-light" style="display:none">
+        <label class="form-label small mb-1">Nueva API Key de Gemini</label>
+        <div class="input-group input-group-sm">
+          <input type="text" id="nuevaClave" class="form-control" placeholder="AIzaSy...">
+          <button class="btn btn-success" onclick="agregarClave()">Añadir</button>
+          <button class="btn btn-outline-secondary" onclick="document.getElementById('formGemini').style.display='none'">✕</button>
+        </div>
+        <div class="text-muted small mt-1">Las claves gratuitas tienen 1,500 requests/día. Añade hasta 9.</div>
+      </div>
+
+      <div id="listaClaves">
+        <div class="text-muted text-center py-3 small">Cargando...</div>
+      </div>
+
+      <div class="mt-3 small text-muted border-top pt-2">
+        💡 Las claves se guardan en el archivo <code>.env</code>. El sistema las rota automáticamente cuando se agotan.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SECCIÓN: ESTADÍSTICAS POR USUARIO
+  ═══════════════════════════════════════════════ -->
+  <div class="col-12">
+    <div class="main-card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="section-title mb-0">📊 Estadísticas por usuario</span>
+        <button class="btn btn-sm btn-outline-secondary" onclick="cargarStats()">🔃 Actualizar</button>
+      </div>
+      <div id="statsContent">
+        <div class="text-center text-muted py-4 small">Cargando estadísticas…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ══════════════════════════════════════════════════
+// USUARIOS
+// ══════════════════════════════════════════════════
+let _editingUser = null;
+const _CATS = ['medicina_relacionados','medicina_no_relacionados','psicologia_relacionados','psicologia_no_relacionados'];
+const _ROLE_CATS = {
+  psicologa: ['psicologia_relacionados','psicologia_no_relacionados'],
+  medico:    ['medicina_relacionados','medicina_no_relacionados'],
+  admin:     null,
+  editor:    null,
+};
+
+const ROLE_LABEL = {
+  admin:     '🛡️ Admin',
+  psicologa: '🧠 Psicóloga',
+  medico:    '🩺 Médico',
+  editor:    '✏️ Editor',
+};
+const ROLE_BADGE = {
+  admin:     'bg-danger',
+  psicologa: 'bg-info',
+  medico:    'bg-success',
+  editor:    'bg-secondary',
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarUsuarios();
+  cargarClaves();
+});
+
+function cargarUsuarios() {
+  fetch('/api/admin/users').then(r => r.json()).then(data => {
+    const tbl = document.getElementById('tablaUsuarios');
+    const entries = Object.entries(data);
+    if (!entries.length) { tbl.innerHTML = '<p class="text-muted small">Sin usuarios.</p>'; return; }
+    let html = `<table class="table table-sm table-hover align-middle small">
+      <thead class="table-light"><tr>
+        <th>Usuario</th><th>Rol</th><th>WP User</th><th>Tópicos</th><th></th>
+      </tr></thead><tbody>`;
+    for (const [uname, u] of entries) {
+      const cats = u.topic_categories
+        ? u.topic_categories.map(c => c.replace('_relacionados','★').replace('_no_relacionados','☆').replace('medicina','Med').replace('psicologia','Psi')).join(' ')
+        : '<em class="text-muted">todos</em>';
+      const badgeCls = ROLE_BADGE[u.role] || 'bg-secondary';
+      html += `<tr>
+        <td><strong>${uname}</strong><br><span class="text-muted">${u.display_name||''}</span></td>
+        <td><span class="badge ${badgeCls}">${ROLE_LABEL[u.role]||u.role}</span></td>
+        <td><code class="small">${u.wp_username||'—'}</code></td>
+        <td>${cats}</td>
+        <td class="text-end">
+          <button class="btn btn-xs btn-sm btn-outline-primary py-0 px-1" onclick="editarUsuario('${uname}')">✏️</button>
+          ${uname !== 'luis' ? `<button class="btn btn-xs btn-sm btn-outline-danger py-0 px-1 ms-1" onclick="eliminarUsuario('${uname}')">🗑</button>` : ''}
+        </td>
+      </tr>`;
+    }
+    tbl.innerHTML = html + '</tbody></table>';
+    window._usersData = data;
+  }).catch(e => document.getElementById('tablaUsuarios').innerHTML = `<div class="alert alert-danger small">${e}</div>`);
+}
+
+function mostrarFormNuevoUsuario() {
+  _editingUser = null;
+  document.getElementById('formUsuarioTitulo').textContent = 'Nuevo usuario';
+  document.getElementById('uUsername').value = '';
+  document.getElementById('uUsername').disabled = false;
+  document.getElementById('uDisplayName').value = '';
+  document.getElementById('uPassword').value = '';
+  document.getElementById('uPassword').placeholder = 'Contraseña (obligatoria)';
+  document.getElementById('uRole').value = 'psicologa';
+  document.getElementById('uWpUsername').value = '';
+  document.getElementById('uWpPass').value = '';
+  _CATS.forEach(c => document.getElementById('catId(c)') ? document.getElementById(catId(c)).checked = false : null);
+  setCatChecks([]);
+  onRoleChange();
+  document.getElementById('formUsuario').style.display = 'block';
+  document.getElementById('uUsername').focus();
+}
+
+function catId(c) {
+  return {
+    'medicina_relacionados':     'catMedR',
+    'medicina_no_relacionados':  'catMedN',
+    'psicologia_relacionados':   'catPsiR',
+    'psicologia_no_relacionados':'catPsiN',
+  }[c];
+}
+
+function setCatChecks(cats) {
+  _CATS.forEach(c => { const el = document.getElementById(catId(c)); if(el) el.checked = cats ? cats.includes(c) : false; });
+  const allEl = document.getElementById('catAll');
+  if (allEl) allEl.checked = !cats;
+}
+
+function getCheckedCats() {
+  if (document.getElementById('catAll').checked) return null;
+  const res = _CATS.filter(c => { const el = document.getElementById(catId(c)); return el && el.checked; });
+  return res.length ? res : null;
+}
+
+function toggleAllCats(el) {
+  if (el.checked) _CATS.forEach(c => { const id = document.getElementById(catId(c)); if(id) id.disabled = true; });
+  else _CATS.forEach(c => { const id = document.getElementById(catId(c)); if(id) id.disabled = false; });
+}
+
+function onRoleChange() {
+  const role = document.getElementById('uRole').value;
+  const preset = _ROLE_CATS[role];
+  if (preset === null) {
+    // admin / editor → ver todas
+    document.getElementById('catAll').checked = true;
+    toggleAllCats(document.getElementById('catAll'));
+  } else {
+    document.getElementById('catAll').checked = false;
+    toggleAllCats({checked: false});
+    setCatChecks(preset);
+  }
+}
+
+function editarUsuario(uname) {
+  _editingUser = uname;
+  const u = window._usersData[uname];
+  document.getElementById('formUsuarioTitulo').textContent = `Editar: ${uname}`;
+  document.getElementById('uUsername').value   = uname;
+  document.getElementById('uUsername').disabled = true;
+  document.getElementById('uDisplayName').value = u.display_name || '';
+  document.getElementById('uPassword').value   = '';
+  document.getElementById('uPassword').placeholder = 'Dejar vacío = sin cambio';
+  document.getElementById('uRole').value      = u.role || 'editor';
+  document.getElementById('uWpUsername').value = u.wp_username || '';
+  document.getElementById('uWpPass').value     = u.wp_app_password || '';
+  document.getElementById('uProfBadge').value  = u.professional_badge || '';
+  setCatChecks(u.topic_categories);
+  if (!u.topic_categories) {
+    document.getElementById('catAll').checked = true;
+    toggleAllCats({checked: true});
+  }
+  renderBadgePreview();
+  document.getElementById('formUsuario').style.display = 'block';
+}
+
+function cancelarFormUsuario() {
+  document.getElementById('formUsuario').style.display = 'none';
+  document.getElementById('uProfBadge').value = '';
+  document.getElementById('bProfName').value  = '';
+  document.getElementById('bProfTitle').value = '';
+  document.getElementById('bProfLicense').value = '';
+  document.getElementById('badgePreview').innerHTML = '';
+  _editingUser = null;
+}
+
+async function guardarUsuario() {
+  const username    = document.getElementById('uUsername').value.trim().toLowerCase();
+  const displayName = document.getElementById('uDisplayName').value.trim();
+  const password    = document.getElementById('uPassword').value;
+  const role        = document.getElementById('uRole').value;
+  const wpUsername  = document.getElementById('uWpUsername').value.trim();
+  const wpPass      = document.getElementById('uWpPass').value.trim();
+  const topicCats   = getCheckedCats();
+  const profBadge   = document.getElementById('uProfBadge').value.trim();
+
+  if (_editingUser) {
+    // PATCH
+    const body = { role, display_name: displayName, wp_username: wpUsername, wp_app_password: wpPass, topic_categories: topicCats, professional_badge: profBadge };
+    if (password) body.password = password;
+    const r = await fetch(`/api/admin/users/${_editingUser}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.ok) { showToast(`Usuario ${_editingUser} actualizado`); cargarUsuarios(); cancelarFormUsuario(); }
+    else showToast(d.error || 'Error', 'danger');
+  } else {
+    // POST nuevo
+    if (!username) return showToast('Username requerido', 'warning');
+    if (!password) return showToast('Contraseña requerida', 'warning');
+    const body = { username, password, role, display_name: displayName, wp_username: wpUsername, wp_app_password: wpPass, topic_categories: topicCats, professional_badge: profBadge };
+    const r = await fetch('/api/admin/users', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if (d.ok) { showToast(`Usuario ${username} creado`); cargarUsuarios(); cancelarFormUsuario(); }
+    else showToast(d.error || 'Error', 'danger');
+  }
+}
+
+function generarBadge() {
+  const name    = document.getElementById('bProfName').value.trim();
+  const title   = document.getElementById('bProfTitle').value.trim();
+  const license = document.getElementById('bProfLicense').value.trim();
+  if (!name) return showToast('Introduce el nombre del profesional', 'warning');
+  const role  = document.getElementById('uRole').value;
+  const icon  = role === 'medico' ? '&#x1FA7A;' : role === 'psicologa' ? '&#x1F9E0;' : '&#x1F4CB;';
+  const color = role === 'medico' ? '#3b82f6' : role === 'psicologa' ? '#8b5cf6' : '#6b7280';
+  const disclaimer = role === 'medico'
+    ? 'La información contenida en este artículo ha sido contrastada y aprobada por una profesional médica colegiada. Su contenido tiene carácter exclusivamente informativo y no reemplaza el diagnóstico, tratamiento ni la consulta médica individualizada.'
+    : role === 'psicologa'
+    ? 'La información contenida en este artículo ha sido contrastada y aprobada por una profesional de la salud mental colegiada. Su contenido tiene carácter exclusivamente informativo y no reemplaza la orientación psicológica ni el diagnóstico clínico individualizado.'
+    : 'La información de este artículo ha sido revisada y validada por un profesional cualificado. Su contenido tiene carácter exclusivamente informativo.';
+  const titlePart = [title, license ? `Tarjeta profesional nº <strong>${license}</strong>` : ''].filter(Boolean).join(' &middot; ');
+  const html = `<div class="professional-review-badge" style="border:1px solid #d1d5db;border-left:4px solid ${color};border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit">\n  <div style="font-size:2.4rem;flex-shrink:0;line-height:1.1">${icon}</div>\n  <div>\n    <p style="margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600">Revisado y validado por</p>\n    <p style="margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827">${name}</p>${titlePart ? `\n    <p style="margin:0 0 14px;font-size:0.875rem;color:#4b5563">${titlePart}</p>` : ''}\n    <p style="margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic">${disclaimer}</p>\n  </div>\n</div>`;
+  document.getElementById('uProfBadge').value = html;
+  renderBadgePreview();
+  showToast('Badge generado ✅');
+}
+
+function renderBadgePreview() {
+  const html    = document.getElementById('uProfBadge').value.trim();
+  const preview = document.getElementById('badgePreview');
+  if (!preview) return;
+  preview.innerHTML = html
+    ? '<div class="small text-muted mb-1">Vista previa:</div>' + html
+    : '';
+}
+
+async function eliminarUsuario(uname) {
+  if (!confirm(`¿Eliminar el usuario "${uname}"? Esta acción no se puede deshacer.`)) return;
+  const r = await fetch(`/api/admin/users/${uname}`, { method:'DELETE' });
+  const d = await r.json();
+  if (d.ok) { showToast(`Usuario ${uname} eliminado`); cargarUsuarios(); }
+  else showToast(d.error || 'Error', 'danger');
+}
+
+// ══════════════════════════════════════════════════
+// CLAVES GEMINI
+// ══════════════════════════════════════════════════
+
+function cargarClaves() {
+  fetch('/api/admin/gemini-keys').then(r=>r.json()).then(keys => {
+    const el = document.getElementById('listaClaves');
+    if (!keys.length) {
+      el.innerHTML = '<p class="text-muted small">No hay claves configuradas.</p>';
+      return;
+    }
+    let html = '';
+    for (const k of keys) {
+      const badge = k.empty ? '<span class="badge bg-warning text-dark">vacía</span>' : '<span class="badge bg-success">activa</span>';
+      html += `<div class="d-flex align-items-center justify-content-between border rounded px-3 py-2 mb-2 bg-white">
+        <div>
+          <span class="fw-semibold small">GEMINI_API_KEY_${k.n}</span>
+          <span class="ms-2 text-muted small font-monospace">${k.masked}</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          ${badge}
+          <button class="btn btn-sm btn-outline-danger py-0 px-1" onclick="eliminarClave(${k.n})">🗑</button>
+        </div>
+      </div>`;
+    }
+    el.innerHTML = html;
+  }).catch(e => document.getElementById('listaClaves').innerHTML = `<div class="alert alert-danger small">${e}</div>`);
+}
+
+function mostrarFormNuevaClave() {
+  document.getElementById('formGemini').style.display = 'block';
+  document.getElementById('nuevaClave').focus();
+}
+
+async function agregarClave() {
+  const key = document.getElementById('nuevaClave').value.trim();
+  if (!key) return showToast('Introduce la clave API', 'warning');
+  const r = await fetch('/api/admin/gemini-keys', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({key}) });
+  const d = await r.json();
+  if (d.ok) {
+    showToast(`Clave GEMINI_API_KEY_${d.n} añadida ✅`);
+    document.getElementById('nuevaClave').value = '';
+    document.getElementById('formGemini').style.display = 'none';
+    cargarClaves();
+  } else showToast(d.error || 'Error', 'danger');
+}
+
+async function eliminarClave(n) {
+  if (!confirm(`¿Eliminar GEMINI_API_KEY_${n}? Las demás claves se renumerarán.`)) return;
+  const r = await fetch(`/api/admin/gemini-keys/${n}`, { method:'DELETE' });
+  const d = await r.json();
+  if (d.ok) { showToast(`Clave ${n} eliminada`); cargarClaves(); }
+  else showToast(d.error || 'Error', 'danger');
+}
+
+// ══════════════════════════════════════════════════
+// ESTADÍSTICAS POR USUARIO
+// ══════════════════════════════════════════════════
+
+const ROLE_ICONS = { admin:'🛡️', psicologa:'🧠', medico:'🩺', editor:'✍️' };
+const TYPE_LABEL_SHORT = { opinion:'Opinión', listicle:'Listicle', howto:'How-to',
+  comparativa:'Comparativa', guia:'Guía', resena_seo:'Reseña SEO', evergreen:'Evergreen' };
+
+async function cargarStats() {
+  document.getElementById('statsContent').innerHTML = '<div class="text-center text-muted py-3 small">Cargando…</div>';
+  const r = await fetch('/api/admin/stats');
+  const d = await r.json();
+  if (!d.ok) { document.getElementById('statsContent').innerHTML = `<div class="alert alert-danger">Error al cargar stats</div>`; return; }
+
+  const users = d.stats;
+  if (!users.length) { document.getElementById('statsContent').innerHTML = '<div class="text-muted small">Sin datos aún.</div>'; return; }
+
+  // Totales globales
+  const totalPosts    = users.reduce((a,u) => a + u.posts_generados, 0);
+  const totalTokens   = users.reduce((a,u) => a + u.tokens_usados, 0);
+  const totalDrafts   = users.reduce((a,u) => a + u.borradores_disco, 0);
+  const totalPublicados = users.reduce((a,u) => a + u.posts_publicados, 0);
+
+  let html = `
+  <!-- Totales -->
+  <div class="row g-2 mb-4 text-center">
+    <div class="col-6 col-md-3">
+      <div class="rounded p-3" style="background:var(--surface2)">
+        <div class="fw-bold fs-4" style="color:var(--accent)">${totalPosts}</div>
+        <div class="text-muted small">Posts generados</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rounded p-3" style="background:var(--surface2)">
+        <div class="fw-bold fs-4" style="color:var(--amber)">${totalTokens.toLocaleString()}</div>
+        <div class="text-muted small">Tokens consumidos</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rounded p-3" style="background:var(--surface2)">
+        <div class="fw-bold fs-4" style="color:var(--green)">${totalDrafts}</div>
+        <div class="text-muted small">Borradores en disco</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="rounded p-3" style="background:var(--surface2)">
+        <div class="fw-bold fs-4" style="color:var(--red)">${totalPublicados}</div>
+        <div class="text-muted small">Posts publicados (real)</div>
+      </div>
+    </div>
+  </div>
+  <!-- Por usuario -->
+  <div class="row g-3">`;
+
+  users.forEach(u => {
+    const icon = ROLE_ICONS[u.role] || '👤';
+    const ultima = u.ultima_actividad ? u.ultima_actividad.substring(0,10) : '—';
+    const tiposHtml = Object.entries(u.tipos)
+      .sort((a,b) => b[1]-a[1])
+      .map(([t,n]) => `<span class="badge me-1" style="background:var(--surface);color:var(--muted);font-weight:400">${TYPE_LABEL_SHORT[t]||t}: ${n}</span>`)
+      .join('');
+
+    html += `
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="border rounded p-3 h-100" style="border-color:var(--border)!important">
+        <div class="fw-semibold mb-2">${icon} ${u.display_name} <span class="badge ms-1" style="background:var(--surface2);color:var(--muted);font-size:.7rem">${u.role}</span></div>
+        <div class="row g-1 text-center mb-2">
+          <div class="col-6">
+            <div class="rounded py-2" style="background:var(--surface2)">
+              <div class="fw-bold" style="color:var(--accent)">${u.posts_generados}</div>
+              <div style="font-size:.72rem;color:var(--muted)">Generados</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="rounded py-2" style="background:var(--surface2)">
+              <div class="fw-bold" style="color:var(--green)">${u.borradores_disco}</div>
+              <div style="font-size:.72rem;color:var(--muted)">En disco</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="rounded py-2" style="background:var(--surface2)">
+              <div class="fw-bold" style="color:var(--red)">${u.posts_publicados}</div>
+              <div style="font-size:.72rem;color:var(--muted)">Publicados</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="rounded py-2" style="background:var(--surface2)">
+              <div class="fw-bold" style="color:var(--amber)">${u.tokens_usados.toLocaleString()}</div>
+              <div style="font-size:.72rem;color:var(--muted)">Tokens</div>
+            </div>
+          </div>
+        </div>
+        <div class="mb-1" style="font-size:.75rem;color:var(--muted)">Última actividad: ${ultima}</div>
+        <div style="font-size:.75rem">${tiposHtml || '<span class="text-muted">Sin actividad</span>'}</div>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('statsContent').innerHTML = html;
+}
+
+// Cargar al abrir la página
+cargarUsuarios();
+cargarClaves();
+cargarStats();</script>
+{% endblock %}

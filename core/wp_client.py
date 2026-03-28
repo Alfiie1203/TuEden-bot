@@ -274,13 +274,25 @@ class _RealWPClient:
             },
         }
 
-        response = requests.post(
-            endpoint,
-            json    = payload,
-            auth    = self.auth,
-            headers = self.headers,
-            timeout = 30,
-        )
+        try:
+            response = requests.post(
+                endpoint,
+                json    = payload,
+                auth    = self.auth,
+                headers = self.headers,
+                timeout = 30,
+            )
+        except requests.exceptions.ConnectionError as exc:
+            raise ConnectionError(
+                f"❌ No se puede conectar a WordPress ({self.base_url}). "
+                f"Verifica que el servidor esté online y accesible desde esta máquina "
+                f"(¿VPN activa? ¿dominio en DNS?). Detalle: {exc}"
+            ) from exc
+        except requests.exceptions.Timeout:
+            raise TimeoutError(
+                f"⏱️ WordPress no respondió en 30 segundos ({self.base_url}). "
+                f"El servidor puede estar caído o sobrecargado."
+            )
 
         if response.status_code == 401:
             raise PermissionError(
@@ -288,7 +300,11 @@ class _RealWPClient:
                 "Verifica WP_USERNAME y WP_APP_PASSWORD en .env"
             )
 
-        response.raise_for_status()
+        if not response.ok:
+            raise RuntimeError(
+                f"❌ WordPress devolvió HTTP {response.status_code}. "
+                f"Respuesta: {response.text[:300]}"
+            )
 
         data  = response.json()
         wp_id = data["id"]
@@ -296,6 +312,14 @@ class _RealWPClient:
         logger.success(f"[REAL] Draft creado en WP → ID {wp_id} | {edit_link}")
 
         draft.wp_post_id = wp_id
+
+        # Actualizar metadatos SEO en AIOSEO (si está instalado)
+        self._update_aioseo_meta(
+            wp_id,
+            draft.meta_description,
+            draft.focus_keyword,
+            getattr(draft, "seo_keywords", []) or [],
+        )
 
         # Guardar copia local JSON para el editor de borradores
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -325,26 +349,104 @@ class _RealWPClient:
 
         return wp_id
 
+    def _update_aioseo_meta(
+        self,
+        wp_id: int,
+        meta_description: str,
+        focus_keyword: str,
+        seo_keywords: list[str] | None = None,
+    ) -> None:
+        """
+        Actualiza los metadatos SEO en AIOSEO via su REST API (v4+).
+        Envía la meta description y la única keyword de foco.
+        Si AIOSEO no está instalado o activo simplemente registra un warning.
+        """
+        try:
+            payload: dict = {"post_id": wp_id, "description": meta_description or ""}
+            if focus_keyword:
+                payload["keyphrases"] = {
+                    "focus": {
+                        "keyphrase": focus_keyword,
+                        "active":    True,
+                        "score":     0,
+                        "analysis":  {},
+                    }
+                }
+            resp = requests.post(
+                f"{self.base_url}/wp-json/aioseo/v1/post",
+                json    = payload,
+                auth    = self.auth,
+                headers = {"Content-Type": "application/json"},
+                timeout = 15,
+            )
+            if resp.ok:
+                logger.success(f"[REAL] AIOSEO meta actualizada → post {wp_id}")
+            elif resp.status_code == 404:
+                logger.warning("[REAL] AIOSEO REST API no encontrada (¿plugin activo y actualizado?)")
+            else:
+                logger.warning(f"[REAL] AIOSEO respondió HTTP {resp.status_code}: {resp.text[:200]}")
+        except Exception as exc:
+            logger.warning(f"[REAL] No se pudo actualizar AIOSEO: {exc}")
+
+    @staticmethod
+    def _resize_image_if_needed(path: Path, max_px: int = 2560, quality: int = 85) -> tuple[bytes, str]:
+        """
+        Redimensiona la imagen si cualquier dimensión supera max_px y la convierte
+        a JPEG para minimizar el tamaño. Devuelve (bytes_imagen, mime_type).
+        Requiere Pillow; si no está instalado, devuelve el archivo original sin tocar.
+        """
+        try:
+            from PIL import Image
+            import io
+            img = Image.open(path)
+            # Convertir a RGB si es necesario (p.ej. PNG con transparencia)
+            if img.mode not in ("RGB", "L"):
+                img = img.convert("RGB")
+            w, h = img.size
+            if w > max_px or h > max_px:
+                # Redimensionar manteniendo la proporción
+                ratio = min(max_px / w, max_px / h)
+                new_w, new_h = int(w * ratio), int(h * ratio)
+                img = img.resize((new_w, new_h), Image.LANCZOS)
+                logger.info(f"[REAL] Imagen redimensionada: {w}×{h} → {new_w}×{new_h}")
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            return buf.getvalue(), "image/jpeg"
+        except ImportError:
+            logger.warning("[REAL] Pillow no instalado — subiendo imagen sin redimensionar")
+            return path.read_bytes(), None
+        except Exception as exc:
+            logger.warning(f"[REAL] No se pudo redimensionar {path.name}: {exc} — subiendo original")
+            return path.read_bytes(), None
+
     def upload_media(self, file_path: str, alt_text: str = "") -> dict:
         """
         Sube un archivo de imagen a la Media Library de WordPress.
+        Redimensiona automáticamente si supera 2560 px en cualquier dimensión.
 
         Returns:
             dict con keys: id, url, alt  (para usar en el contenido HTML)
         """
         import mimetypes
         path = Path(file_path)
-        mime = mimetypes.guess_type(str(path))[0] or "image/jpeg"
 
-        with open(path, "rb") as f:
-            response = requests.post(
+        # Redimensionar si es necesario
+        img_bytes, resized_mime = self._resize_image_if_needed(path)
+        if resized_mime:
+            mime      = resized_mime
+            upload_name = path.stem + ".jpg"
+        else:
+            mime      = mimetypes.guess_type(str(path))[0] or "image/jpeg"
+            upload_name = path.name
+
+        response = requests.post(
                 f"{self._api}/media",
                 auth    = self.auth,
                 headers = {
-                    "Content-Disposition": f'attachment; filename="{path.name}"',
+                    "Content-Disposition": f'attachment; filename="{upload_name}"',
                     "Content-Type":        mime,
                 },
-                data    = f,
+                data    = img_bytes,
                 timeout = 60,
             )
 
@@ -371,6 +473,11 @@ class _RealWPClient:
         Sube las imágenes del draft a WP Media Library e inyecta los bloques
         <figure> en el HTML después del marcador <!-- img:N -->.
         Si la imagen tiene src= (URL externa o path local) la sube primero.
+
+        Maneja dos formatos de src:
+          - Path local puro:  'drafts_output/images/img_xxx.png'
+          - Prefijo [LOCAL]:  '[LOCAL] drafts_output\images\img_xxx.png'
+            (generado por el cliente simulado; se extrae el path real)
         """
         content = draft.content
         images  = getattr(draft, "images", []) or []
@@ -381,29 +488,48 @@ class _RealWPClient:
             alt      = img.get("alt", "")
             caption  = img.get("caption", "")
 
-            # Si es un path local → subirla a WP
-            if src and not src.startswith("http") and Path(src).exists():
-                try:
-                    media = self.upload_media(src, alt_text=alt)
-                    src   = media["url"]
-                except Exception as exc:
-                    logger.warning(f"[REAL] No se pudo subir imagen {src}: {exc}")
-                    continue
+            # Extraer el path real si lleva el prefijo [LOCAL] del cliente simulado
+            local_prefix = "[LOCAL] "
+            actual_path  = src
+            if src.startswith(local_prefix):
+                actual_path = src[len(local_prefix):]
 
-            if not src:
+            # Si es un path local que existe en disco → subirla a WP
+            uploaded_url = ""
+            if actual_path and not actual_path.startswith("http") and Path(actual_path).exists():
+                try:
+                    media        = self.upload_media(actual_path, alt_text=alt)
+                    uploaded_url = media["url"]
+                    logger.info(f"[REAL] Imagen subida a WP: {actual_path} → {uploaded_url}")
+                except Exception as exc:
+                    logger.warning(f"[REAL] No se pudo subir imagen {actual_path}: {exc}")
+                    continue
+            elif actual_path.startswith("http"):
+                # URL pública ya válida – usar directamente
+                uploaded_url = actual_path
+
+            if not uploaded_url:
                 continue
 
             caption_html = f"<figcaption>{caption}</figcaption>" if caption else ""
             img_block = (
                 f'\n<figure class="wp-block-image">'
-                f'<img src="{src}" alt="{alt}" />'
+                f'<img src="{uploaded_url}" alt="{alt}" />'
                 f'{caption_html}</figure>\n'
             )
 
+            # Caso 1: el contenido todavía tiene el marcador original
             if marker and marker in content:
                 content = content.replace(marker, img_block, 1)
+
+            # Caso 2: el cliente simulado ya reemplazó el marcador con la ruta [LOCAL]
+            # (tanto en src= como en data-mce-src= u otros atributos)
+            elif src in content:
+                # Reemplazar todas las apariciones del string [LOCAL] en el HTML
+                content = content.replace(src, uploaded_url)
+
             else:
-                # Sin marcador → añadir al final
+                # Sin referencia en el contenido → añadir al final
                 content += img_block
 
         return content
@@ -422,6 +548,6 @@ class _RealWPClient:
                 return True
             logger.error(f"[REAL] test_connection falló: HTTP {response.status_code}")
             return False
-        except requests.RequestException as exc:
-            logger.error(f"[REAL] No se pudo conectar a WordPress: {exc}")
+        except requests.exceptions.RequestException as exc:
+            logger.error(f"[REAL] test_connection falló: {exc}")
             return False

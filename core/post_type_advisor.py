@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from datetime import date
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -86,11 +87,18 @@ def _mock_suggestions(topics: list[str]) -> list[PostSuggestion]:
 
 def _build_prompt(topics: list[str]) -> str:
     topics_json = json.dumps(topics, ensure_ascii=False, indent=2)
+    _meses = ["enero","febrero","marzo","abril","mayo","junio",
+              "julio","agosto","septiembre","octubre","noviembre","diciembre"]
+    hoy = date.today()
+    today_str = f"{hoy.day} de {_meses[hoy.month - 1]} de {hoy.year}"
+    current_year = hoy.year
     return f"""\
 Eres un experto en SEO y estrategia de contenidos médico-psicológicos en español.
 
+La fecha de hoy es {today_str}. Esto es MUY IMPORTANTE: estamos en el año {current_year}.
+
 Para cada tópico de la lista, sugiere EXACTAMENTE 3 artículos de blog con los títulos \
-más indexables y atractivos posibles para Google en 2026.
+más indexables y atractivos posibles para Google en {current_year}.
 
 Los 3 tipos de artículo son SIEMPRE estos (en este orden):
 1. EVERGREEN — Artículo atemporal de fondo (reflexión, análisis, columna de opinión) \
@@ -102,7 +110,7 @@ búsquedas de tipo "cómo…". El título DEBE empezar por "Cómo" o "Guía para
 
 REGLAS PARA TÍTULOS DE ALTO IMPACTO:
 • Máximo 65 caracteres por título.
-• Incluye cifras, datos o años cuando sea posible.
+• Si incluyes un año en el título, usa preferentemente {current_year}. Puedes citar años anteriores solo si el dato es real y relevante.
 • Usa palabras de alto CTR: secreto, clave, definitivo, descubierto, alerta, real, probado.
 • Sé ultra-específico: evita títulos vagos o genéricos.
 • Orientado al lector del blog médico-psicológico: pacientes, familiares y profesionales.

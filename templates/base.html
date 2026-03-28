@@ -1,28 +1,99 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Blog Content Generator{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    body { background:#f8f9fa; }
-    .navbar-brand { font-weight:700; letter-spacing:-0.5px; }
-    .badge-mock { background:#fff3cd; color:#856404; border:1px solid #ffc107; }
-    .badge-sim  { background:#cfe2ff; color:#084298; border:1px solid #b6d4fe; }
-    .badge-real { background:#d1e7dd; color:#0f5132; border:1px solid #a3cfbb; }
+    /* ── Dark theme palette ───────────────────────────────────── */
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1f2e;
+      --surface2: #222840;
+      --border:   #2d3348;
+      --text:     #e8eaf0;
+      --muted:    #8892a4;
+      --accent:   #6ea8fe;
+      --green:    #6dde88;
+      --amber:    #ffd166;
+      --red:      #ff7070;
+    }
+    body { background: var(--bg); color: var(--text); }
+    /* ── Navbar ── */
+    .navbar { background: #070a12 !important; border-bottom: 1px solid var(--border); }
+    .navbar-brand { font-weight:700; letter-spacing:-0.5px; color:#fff !important; }
+    .nav-link { color: var(--muted) !important; }
+    .nav-link:hover, .nav-link.active { color: var(--accent) !important; font-weight:600; }
+    /* ── Cards ── */
+    .main-card { background: var(--surface); border: 1px solid var(--border); border-radius:10px; box-shadow:0 2px 12px rgba(0,0,0,.4); }
+    .section-title { font-size:1.05rem; font-weight:600; margin-bottom:.75rem; color: var(--text); }
+    /* ── Mode badges ── */
+    .badge-mock { background:#2b2500; color: var(--amber); border:1px solid #5a4a00; }
+    .badge-sim  { background:#0d1b35; color: var(--accent); border:1px solid #1e3a6e; }
+    .badge-real { background:#0a2218; color: var(--green);  border:1px solid #145a30; }
     .badge-mode { font-size:.75rem; font-weight:600; padding:3px 9px; border-radius:10px; }
+    /* ── Token sidebar key colors ── */
     .sidebar-token { font-size:.82rem; }
-    .progress { height:8px; }
-    .key-active  { border-left:3px solid #198754; }
-    .key-warn    { border-left:3px solid #ffc107; }
-    .key-dead    { border-left:3px solid #dc3545; }
-    .key-inactive{ border-left:3px solid #dee2e6; }
-    .main-card { background:#fff; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
-    .section-title { font-size:1.05rem; font-weight:600; margin-bottom:.75rem; }
+    .progress { height:8px; background: var(--border); }
+    .progress-bar { background: var(--accent); }
+    .key-active   { border-left:3px solid var(--green);  background: rgba(109,222,136,.06); }
+    .key-warn     { border-left:3px solid var(--amber); background: rgba(255,209,102,.06); }
+    .key-dead     { border-left:3px solid var(--red);   background: rgba(255,112,112,.06); }
+    .key-inactive { border-left:3px solid var(--border); }
+    /* ── Forms ── */
+    .form-control, .form-select, .form-check-input {
+      background: var(--bg) !important; color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 0 .2rem rgba(110,168,254,.2) !important;
+    }
+    .form-control::placeholder { color: #3a4055; }
+    .input-group-text { background: var(--surface2); border-color: var(--border); color: var(--text); }
+    /* ── Tables ── */
+    .table { --bs-table-color: var(--text); --bs-table-bg: transparent;
+      --bs-table-striped-bg: rgba(255,255,255,.03);
+      --bs-table-hover-bg:   rgba(110,168,254,.08); }
+    .table-light, thead.table-light { background: var(--surface2) !important;
+      --bs-table-bg: var(--surface2); color: var(--muted) !important; }
+    /* ── Dropdowns ── */
+    .dropdown-menu { background: var(--surface); border: 1px solid var(--border); }
+    .dropdown-item { color: var(--text) !important; }
+    .dropdown-item:hover { background: var(--surface2) !important; color: var(--accent) !important; }
+    .dropdown-divider { border-color: var(--border); }
+    .dropdown-item-text { color: var(--muted) !important; }
+    /* ── Modals / offcanvas ── */
+    .offcanvas { background: var(--surface); border-left: 1px solid var(--border); }
+    .modal-content { background: var(--surface); border: 1px solid var(--border); }
+    /* ── bg-light override in dark mode ── */
+    .bg-light { background: var(--surface2) !important; }
+    /* ── Borders ── */
+    .border-top { border-color: var(--border) !important; }
+    .border, .rounded { border-color: var(--border) !important; }
+    /* ── Alert overrides ── */
+    .alert-success { background: rgba(109,222,136,.12); border-color: rgba(109,222,136,.3); color: var(--green); }
+    .alert-warning { background: rgba(255,209,102,.12); border-color: rgba(255,209,102,.3); color: var(--amber); }
+    .alert-danger  { background: rgba(255,112,112,.12); border-color: rgba(255,112,112,.3);  color: var(--red); }
+    .alert-info    { background: rgba(110,168,254,.12); border-color: rgba(110,168,254,.3); color: var(--accent); }
+    /* ── Misc ── */
     a { text-decoration:none; }
-    .nav-link.active { font-weight:600; }
+    footer { color: var(--muted) !important; border-color: var(--border) !important; }
     #toastContainer { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; min-width:280px; }
+    code { color: var(--accent); background: rgba(110,168,254,.1); padding:1px 5px; border-radius:4px; }
+    hr { border-color: var(--border); opacity:1; }
+    .text-muted { color: var(--muted) !important; }
+    /* ── Accordion ── */
+    .accordion-item { background: var(--surface2); border-color: var(--border); }
+    .accordion-button { background: var(--surface2); color: var(--text); }
+    .accordion-button:not(.collapsed) { background: rgba(110,168,254,.1); color: var(--accent); }
+    .accordion-button::after { filter: invert(1) brightness(2); }
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -40,7 +111,9 @@
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='index' %}active{% endif %}" href="/">🏠 Inicio</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='topicos' %}active{% endif %}" href="/topicos">📰 Tópicos del día</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='historial' %}active{% endif %}" href="/historial">📜 Historial</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.endpoint=='borrador' %}active{% endif %}" href="/borrador">✏️ Editor</a></li>
+        {% if current_user and current_user.role == 'admin' %}
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='admin_page' %}active{% endif %}" href="/admin">⚙️ Admin</a></li>
+        {% endif %}
       </ul>
       <div class="d-flex align-items-center gap-2">
         <!-- Modo badge -->
@@ -51,10 +124,29 @@
         {% else %}
           <span class="badge-mode badge-real">✅ WP Real</span>
         {% endif %}
-        <!-- Token toggle -->
+        <!-- Token toggle (solo admin) -->
+        {% if current_user and current_user.role == 'admin' %}
         <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#tokenSidebar" id="btnTokens">
           🔑 Tokens
         </button>
+        {% endif %}
+        <!-- Usuario actual + logout -->
+        {% if current_user %}
+        <div class="dropdown">
+          <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+            {% if current_user.role == 'admin' %}🛡️
+            {% elif current_user.role == 'psicologa' %}🧠
+            {% elif current_user.role == 'medico' %}🩺
+            {% else %}👤{% endif %}
+            {{ current_user.display_name }}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><span class="dropdown-item-text small text-muted">Rol: {{ current_user.role }}</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="/logout">🚪 Cerrar sesión</a></li>
+          </ul>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -62,8 +154,8 @@
 
 <!-- ── Token Sidebar (offcanvas) ─────────────────────────────────────────── -->
 <div class="offcanvas offcanvas-end" tabindex="-1" id="tokenSidebar" style="width:340px">
-  <div class="offcanvas-header bg-dark text-white">
-    <h6 class="offcanvas-title mb-0">🔑 Gestión de Tokens</h6>
+  <div class="offcanvas-header" style="background:#070a12;border-bottom:1px solid var(--border)">
+    <h6 class="offcanvas-title mb-0" style="color:#fff">🔑 Gestión de Tokens</h6>
     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
   </div>
   <div class="offcanvas-body sidebar-token" id="tokenSidebarBody">
@@ -81,7 +173,7 @@
 
 <!-- ── Footer ───────────────────────────────────────────────────────────── -->
 <footer class="text-center text-muted small py-4 mt-5 border-top">
-  Blog Content Generator · Human-in-the-Loop · Gemini API + WordPress REST API · v2.0 Flask
+  Blog Content Generator &nbsp;·&nbsp; Human-in-the-Loop &nbsp;·&nbsp; Gemini API + WordPress REST API &nbsp;·&nbsp; v2.0 Flask
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -122,10 +214,10 @@ function loadTokens() {
     html += `<div class="mb-3">
       <div class='section-title'>📊 Uso del Pool</div>
       <div class="row g-2 text-center">
-        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_today_tokens||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Tokens hoy</div></div></div>
-        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_today_requests||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Requests hoy</div></div></div>
-        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${(data.pool_total_tokens||0).toLocaleString()}</div><div class="text-muted" style="font-size:.7rem">Tokens total</div></div></div>
-        <div class="col-6"><div class="bg-light rounded p-2"><div class="fw-bold">${data.pool_blogs_remaining||0}</div><div class="text-muted" style="font-size:.7rem">Blogs restantes</div></div></div>
+        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_today_tokens||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Tokens hoy</div></div></div>
+        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_today_requests||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Requests hoy</div></div></div>
+        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_total_tokens||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Tokens total</div></div></div>
+        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--green)">${data.pool_blogs_remaining||0}</div><div style="font-size:.7rem;color:var(--muted)">Blogs restantes</div></div></div>
       </div>
     </div><hr>`;
     // Keys

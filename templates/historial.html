@@ -5,8 +5,59 @@
 <div class="main-card p-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="section-title mb-0">📜 Historial de Generaciones</h5>
-    <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+    <div class="d-flex gap-2">
+      {% if current_user and current_user.role == 'admin' %}
+      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarBorradores">
+        🗂️ Borrar borradores
+      </button>
+      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarHistorial">
+        🗑️ Borrar historial de log
+      </button>
+      {% endif %}
+      <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+    </div>
   </div>
+
+  {% if current_user and current_user.role == 'admin' %}
+  <!-- Modal confirmar borrado de borradores -->
+  <div class="modal fade" id="modalBorrarBorradores" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">🗂️ Borrar todos los borradores</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>¿Estás seguro de que deseas eliminar <strong>todos los archivos de borrador</strong> de <code>drafts_output/</code>?</p>
+          <p class="text-danger small">Esta acción es irreversible. Se eliminarán todos los JSON de borradores guardados localmente.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" onclick="borrarBorradores()">Sí, eliminar todos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal confirmar borrado del log de historial -->
+  <div class="modal fade" id="modalBorrarHistorial" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">🗑️ Borrar historial</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>¿Estás seguro de que deseas borrar <strong>todo el historial</strong> de generaciones?</p>
+          <p class="text-danger small">Esta acción es irreversible. Los archivos de borrador en <code>drafts_output/</code> no se eliminarán.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-danger" onclick="borrarHistorial()">Sí, borrar todo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <p class="text-muted small">Todas las sesiones de generación registradas localmente.</p>
 
   <!-- Filtros -->
@@ -44,16 +95,6 @@
   <div id="historialContent">
     <div class="text-center text-muted py-5">Cargando historial…</div>
   </div>
-
-  <!-- Estadísticas -->
-  <hr>
-  <h6 class="section-title">📊 Estadísticas</h6>
-  <div class="row g-2 text-center" id="statsRow">
-    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statTotal">—</div><div class="text-muted small">Posts generados</div></div></div>
-    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statSessions">—</div><div class="text-muted small">Sesiones</div></div></div>
-    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statTokens">—</div><div class="text-muted small">Tokens consumidos</div></div></div>
-    <div class="col-md-3"><div class="bg-light rounded p-3"><div class="fw-bold fs-4" id="statDrafts">—</div><div class="text-muted small">Borradores en disco</div></div></div>
-  </div>
 </div>
 {% endblock %}
 
@@ -69,7 +110,6 @@ function cargarHistorial() {
   fetch('/api/historial').then(r=>r.json()).then(data => {
     _allEntries = data;
     filtrar();
-    calcularStats(data);
   }).catch(e => {
     document.getElementById('historialContent').innerHTML = `<div class="alert alert-danger">Error: ${e}</div>`;
   });
@@ -114,15 +154,19 @@ function filtrar() {
     const modeIcon = wpMode === 'simulado' ? '🟡' : '✅';
     const shortSid = sid.length > 8 ? sid.slice(-8) : sid;
 
+    // Solo mostrar entradas que tienen archivo local
+    const visibles = entries.filter(e => e.draft_exists);
+    if (!visibles.length) continue;
+
     html += `<div class="card mb-3">
       <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor:pointer"
            onclick="toggleSession('sess_${shortSid}')">
-        <span>${modeIcon} <code>${ts}</code> — ${entries.length} post(s) · sesión <code>${shortSid}</code></span>
+        <span>${modeIcon} <code>${ts}</code> — ${visibles.length} post(s) · sesión <code>${shortSid}</code></span>
         <span id="chevron_${shortSid}">▼</span>
       </div>
       <div id="sess_${shortSid}" class="card-body p-0">`;
 
-    entries.forEach(e => {
+    visibles.forEach(e => {
       const pt    = e.post_type || '';
       const icon  = TYPE_ICONS[pt] || '📄';
       const label = TYPE_LABELS[pt] || pt;
@@ -141,13 +185,10 @@ function filtrar() {
         </div>
         <div class="ms-2 flex-shrink-0">`;
 
-      if (df && exists) {
-        html += `<a href="/borrador?file=${encodeURIComponent(df)}" class="btn btn-sm btn-primary">📝 Ver / Editar</a>`;
-      } else if (wpMode === 'real' && wpId !== '?') {
-        html += `<button class="btn btn-sm btn-outline-info" onclick="recuperarDesdeWP(${JSON.stringify(wpId)}, '${pt}', ${JSON.stringify(e)})">⬇️ Recuperar</button>`;
-      } else {
-        html += `<span class="text-muted small">${df ? '_(archivo borrado)_' : '—'}</span>`;
-      }
+      // Ocultar entradas sin archivo local
+      if (!exists) return;
+
+      html += `<a href="/borrador?file=${encodeURIComponent(df)}" class="btn btn-sm btn-primary">📝 Ver / Editar</a>`;
 
       html += `</div></div>`;
     });
@@ -162,17 +203,6 @@ function toggleSession(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.style.display = el.style.display === 'none' ? '' : 'none';
-}
-
-function calcularStats(entries) {
-  const totalTokens = entries.reduce((a,e) => a + (e.tokens_used||0), 0);
-  const sessions    = new Set(entries.map(e=>e.session_id)).size;
-  document.getElementById('statTotal').textContent    = entries.length;
-  document.getElementById('statSessions').textContent = sessions;
-  document.getElementById('statTokens').textContent   = totalTokens.toLocaleString();
-  fetch('/api/borradores').then(r=>r.json()).then(d => {
-    document.getElementById('statDrafts').textContent = d.length;
-  });
 }
 
 function recuperarDesdeWP(wpId, postType, entry) {
@@ -192,5 +222,37 @@ function recuperarDesdeWP(wpId, postType, entry) {
 
 // Cargar al inicio
 cargarHistorial();
+
+function borrarHistorial() {
+  fetch('/api/historial', {method:'DELETE'})
+    .then(r => r.json())
+    .then(d => {
+      bootstrap.Modal.getInstance(document.getElementById('modalBorrarHistorial'))?.hide();
+      if (d.ok) {
+        _allEntries = [];
+        filtrar();
+        calcularStats([]);
+        showToast('Historial de log borrado correctamente.');
+      } else {
+        showToast(d.error || 'Error al borrar', 'danger');
+      }
+    })
+    .catch(e => showToast('Error: ' + e, 'danger'));
+}
+
+function borrarBorradores() {
+  fetch('/api/borradores/todos', {method:'DELETE'})
+    .then(r => r.json())
+    .then(d => {
+      bootstrap.Modal.getInstance(document.getElementById('modalBorrarBorradores'))?.hide();
+      if (d.ok) {
+        showToast(`${d.eliminados} borrador(es) eliminado(s) correctamente.`);
+        cargarHistorial();
+      } else {
+        showToast(d.error || 'Error al eliminar', 'danger');
+      }
+    })
+    .catch(e => showToast('Error: ' + e, 'danger'));
+}
 </script>
 {% endblock %}

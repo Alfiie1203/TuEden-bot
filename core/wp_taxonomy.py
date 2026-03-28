@@ -232,6 +232,50 @@ def resolve_tags(
 
 
 # ---------------------------------------------------------------------------
+# Generador de palabras clave SEO via Gemini
+# ---------------------------------------------------------------------------
+
+def generate_seo_keywords(
+    gemini: "GeminiClient",
+    title: str,
+    content: str,
+    focus_keyword: str = "",
+) -> list[str]:
+    """
+    Usa Gemini para generar 7 palabras clave SEO orientadas a búsquedas reales.
+    Incluye keywords cortas y frases de cola larga (2-4 palabras).
+
+    Returns:
+        Lista de strings en minúsculas, vacía si falla.
+    """
+    import re as _re
+    clean_snippet = _re.sub(r"<[^>]+>", " ", content)[:500].strip()
+
+    prompt = f"""Eres un experto SEO para un blog en español sobre tecnología, salud, bienestar y hogar.
+Genera exactamente 7 palabras clave SEO en español para este artículo.
+Deben ser búsquedas reales de Google: combina keywords cortas (1-2 palabras) y frases de cola larga (3-4 palabras).
+NO repitas el título exacto ni la keyword principal. Varía con sinónimos e intenciones de búsqueda distintas.
+
+Título: {title}
+Keyword principal: {focus_keyword}
+Extracto del contenido: {clean_snippet}
+
+Devuelve SOLO este JSON (sin texto extra ni bloques markdown):
+{{"keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7"]}}"""
+
+    try:
+        raw   = gemini.call_raw(prompt)
+        clean = _re.sub(r"```(?:json)?\s*|\s*```", "", raw).strip()
+        data  = json.loads(clean)
+        kws   = [str(k).strip().lower() for k in data.get("keywords", []) if str(k).strip()]
+        logger.info(f"[Taxonomy] Keywords SEO generadas: {kws}")
+        return kws[:7]
+    except Exception as exc:
+        logger.warning(f"[Taxonomy] No se pudieron generar keywords SEO: {exc}")
+        return []
+
+
+# ---------------------------------------------------------------------------
 # Función de conveniencia: orquesta todo el flujo
 # ---------------------------------------------------------------------------
 
@@ -242,37 +286,49 @@ def assign_taxonomy(
     title: str,
     content: str,
     post_type: str,
-) -> tuple[list[int], list[int]]:
+    focus_keyword: str = "",
+) -> tuple[list[int], list[int], list[str]]:
     """
-    Flujo completo: fetch → classify → resolve → return (category_ids, tag_ids).
+    Flujo completo: fetch → classify → generate SEO keywords → resolve → return.
 
     Args:
-        gemini:    Instancia de GeminiClient.
-        base_url:  URL base de WordPress (ej. "https://miblog.com").
-        auth:      HTTPBasicAuth con credenciales de WordPress.
-        title:     Título del post.
-        content:   Contenido HTML del post.
-        post_type: Tipo de post.
+        gemini:        Instancia de GeminiClient.
+        base_url:      URL base de WordPress (ej. "https://miblog.com").
+        auth:          HTTPBasicAuth con credenciales de WordPress.
+        title:         Título del post.
+        content:       Contenido HTML del post.
+        post_type:     Tipo de post.
+        focus_keyword: Keyword principal del post (mejora la generación de keywords).
 
     Returns:
-        Tupla (category_ids: list[int], tag_ids: list[int])
-        category_ids tendrá exactamente 1 elemento (o [] si falla).
+        Tupla (category_ids, tag_ids, keyword_strings) donde:
+          - category_ids:    exactamente 1 elemento (o [] si falla)
+          - tag_ids:         IDs de etiquetas (taxonomía + keywords SEO)
+          - keyword_strings: strings de keywords SEO generadas (para AIOSEO, etc.)
     """
     categories    = fetch_categories(base_url, auth)
     existing_tags = fetch_tags(base_url, auth)
 
     classification = classify_post(
-        gemini       = gemini,
-        title        = title,
+        gemini          = gemini,
+        title           = title,
         content_snippet = content,
-        post_type    = post_type,
-        categories   = categories,
+        post_type       = post_type,
+        categories      = categories,
     )
 
-    cat_id = classification.get("category_id")
+    cat_id       = classification.get("category_id")
     category_ids = [cat_id] if cat_id else []
 
-    tag_names = classification.get("tags", [])
-    tag_ids   = resolve_tags(base_url, auth, tag_names, existing_tags) if tag_names else []
+    # Tags de taxonomía (organización del blog)
+    taxonomy_tag_names = classification.get("tags", [])
 
-    return category_ids, tag_ids
+    # Palabras clave SEO generadas por IA (búsquedas reales de Google)
+    keyword_strings = generate_seo_keywords(gemini, title, content, focus_keyword)
+
+    # Unificar ambas listas (sin duplicados) y resolver en un solo pase
+    seen: set[str] = {t.lower() for t in taxonomy_tag_names}
+    combined_names  = taxonomy_tag_names + [k for k in keyword_strings if k.lower() not in seen]
+    tag_ids = resolve_tags(base_url, auth, combined_names, existing_tags) if combined_names else []
+
+    return category_ids, tag_ids, keyword_strings

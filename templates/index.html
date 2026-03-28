@@ -50,7 +50,8 @@
         </div>
         <div class="col-md-4">
           <label class="form-label fw-semibold">Revisado por</label>
-          <select id="selReviewer" class="form-select">
+          <select id="selReviewer" class="form-select" data-user-role="{{ current_user.role if current_user else '' }}"
+            {% if current_user and current_user.role != 'admin' %}disabled{% endif %}>
             <option value="">— Sin revisor —</option>
             <option value="Médico">🩺 Médico</option>
             <option value="Psicólogo">🧠 Psicólogo</option>
@@ -138,6 +139,15 @@ const TYPE_ICONS  = {comparativa:"📊",guia:"📖",resena_seo:"🔍",evergreen:
 const TYPE_LABELS = {comparativa:"Post A — Comparativa",guia:"Post B — Guía de Beneficios",
   resena_seo:"Post C — Reseña SEO",evergreen:"Post A — Artículo de Opinión",
   listicle:"Post B — Listicle / Top N",howto:"Post C — Guía Paso a Paso",opinion:"Post — Opinión"};
+
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('selReviewer');
+  if (sel) {
+    const role = sel.dataset.userRole;
+    if      (role === 'medico')    sel.value = 'Médico';
+    else if (role === 'psicologa') sel.value = 'Psicólogo';
+  }
+});
 
 function iniciarGeneracion() {
   const topico = document.getElementById('inputTopico').value.trim();

@@ -12,6 +12,9 @@ Responsabilidades:
 from __future__ import annotations
 
 import json
+import os
+import re
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 from typing import Callable
@@ -39,6 +42,58 @@ POST_TYPES_LIBRE: list[dict] = [
 
 # Alias para retrocompatibilidad
 POST_TYPES = POST_TYPES_AMAZON
+
+
+# ── Utilidades: URLs y bloque de posts relacionados ─────────────────────────
+
+_POST_TYPE_ICONS: dict[str, str] = {
+    "opinion":     "💬",
+    "listicle":    "📋",
+    "howto":       "🛠️",
+    "comparativa": "📊",
+    "guia":        "📖",
+    "resena_seo":  "🔍",
+}
+
+
+def _title_to_slug(title: str) -> str:
+    """Convierte un título a slug URL al estilo WordPress (sin acentos, minúsculas, guiones)."""
+    nfd  = unicodedata.normalize("NFD", title.lower())
+    base = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "-", base).strip("-")
+
+
+def _build_related_posts_html(siblings: list[dict]) -> str:
+    """Genera el bloque HTML «También te puede interesar» enlazando a los posts hermanos."""
+    if not siblings:
+        return ""
+    cards = ""
+    for s in siblings:
+        title = s["raw"]["title"]
+        url   = s.get("url", "#")
+        icon  = _POST_TYPE_ICONS.get(s["post_info"]["key"], "📄")
+        cards += (
+            f'\n    <a href="{url}" style="text-decoration:none;color:inherit">'
+            f'\n      <div style="background:#ffffff;border-radius:10px;padding:1.1rem 1rem;'
+            f'border:1px solid #e5e7eb;display:flex;flex-direction:column;gap:.35rem;height:100%">'
+            f'\n        <span style="font-size:1.5rem;line-height:1">{icon}</span>'
+            f'\n        <p style="font-size:.95rem;font-weight:600;color:#1f2937;margin:0;line-height:1.4">{title}</p>'
+            f'\n        <p style="font-size:.82rem;color:#6b7280;margin:0">Leer artículo →</p>'
+            f'\n      </div>'
+            f'\n    </a>'
+        )
+    return (
+        '\n<section style="margin:2.5rem 0;padding:1.5rem;'
+        'background:linear-gradient(135deg,#f0f4ff 0%,#faf0ff 100%);'
+        'border-radius:14px;border:1px solid #dde3ff">'
+        '\n  <h2 style="font-size:1.05rem;font-weight:700;color:#374151;'
+        'margin:0 0 1rem;display:flex;align-items:center;gap:.5rem">'
+        '\n    📚 También te puede interesar'
+        '\n  </h2>'
+        '\n  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.85rem">'
+        + cards
+        + '\n  </div>\n</section>'
+    )
 
 
 class ContentOrchestrator:
@@ -79,6 +134,8 @@ class ContentOrchestrator:
         focus: str = "",
         reviewer: str = "",
         custom_titles: dict[str, str] | None = None,
+        username: str = "",
+        badge_html: str = "",
     ) -> list[PostDraft]:
         """
         Flujo completo: recibe 1 input → genera 3 borradores → los sube a WP.
@@ -123,7 +180,8 @@ class ContentOrchestrator:
         drafts: list[PostDraft] = []
         total = len(post_types)
 
-        # 3. Generar y subir los 3 borradores en secuencia
+        # ── Fase 1: Generar contenido de todos los posts (sin guardar aún) ──
+        collected: list[dict] = []
         for step, post_info in enumerate(post_types, start=1):
             post_type = post_info["key"]
             label     = post_info["label"]
@@ -195,42 +253,79 @@ class ContentOrchestrator:
                     except Exception as tax_exc:
                         logger.warning(f"[Orchestrator] No se pudo clasificar taxonomy: {tax_exc}")
 
-                draft = PostDraft(
-                    post_type        = PostType(post_type),
-                    title            = raw["title"],
-                    content          = raw["content"],
-                    meta_description = raw["meta_description"],
-                    focus_keyword    = raw["focus_keyword"],
-                    affiliate_url    = affiliate_url,
-                    wp_post_id       = None,
-                    image_prompts    = img_prompts,
-                    categories       = wp_categories,
-                    tags             = wp_tags,
-                )
-
-                # Subir a WordPress (simulado o real)
-                self.progress_cb(step, total, f"Subiendo {label} a WordPress…")
-                wp_id = self.wp.create_draft(draft)
-                draft.wp_post_id = wp_id
-
-                drafts.append(draft)
-                self._log_draft(session_id, draft, focus=focus, reviewer=reviewer)
-
-                logger.success(f"✅ {label} listo | WP ID: {wp_id}")
+                collected.append({
+                    "ok":            True,
+                    "step":          step,
+                    "post_info":     post_info,
+                    "raw":           raw,
+                    "img_prompts":   img_prompts,
+                    "wp_categories": wp_categories,
+                    "wp_tags":       wp_tags,
+                })
 
             except Exception as exc:
                 logger.error(f"❌ Error generando {label}: {exc}")
-                # Crear un draft de error para no interrumpir los demás
+                collected.append({"ok": False, "step": step, "post_info": post_info, "exc": exc})
+
+        # ── Calcular URLs predictivas para los posts del batch ────────────
+        _wp_base = os.getenv("WP_BASE_URL", "").rstrip("/")
+        for _item in collected:
+            if _item["ok"]:
+                _item["url"] = f"{_wp_base}/{_title_to_slug(_item['raw']['title'])}/"
+
+        # ── Fase 2: Ensamblar badge (inicio) + relacionados (final) y guardar ──
+        successful = [c for c in collected if c["ok"]]
+        for item in collected:
+            post_type = item["post_info"]["key"]
+            label     = item["post_info"]["label"]
+            step      = item["step"]
+
+            if not item["ok"]:
                 error_draft = PostDraft(
                     post_type        = PostType(post_type),
                     title            = f"[ERROR] {label}",
-                    content          = f"<p>Error durante la generación: {exc}</p>",
+                    content          = f"<p>Error durante la generación: {item['exc']}</p>",
                     meta_description = "",
                     focus_keyword    = topic,
                     affiliate_url    = affiliate_url,
                     wp_post_id       = None,
                 )
                 drafts.append(error_draft)
+                continue
+
+            content = item["raw"]["content"]
+
+            # Badge de revisión profesional al INICIO del artículo
+            if badge_html and "professional-review-badge" not in content:
+                content = badge_html + "\n\n" + content
+
+            # Bloque «También te puede interesar» al FINAL
+            siblings     = [c for c in successful if c is not item]
+            related_html = _build_related_posts_html(siblings)
+            if related_html:
+                content = content + "\n\n" + related_html
+
+            draft = PostDraft(
+                post_type        = PostType(post_type),
+                title            = item["raw"]["title"],
+                content          = content,
+                meta_description = item["raw"]["meta_description"],
+                focus_keyword    = item["raw"]["focus_keyword"],
+                affiliate_url    = affiliate_url,
+                wp_post_id       = None,
+                image_prompts    = item["img_prompts"],
+                categories       = item["wp_categories"],
+                tags             = item["wp_tags"],
+            )
+
+            self.progress_cb(step, total, f"Subiendo {label} a WordPress…")
+            wp_id = self.wp.create_draft(draft)
+            draft.wp_post_id = wp_id
+
+            drafts.append(draft)
+            self._log_draft(session_id, draft, focus=focus, reviewer=reviewer, username=username)
+
+            logger.success(f"✅ {label} listo | WP ID: {wp_id}")
 
         self.progress_cb(total, total, "¡Generación completada!")
         logger.success(f"🎉 Sesión {session_id} completada: {len(drafts)} borradores.")
@@ -257,7 +352,7 @@ class ContentOrchestrator:
             logger.info("[Orchestrator] Input detectado como tópico libre.")
             return cleaned, None
 
-    def _log_draft(self, session_id: str, draft: PostDraft, focus: str = "", reviewer: str = "") -> None:
+    def _log_draft(self, session_id: str, draft: PostDraft, focus: str = "", reviewer: str = "", username: str = "") -> None:
         """Añade una entrada al log JSONL de generaciones."""
         entry = {
             "session_id":    session_id,
@@ -272,6 +367,7 @@ class ContentOrchestrator:
             "tokens_used":   getattr(draft, "_tokens_used", 0),
             "focus":         focus,
             "reviewer":      reviewer,
+            "username":      username,
         }
         with open(self.log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

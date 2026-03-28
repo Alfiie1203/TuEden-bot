@@ -105,6 +105,28 @@ Responde ÚNICAMENTE con el siguiente objeto JSON válido:
 }}
 """
 
+PROMPT_AMAZON_SUGGESTIONS = """\
+Eres un experto en marketing de afiliados de Amazon.es especializado en blogs de salud y psicología.
+
+Los tópicos de actualidad de hoy en salud y psicología son:
+{topics_list}
+
+Basándote en estos tópicos, sugiere EXACTAMENTE 5 productos de Amazon.es que:
+- Estén directamente relacionados con los tópicos anteriores.
+- Sean productos reales con alta demanda en España.
+- Sean útiles y atractivos para lectores de un blog de salud, medicina o psicología.
+- Tengan buen potencial de conversión como afiliado.
+
+Responde ÚNICAMENTE con el siguiente array JSON válido (sin texto adicional):
+[
+  {{"nombre": "Nombre del producto", "descripcion": "Por qué es útil para estos lectores (1 frase concisa)", "busqueda": "términos de búsqueda en Amazon.es"}},
+  {{"nombre": "Nombre del producto", "descripcion": "Por qué es útil para estos lectores (1 frase concisa)", "busqueda": "términos de búsqueda en Amazon.es"}},
+  {{"nombre": "Nombre del producto", "descripcion": "Por qué es útil para estos lectores (1 frase concisa)", "busqueda": "términos de búsqueda en Amazon.es"}},
+  {{"nombre": "Nombre del producto", "descripcion": "Por qué es útil para estos lectores (1 frase concisa)", "busqueda": "términos de búsqueda en Amazon.es"}},
+  {{"nombre": "Nombre del producto", "descripcion": "Por qué es útil para estos lectores (1 frase concisa)", "busqueda": "términos de búsqueda en Amazon.es"}}
+]
+"""
+
 
 # ---------------------------------------------------------------------------
 # Cache
@@ -165,8 +187,56 @@ def fetch_daily_topics(gemini_client: "GeminiClient") -> dict:
                 "psicologia_relacionados", "psicologia_no_relacionados"):
         data.setdefault(key, [])
 
+    # Añadir sugerencias Amazon (ignorar errores para no bloquear la carga principal)
+    try:
+        data["amazon_sugerencias"] = fetch_amazon_suggestions(gemini_client, data)
+    except Exception:
+        data["amazon_sugerencias"] = []
+
     save_topics_cache(data)
     return data
+
+
+def fetch_amazon_suggestions(gemini_client: "GeminiClient", topics_data: dict) -> list:
+    """
+    Llama a Gemini para obtener 5 sugerencias de productos Amazon relacionadas
+    con los tópicos del día. Devuelve lista de dicts {nombre, descripcion, busqueda}.
+    """
+    # Recopilar todos los tópicos en una lista plana
+    all_topics: list[str] = []
+    for key in ("medicina_relacionados", "medicina_no_relacionados",
+                "psicologia_relacionados", "psicologia_no_relacionados"):
+        all_topics.extend(topics_data.get(key, []))
+
+    if not all_topics:
+        return []
+
+    topics_list = "\n".join(f"- {t}" for t in all_topics)
+    prompt = PROMPT_AMAZON_SUGGESTIONS.format(topics_list=topics_list)
+    raw_text = gemini_client.call_raw(prompt)
+
+    try:
+        suggestions = json.loads(raw_text)
+    except json.JSONDecodeError:
+        match = re.search(r"\[[\s\S]*\]", raw_text)
+        if match:
+            suggestions = json.loads(match.group())
+        else:
+            return []
+
+    if not isinstance(suggestions, list):
+        return []
+
+    # Normalizar y limitar a 5
+    result = []
+    for item in suggestions[:5]:
+        if isinstance(item, dict) and "nombre" in item:
+            result.append({
+                "nombre":      str(item.get("nombre", "")),
+                "descripcion": str(item.get("descripcion", "")),
+                "busqueda":    str(item.get("busqueda", item.get("nombre", ""))),
+            })
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -182,11 +252,19 @@ def get_topics(gemini_client: "GeminiClient", force_refresh: bool = False) -> di
 
     Returns:
         dict con claves: fecha, medicina_relacionados, medicina_no_relacionados,
-                         psicologia_relacionados, psicologia_no_relacionados
+                         psicologia_relacionados, psicologia_no_relacionados,
+                         amazon_sugerencias
     """
     if not force_refresh:
         cached = load_cached_topics()
         if cached:
+            # Si el cache no tiene sugerencias Amazon, generarlas ahora
+            if not cached.get("amazon_sugerencias"):
+                try:
+                    cached["amazon_sugerencias"] = fetch_amazon_suggestions(gemini_client, cached)
+                    save_topics_cache(cached)
+                except Exception:
+                    cached.setdefault("amazon_sugerencias", [])
             return cached
     return fetch_daily_topics(gemini_client)
 

@@ -1,0 +1,34 @@
+{
+  "luis": {
+    "password_hash": "scrypt:32768:8:1$WLHHGmmEOUvQWxf2$131413b8ffa55b0146be54dcc6e47c5ae75d955f07a4d8b9794a947fc1d45e646a9d58ff6d9c9e2585fd8cca11428d53d9bc7cc586ba17576e292e5b44bc0b74",
+    "role": "admin",
+    "display_name": "Luis",
+    "wp_username": "Luis",
+    "wp_app_password": "OBZL HwZS lMwa gNI3 DVcg 1wuC",
+    "topic_categories": null
+  },
+  "alejandra": {
+    "password_hash": "scrypt:32768:8:1$Fgy33J1Ew0qqhQmx$6af9bd2448ff6bdfca9a75e5408fd9b5b238ffe472b484a963ba874a1f8ff50a874a48811620696e04c3e8b5a1711f8b527fd10c2309f217015fa08583dfed8b",
+    "role": "psicologa",
+    "display_name": "Alejandra",
+    "wp_username": "alejandra",
+    "wp_app_password": "LIBu gkdP 5BIB Zxbm 41Mj AMJU",
+    "topic_categories": [
+      "psicologia_relacionados",
+      "psicologia_no_relacionados"
+    ],
+    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #8b5cf6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">\ud83e\udde0</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\">Ps. Mar\u00eda Alejandra Mazuera Arboleda</p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">Psic\u00f3loga &middot; Tarjeta profesional n\u00ba <strong>987654321Q</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La informaci\u00f3n contenida en este art\u00edculo ha sido contrastada y aprobada por una profesional de la salud mental colegiada. Su contenido tiene car\u00e1cter exclusivamente informativo y no reemplaza la orientaci\u00f3n psicol\u00f3gica ni el diagn\u00f3stico cl\u00ednico individualizado.</p>\n  </div>\n</div>"
+  },
+  "angela": {
+    "password_hash": "scrypt:32768:8:1$8PUEjO1IQRDb0AoO$c3252bf8924e04d52f63b39ff8025ee5787956f36b325a92fbe536ed4905a5605d6ffe93061b9a677ce195d83c7a40e5c8d3c93f21a636980782541620529c37",
+    "role": "medico",
+    "display_name": "Angela",
+    "wp_username": "angela",
+    "wp_app_password": "FaLy TuoJ JOy6 Jh9h H7Zz EZ2R",
+    "topic_categories": [
+      "medicina_relacionados",
+      "medicina_no_relacionados"
+    ],
+    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #3b82f6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">\ud83e\ude7a</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\">Dra. Angela Maria Arboleda Vargas</p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">M\u00e9dico &middot; Tarjeta profesional n\u00ba <strong>123456789N</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La informaci\u00f3n contenida en este art\u00edculo ha sido contrastada y aprobada por una profesional m\u00e9dica colegiada. Su contenido tiene car\u00e1cter exclusivamente informativo y no reemplaza el diagn\u00f3stico, tratamiento ni la consulta m\u00e9dica individualizada.</p>\n  </div>\n</div>"
+  }
+}

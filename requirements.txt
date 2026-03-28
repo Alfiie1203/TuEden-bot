@@ -11,6 +11,8 @@ flask>=3.0.0                     # Framework web (reemplaza Streamlit)
 beautifulsoup4>=4.12.0           # Parsear HTML de páginas de producto
 httpx>=0.27.0                    # Cliente HTTP (scraping de Amazon)
 dnspython>=2.6.0                 # Resolver DNS alternativo (bypass bloqueo DNS corporativo)
+truststore>=0.9.1                # Usar almacén de certs del SO (para redes con proxy TLS)
+Pillow>=10.0.0                   # Redimensionar imágenes antes de subir a WordPress
 
 # ── Utilidades ───────────────────────────────────────────
 python-dotenv>=1.0.0             # Cargar variables de entorno desde .env

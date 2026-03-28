@@ -4,15 +4,16 @@
 {% block head %}
 <style>
   .wy-block { border-radius:4px; padding:2px 6px; transition:background .15s; cursor:text; position:relative; }
-  .wy-block:hover { background:rgba(99,179,237,.10); outline:1.5px dashed #90cdf4; }
-  .wy-edit-hint { font-size:.65rem; color:#aaa; margin-left:6px; display:none; }
+  .wy-block:hover { background:rgba(110,168,254,.07); outline:1.5px dashed #2d3348; }
+  .wy-edit-hint { font-size:.65rem; color:#4a5568; margin-left:6px; display:none; }
   .wy-block:hover .wy-edit-hint { display:inline; }
-  .wy-h1 { font-size:2rem;   font-weight:700; }
-  .wy-h2 { font-size:1.5rem; font-weight:600; color:#1a5276; }
-  .wy-h3 { font-size:1.2rem; font-weight:600; color:#1f618d; }
-  .wy-h4 { font-size:1rem;   font-weight:600; }
-  .wy-p  { font-size:1rem;   line-height:1.75; }
-  .wy-bq { border-left:4px solid #aaa; padding:.3rem 1rem; color:#555; font-style:italic; }
+  .wy-h1 { font-size:2rem;   font-weight:700; color:#e8eaf0; }
+  .wy-h2 { font-size:1.5rem; font-weight:600; color:#6ea8fe; }
+  .wy-h3 { font-size:1.2rem; font-weight:600; color:#93c5fd; }
+  .wy-h4 { font-size:1rem;   font-weight:600; color:#c8ccd8; }
+  .wy-p  { font-size:1rem;   line-height:1.75; color:#d1d5db; }
+  .wy-bq { border-left:4px solid #2d3348; padding:.3rem 1rem; color:#8892a4; font-style:italic; background:rgba(255,255,255,.03); }
+  .wy-ul, .wy-ol { color:#d1d5db; line-height:1.75; }
   .edit-toolbar { position:sticky; top:60px; z-index:100; }
   .img-thumb { width:60px; height:60px; object-fit:cover; border-radius:4px; }
 </style>
@@ -511,9 +512,18 @@ function guardarBorrador() {
   });
 }
 
+let _lastWpPostId = null, _lastPostType = '', _lastPostTitle = '';
+
 function publicarEnWP() {
   if (!confirm('¿Enviar este borrador a WordPress?')) return;
   const data = buildDraftData();
+
+  // Bloquear publicación sin categorías
+  if (!data.categories || data.categories.length === 0) {
+    showToast('⚠️ Debes clasificar el artículo antes de publicar. Pulsa "Auto-clasificar con IA".', 'warning');
+    return;
+  }
+
   const payload = {
     ...data,
     author_key: document.getElementById('metaAuthor').value,
@@ -530,13 +540,48 @@ function publicarEnWP() {
       if (d.simulated) {
         showToast(`✅ [Simulado] Borrador enviado — ID: ${d.wp_post_id}`);
       } else {
-        showToast('✅ Borrador enviado a WordPress. El archivo local fue eliminado.');
-        setTimeout(() => { window.location.href = '/historial'; }, 2000);
+        _lastWpPostId  = d.wp_post_id;
+        _lastPostType  = data.post_type  || '';
+        _lastPostTitle = data.title      || '';
+        document.getElementById('actionMsg').innerHTML = `
+          <div class="alert alert-success p-2 mt-2 mb-0">
+            <strong>✅ Publicado en WordPress</strong> (ID: ${d.wp_post_id})<br>
+            <div class="d-flex flex-column gap-1 mt-2">
+              <a href="${d.edit_url}" target="_blank" class="btn btn-sm btn-outline-primary">✏️ Editar en WP</a>
+              <button class="btn btn-sm btn-outline-secondary" onclick="recuperarDeWP(${d.wp_post_id})">⬇️ Recuperar del WP</button>
+              <a href="/historial" class="btn btn-sm btn-outline-secondary">📜 Ir al historial</a>
+            </div>
+          </div>`;
+        showToast('✅ Borrador enviado a WordPress.');
       }
     } else {
       showToast(d.error || 'Error al publicar', 'danger');
     }
   });
+}
+
+async function recuperarDeWP(wpId) {
+  showToast('⏳ Recuperando post desde WordPress…');
+  try {
+    const r = await fetch('/api/historial/recuperar', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        wp_post_id: wpId,
+        post_type:  _lastPostType,
+        entry: { title: _lastPostTitle, timestamp: new Date().toISOString() }
+      })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      showToast('✅ Post recuperado como borrador local');
+      setTimeout(() => { window.location.href = `/borrador/${encodeURIComponent(d.filename)}`; }, 1500);
+    } else {
+      showToast(d.error || 'Error al recuperar', 'danger');
+    }
+  } catch(e) {
+    showToast('Error de red al recuperar', 'danger');
+  }
 }
 
 function eliminarBorrador() {
