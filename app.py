@@ -43,7 +43,24 @@ from werkzeug.security import check_password_hash, generate_password_hash
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24).hex())
+
+# --- SECRET KEY persistente -------------------------------------------------------
+# Si FLASK_SECRET_KEY no está en .env la generamos UNA sola vez, la escribimos
+# en .env y la usamos. Así los reinicios del servidor NO invalidan las sesiones.
+_secret_key = os.getenv("FLASK_SECRET_KEY", "").strip()
+if not _secret_key:
+    _secret_key = os.urandom(32).hex()
+    _env_path = Path(".env")
+    try:
+        _current = _env_path.read_text(encoding="utf-8") if _env_path.exists() else ""
+        _env_path.write_text(
+            _current.rstrip() + f"\nFLASK_SECRET_KEY={_secret_key}\n",
+            encoding="utf-8",
+        )
+        load_dotenv(override=True)  # recargar para que el resto del proceso la tenga
+    except Exception:
+        pass  # si no se puede escribir, usamos la generada en memoria (solo esta sesión)
+app.secret_key = _secret_key
 app.permanent_session_lifetime = timedelta(days=7)
 
 # -- Directorios -------------------------------------------------------------------
@@ -1108,4 +1125,4 @@ def api_admin_gemini_keys_delete(n):
 # ==================================================================================
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, use_reloader=False)
+    app.run(debug=False, port=5000, use_reloader=False)
