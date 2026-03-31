@@ -64,8 +64,11 @@ Generate exactly 4 prompts:
 Style rules for ALL prompts:
 - Write in English, 60–90 words per prompt.
 - Include: main subject, setting/background, mood, lighting, color palette, art style.
-- Style: professional medical/psychology illustration, photorealistic or semi-realistic, \
-  clean modern aesthetic, warm trustworthy tones (blues, teals, soft whites, warm neutrals).
+- Style: ULTRA-PHOTOREALISTIC photography. Shot on professional camera (Canon EOS R5 or Sony A7IV), \
+  sharp focus, hyper-realistic skin textures, realistic materials and surfaces. \
+  NOT illustrated, NOT CGI rendered, NOT digital art, NOT drawn. \
+  Real-world settings, real people, real objects. \
+  Professional editorial photography aesthetic, studio or natural lighting.
 - For medicine topics: healthcare professionals, anatomy concepts, lab environments, \
   nature-healing metaphors, scientific visuals.
 - For psychology topics: mind metaphors, human emotions, brain and neural concepts, \

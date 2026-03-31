@@ -87,12 +87,40 @@ def _build_reviewer_block(reviewer: str) -> str:
 
 
 # -----------------------------------------------------------------------------
+# BLOQUE DE VOZ — se inyecta cuando el usuario tiene un perfil de voz definido
+# -----------------------------------------------------------------------------
+_VOICE_BLOCK = """\
+
+VOZ Y ESTILO DEL AUTOR (IMPORTANTE — PRIORIDAD ALTA):
+Este artículo debe redactarse reflejando la personalidad y el estilo del autor.
+Adapta el tono, el registro, el vocabulario y la forma de estructurar las ideas
+siguiendo estrictamente las siguientes indicaciones del autor:
+
+{voice_profile}
+
+El lector debe sentir que el artículo fue escrito por una persona real con una voz
+distintiva. No rompas estas instrucciones de estilo aunque existan convenciones
+de formato distintas; la voz del autor tiene prioridad sobre el estilo genérico.
+"""
+
+_VOICE_BLOCK_EMPTY = ""  # sin perfil de voz → no se inyecta nada
+
+
+def _build_voice_block(voice_profile: str) -> str:
+    """Devuelve el bloque de voz formateado o vacío si no hay perfil."""
+    vp = (voice_profile or "").strip()
+    if not vp:
+        return _VOICE_BLOCK_EMPTY
+    return _VOICE_BLOCK.format(voice_profile=vp)
+
+
+# -----------------------------------------------------------------------------
 # CONTEXTO BASE — Modo Amazon (producto/afiliado)
 # Se inyecta en los 3 prompts para no repetir instrucciones y ahorrar tokens.
 # -----------------------------------------------------------------------------
 BASE_CONTEXT = """\
 Eres un redactor SEO senior especializado en blogs de tecnología, salud y productos Amazon.
-Escribes siempre en español de España (castellano peninsular). Usa «vosotros» cuando te dirijas al lector en plural, «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Tono: cercano, profesional y empático.
+Escribes siempre en español de España (castellano peninsular). Diríjete al lector en segunda persona SINGULAR («tú», «te», «tu»); nunca uses «vosotros» ni «os». Usa «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Tono: cercano, profesional y empático.
 FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. Si incluyes un año en el TÍTULO, usa preferentemente {current_year}. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
 Normas de formato:
   - Usa H2 para secciones principales y H3 para subsecciones.
@@ -112,57 +140,18 @@ Normas de veracidad y fuentes (OBLIGATORIO):
   - Fuentes ACEPTADAS: OMS/WHO, PubMed/NCBI, NIH, revistas peer-reviewed (The Lancet, NEJM, JAMA, Psicothema, etc.), organismos públicos oficiales (INE, Ministerio de Sanidad de España, CDC, OCDE, Eurostat), universidades reconocidas, y medios de referencia consolidados (El País, BBC, Reuters, El Mundo).
   - Fuentes NO ACEPTADAS: blogs sin autoría verificable, Wikipedia como fuente primaria, foros, redes sociales, o cualquier sitio sin credibilidad académica o institucional.
   - Si no tienes la URL exacta de un estudio, enlaza al sitio principal de la organización (ej: https://www.who.int) y describe con precisión la fuente (autor, año, título o tema del estudio).
-  - Al FINAL del artículo, SIEMPRE añade una sección de referencias:
-    <h2>Referencias</h2>
-    <ul class='references'>
-      <li><a href="URL" target="_blank" rel="noopener noreferrer">Organización o Autor — Título o descripción (Año)</a></li>
-    </ul>
 Normas de salida:
   - Responde ÚNICAMENTE con un objeto JSON válido, sin texto extra ni bloques markdown.
   - Dentro del campo "content", NO uses comillas dobles sin escapar; usa comillas simples o \\".
   - El JSON debe estar completo y bien cerrado. No lo cortes a mitad.
   - PROHIBIDO: No menciones en ningún punto del artículo (ni en el título, ni en el cuerpo, ni en los metadatos) que el contenido fue creado, redactado o asistido por inteligencia artificial, modelos de lenguaje, ChatGPT, Gemini u otras herramientas de IA. El artículo debe presentarse únicamente como contenido editorial especializado.
-{focus_block}{reviewer_block}"""
-BASE_CONTEXT_LIBRE = """\
-Eres un redactor SEO senior especializado en contenido editorial de alta autoridad para blogs.
-Escribes siempre en español de España (castellano peninsular). Usa «vosotros» cuando te dirijas al lector en plural, «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Adapta el tono al tópico: informativo, divulgativo o práctico.
-FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. Si incluyes un año en el TÍTULO, usa preferentemente {current_year}. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
-Normas de formato:
-  - Usa H2 para secciones principales y H3 para subsecciones.
-  - Párrafos de 3-5 oraciones para favorecer la legibilidad.
-  - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
-  - NO incluyas CTAs ni referencias a Amazon; el contenido es puramente informativo/educativo.
-  - Incluye al menos 2 enlaces internos al blog usando <a href='/ruta-del-articulo/'>texto ancla</a> (URLs relativas que empiecen con /). Elige anclas descriptivas con palabras clave relacionadas.
-Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
-  El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
-  - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.
-  - SUBTÍTULOS: al menos el 30% de los subtitulos H2 y H3 deben contener la focus_keyword o una variante muy próxima (singular/plural, sin acento/con acento).
-  - IMAGEN: el atributo alt del primer elemento <img> del artículo debe incluir la focus_keyword (ej: <img src='...' alt='focus keyword descripción'>).
-  - DENSIDAD: incluye la focus_keyword entre 1 y 2 veces por cada 100 palabras. No la repitas de forma artificial; incorpórala donde fluya de forma natural.
-Normas de veracidad y fuentes (OBLIGATORIO):
-  - TODOS los datos, cifras y estadísticas deben ser REALES y verificables. NUNCA inventes datos.
-  - Cada vez que cites un dato estadístico o estudio, enlázalo con un hipervínculo HTML a la fuente:
-    <a href="URL_REAL" target="_blank" rel="noopener noreferrer">Nombre de la organización o autor (Año)</a>
-  - Fuentes ACEPTADAS: OMS/WHO, PubMed/NCBI, NIH, revistas peer-reviewed (The Lancet, NEJM, JAMA, Psicothema, etc.), organismos públicos oficiales (INE, Ministerio de Sanidad de España, CDC, OCDE, Eurostat), universidades reconocidas, y medios de referencia consolidados (El País, BBC, Reuters, El Mundo).
-  - Fuentes NO ACEPTADAS: blogs sin autoría verificable, Wikipedia como fuente primaria, foros, redes sociales, o cualquier sitio sin credibilidad académica o institucional.
-  - Si no tienes la URL exacta de un estudio, enlaza al sitio principal de la organización (ej: https://www.who.int) y describe con precisión la fuente (autor, año, título o tema del estudio).
-  - Al FINAL del artículo, SIEMPRE añade una sección de referencias:
-    <h2>Referencias</h2>
-    <ul class='references'>
-      <li><a href="URL" target="_blank" rel="noopener noreferrer">Organización o Autor — Título o descripción (Año)</a></li>
-    </ul>
-Normas de salida:
-  - Responde ÚNICAMENTE con un objeto JSON válido, sin texto extra ni bloques markdown.
-  - Dentro del campo "content", NO uses comillas dobles sin escapar; usa comillas simples o \\".
-  - El JSON debe estar completo y bien cerrado. No lo cortes a mitad.
-  - PROHIBIDO: No menciones en ningún punto del artículo (ni en el título, ni en el cuerpo, ni en los metadatos) que el contenido fue creado, redactado o asistido por inteligencia artificial, modelos de lenguaje, ChatGPT, Gemini u otras herramientas de IA. El artículo debe presentarse únicamente como contenido editorial especializado.
-{focus_block}{reviewer_block}"""
+{voice_block}{focus_block}{reviewer_block}"""
 # -----------------------------------------------------------------------------
 PROMPT_COMPARATIVA = BASE_CONTEXT + """
 TAREA: Escribe un artículo comparativo en español sobre: "{topic}".
 
 Estructura requerida (en este orden exacto):
-1. <h2>Introducción</h2> — Por qué importa elegir bien entre ambas opciones (contexto, problema del lector, gancho emocional). 2-3 párrafos.
+1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 que plantee el dilema de la comparativa, por ejemplo: «La decisión que muchos posponen» o «[Opción A] vs [Opción B]: ¿cuál es la tuya?»]</h2> — Por qué importa elegir bien entre ambas opciones (contexto, problema del lector, gancho emocional). 2-3 párrafos.
 2. <h2>Comparativa rápida</h2> — Tabla HTML (<table class='comparison-table'>) con mínimo 7 criterios:
    precio estimado, rendimiento, diseño/materiales, compatibilidad/ecosistema, consumo energético, garantía, relación calidad-precio.
    Usa <thead> con fondo oscuro y <tbody> con filas alternas.
@@ -177,14 +166,13 @@ Requisitos de calidad:
 - Cada sección debe incluir al menos 1 dato numérico REAL con hipervínculo a la fuente original.
 - Usa listas <ul> o <ol> donde mejore la escaneabilidad.
 - La conclusión debe ser clara y accionable; no dejes al lector sin una recomendación.
-- Termina el artículo con la sección <h2>Referencias</h2> enlazando todas las fuentes citadas.
 
 Devuelve SOLO este JSON (sin nada más):
 {{
   "title": "Título comparativo SEO. Máx. 55 caracteres. Usa VS o Comparativa. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / revolucionario / imprescindible / poderoso / extraordinario / único / épico / radical / revelado; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / emocionante / brillante / espectacular / asombroso; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / verdadero / tus / nunca / siempre / ahora / gratis / descubre / aprende; (4) SENTIMIENTO positivo o de urgencia. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Cómo el Colchón Ideal Transforma Tu Sueño Para Siempre'. SIN puntos al final.",
   "meta_description": "Meta description con intención comparativa (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'X vs Y' o 'mejor X'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo..."
 }}
 """
 
@@ -195,7 +183,7 @@ PROMPT_GUIA = BASE_CONTEXT + """
 TAREA: Escribe una guía de beneficios y casos de uso en español sobre: "{topic}".
 
 Estructura requerida (en este orden exacto):
-1. <h2>Introducción</h2> — Abre con una pregunta retórica o estadística impactante. Explica qué problema resuelve este producto/servicio. 2-3 párrafos.
+1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 que abra con una pregunta retórica o el problema que resuelve el producto, por ejemplo: «¿Por qué [producto] está cambiando todo?» o «El problema que [producto] resuelve de verdad»]</h2> — Abre con una pregunta retórica o estadística impactante. Explica qué problema resuelve este producto/servicio. 2-3 párrafos.
 2. <h2>7 beneficios principales</h2> — Lista <ul> con emoji por ítem; cada punto en 1-2 oraciones. Sé específico y cuantificable cuando sea posible.
 3. <h2>Casos de uso reales</h2> — 3 escenarios concretos, cada uno con <h3> propio. Describe el contexto, el usuario y el resultado esperado.
 4. <h2>¿Para quién es ideal?</h2> — Tabla HTML con 2 columnas: "Perfil de usuario" y "Motivo de idoneidad". Mínimo 4 perfiles.
@@ -207,14 +195,13 @@ Requisitos de calidad:
 - Longitud: 800–1000 palabras.
 - Tono orientado a solucionar el problema del lector, no a vender.
 - Cuando cites beneficios con datos concretos (porcentajes, estudios), incluye hipervínculo a la fuente.
-- Termina con una frase motivadora y la sección <h2>Referencias</h2> enlazando todas las fuentes.
 
 Devuelve SOLO este JSON:
 {{
   "title": "Título de guía SEO. Máx. 55 caracteres. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / fascinante / maravilloso / emocionante / brillante / asombroso / espectacular; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026'. BUEN EJEMPLO: 'Los Secretos Increíbles del Colchón Perfecto: Cómo Elegir'. SIN puntos al final.",
   "meta_description": "Meta con propuesta de valor clara (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'para qué sirve X' o 'beneficios de X'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo..."
 }}
 """
 
@@ -243,14 +230,12 @@ Requisitos de calidad:
 - Optimiza para las intenciones: "mejor {topic}", "{topic} precio", "{topic} opiniones", "{topic} análisis".
 - Cualquier dato técnico, precio o especificación debe llevar hipervínculo a la fuente oficial o ficha del fabricante.
 - Añade schema JSON-LD de tipo Review al final del content (dentro de <script type='application/ld+json'>).
-- Termina el artículo (antes del JSON-LD) con la sección <h2>Referencias</h2> enlazando todas las fuentes.
-
 Devuelve SOLO este JSON:
 {{
   "title": "Título de reseña SEO. Máx. 55 caracteres. Incluye 'opinión' o 'análisis'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / imprescindible / extraordinario / revelado / único / poderoso / honest / radical / esencial; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / espectacular / emocionante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / descubre; (4) SENTIMIENTO positivo. MAL EJEMPLO: 'Silla Ergonomínca Flexi Pro: Opinión Completa 2026'. BUEN EJEMPLO: 'Guía Definitiva: La Mejor Silla Ergoómica de 2026'. SIN puntos al final.",
   "meta_description": "Meta con veredicto resumido (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'X opiniones' o 'mejor X'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> y JSON-LD al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo incluyendo JSON-LD al final..."
 }}
 """
 
@@ -265,6 +250,46 @@ PROMPT_MAP: dict[str, str] = {
 #  MODO LIBRE — Tópico sin producto/afiliado
 # =============================================================================
 
+BASE_CONTEXT_LIBRE = """\
+Eres un redactor SEO senior especializado en contenido editorial de alta autoridad para blogs.
+Escribes siempre en español de España (castellano peninsular). Diríjete al lector en segunda persona SINGULAR («tú», «te», «tu»); nunca uses «vosotros» ni «os»: el artículo le habla a una sola persona. Usa «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Adapta el tono al tópico: informativo, divulgativo o práctico.
+FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. Si incluyes un año en el TÍTULO, usa preferentemente {current_year}. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
+Normas de formato:
+  - Usa H2 para secciones principales y H3 para subsecciones.
+  - Párrafos de 3-5 oraciones para favorecer la legibilidad.
+  - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
+  - NO incluyas CTAs ni referencias a Amazon; el contenido es puramente informativo/educativo.
+  - Incluye 1-2 enlaces internos SOLO si conoces con certeza el slug o ruta del artículo de destino. NUNCA inventes rutas; si no estás seguro, omite el enlace interno antes de fabricarlo.
+Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
+  El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
+  - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.
+  - SUBTÍTULO DE APERTURA: el primer H2 del artículo NUNCA debe titularse «Introducción». Debe ser un titular descriptivo, atractivo y relacionado con el tema del post; puede incorporar la focus_keyword o una variante.
+  - SUBTÍTULOS: al menos el 30% de los subtitulos H2 y H3 deben contener la focus_keyword o una variante muy próxima (singular/plural, sin acento/con acento).
+  - IMAGEN: el atributo alt del primer elemento <img> del artículo debe incluir la focus_keyword (ej: <img src='...' alt='focus keyword descripción'>).
+  - DENSIDAD: incluye la focus_keyword entre 1 y 2 veces por cada 100 palabras. No la repitas de forma artificial; incorpórala donde fluya de forma natural.
+Normas de veracidad y fuentes (OBLIGATORIO):
+  - TODOS los datos, cifras y estadísticas deben ser REALES y verificables. NUNCA inventes datos ni porcentajes.
+  - Si no puedes respaldar un dato cuantitativo (porcentaje, número, estadística) con una URL real y fiable, OMITE ese dato por completo. Es preferible no citarlo que inventarlo.
+  - Cada vez que cites un dato estadístico o estudio, enlázalo con un hipervínculo HTML a la fuente:
+    <a href="URL_REAL" target="_blank" rel="noopener noreferrer">Nombre de la organización o autor (Año)</a>
+  - La URL debe ser la URL exacta del documento o página que contiene el dato. Si solo conoces el dominio principal de la organización (ej: https://www.who.int), úsalo ÚNICAMENTE si describes con precisión el título, año y autor del estudio; nunca construyas rutas de archivo inventadas.
+  - Fuentes ACEPTADAS: OMS/WHO, PubMed/NCBI, NIH, revistas peer-reviewed (The Lancet, NEJM, JAMA, Psicothema, etc.), organismos públicos oficiales (INE, Ministerio de Sanidad de España, CDC, OCDE, Eurostat), universidades reconocidas, y medios de referencia consolidados (El País, BBC, Reuters, El Mundo).
+  - Fuentes NO ACEPTADAS: blogs sin autoría verificable, Wikipedia como fuente primaria, foros, redes sociales, o cualquier sitio sin credibilidad académica o institucional.
+Normas de gramática y estilo (OBLIGATORIO):
+  - Cuida la concordancia de género y número: «Los siete indicadores», no «las siete indicadores».
+  - Usa los conectores correctos: «que te ayudarán» (con pronombre explícito en segunda persona singular), nunca omitas el nexo relativo.
+  - Emplea vocabulario claro y accesible; evita términos innecesariamente técnicos o arcaicos cuando exista una alternativa más natural (por ejemplo, «analizaremos» en lugar de «desgranaremos»).
+  - Mantén coherencia en las formas verbales: si usas imperativo para las listas de pasos («estableced», «priorizad»), úsalo de forma consistente en toda la sección; nunca mezcles imperativo con infinitivo (escribe «definid», no «definitivos»).
+  - Revisa cada párrafo antes de cerrar el JSON: comprueba que no haya errores de concordancia, conectores rotos ni frases incompletas.
+  - TONO CERCANO Y DIRECTO: Diríjete al lector en segunda persona SINGULAR («tú», «te», «tu»). NUNCA uses «vosotros», «os» ni «vuestra»: el artículo le habla a UNA sola persona. Puedes usar primera persona plural inclusiva («nosotros», «nos») cuando el autor se incluye con el lector. EVITA el lenguaje clínico distante: no uses «el individuo», «la persona», «el sujeto», «el usuario» ni expresiones como «cognición del individuo» o «el sujeto experimenta». En su lugar escribe «tú puedes notar», «notamos a menudo», «quizás reconoces esta situación».
+  - EJEMPLOS CONCRETOS Y ESPECÍFICOS AL TEMA: Cada comportamiento, patrón o concepto que describas debe ilustrarse con un ejemplo cotidiano directamente ligado al tema del artículo. No describas conductas de forma genérica o abstracta. Por ejemplo, si el tema es el uso de herramientas de IA, no escribas «descuido de responsabilidades domésticas»; escribe algo como «posposición de tareas del hogar porque antes quieres cerrar esa última conversación con el chatbot». El lector debe reconocer su propia experiencia en el ejemplo.
+Normas de salida:
+  - Responde ÚNICAMENTE con un objeto JSON válido, sin texto extra ni bloques markdown.
+  - Dentro del campo "content", NO uses comillas dobles sin escapar; usa comillas simples o \\".
+  - El JSON debe estar completo y bien cerrado. No lo cortes a mitad.
+  - PROHIBIDO: No menciones en ningún punto del artículo (ni en el título, ni en el cuerpo, ni en los metadatos) que el contenido fue creado, redactado o asistido por inteligencia artificial, modelos de lenguaje, ChatGPT, Gemini u otras herramientas de IA. El artículo debe presentarse únicamente como contenido editorial especializado.
+{voice_block}{focus_block}{reviewer_block}"""
+
 # -----------------------------------------------------------------------------
 # POST A libre — Artículo de Opinión / Columna
 # -----------------------------------------------------------------------------
@@ -275,7 +300,7 @@ Un artículo de opinión toma una postura clara, argumenta con datos, genera con
 y es altamente compartible en redes. No es neutral: defiende un punto de vista con rigor.
 
 Estructura requerida (en este orden exacto):
-1. <h2>El problema que nadie quiere ver</h2> — Gancho de entrada: plantea la situación actual
+1. <h2>[Titular de apertura impactante — NO uses «Introducción»; en este tipo de columna usa algo como «El problema que nadie quiere ver» o «[Tema]: la realidad que ignoramos»]</h2> — Gancho de entrada: plantea la situación actual
    de forma directa y provocadora. 2-3 párrafos. Termina con la tesis central del artículo
    expresada en una oración memorable.
 2. <h2>Por qué esto importa más de lo que creemos</h2> — Contextualiza el tema con datos,
@@ -299,14 +324,13 @@ Requisitos de calidad:
 - Cada estadística o dato citado debe ser REAL e ir acompañado de hipervínculo a la fuente (OMS, estudios científicos, organismos oficiales o medios de referencia).
 - Optimiza para: "{topic} opinión", "por qué {topic}", "{topic} reflexión", "{topic} análisis".
 - El artículo debe provocar que el lector quiera compartirlo o comentarlo.
-- Termina con la sección <h2>Referencias</h2> enlazando todas las fuentes citadas.
 
 Devuelve SOLO este JSON:
 {{
   "title": "Título de opinión. Máx. 55 caracteres. Directo y provocador. REGLAS OBLIGATORIAS DE PUNTUACIóN: (1) PALABRA POTENTEelige UNA SOLA: secreto / urgente / alerta / revelado / radical / transformador / poderoso / extraordinario / crítico / único / esencial / explosivo; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / emocionante / fascinante / asombroso / preocupante / impactante / alarmante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / real / tus / nunca / siempre / ahora; (4) SENTIMIENTO de urgencia o negación fuerte (puede ser negativo para generar impacto). MAL EJEMPLO: 'Los Riesgos Potenciales del Microondas en el Hogar'. BUEN EJEMPLO: 'Por Qué Nunca Deberás Ignorar Esta Alerta de Salud'. SIN puntos al final.",
   "meta_description": "Meta que expresa la postura del artículo (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo '{topic} opinión' o 'por qué {topic}'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo..."
 }}
 """
 
@@ -319,16 +343,16 @@ TAREA: Escribe un listicle SEO riguroso y atractivo en español sobre: "{topic}"
 Los listicles de alta calidad combinan el formato escaneaable con profundidad real; evita los listicles superficiales de solo bullets.
 
 Estructura requerida (en este orden exacto):
-1. <h2>Introducción</h2> — 2-3 párrafos que:
-   a) Justifiquen por qué este listado es relevante hoy.
+1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 atractivo que anticipe el tema y conecte con el título del post, por ejemplo: «Por qué [tema] importa más que nunca» o «Lo que necesitas saber sobre [tema]»]</h2> — 2-3 párrafos que:
+   a) Justifiquen por qué este listado es relevante hoy, retomando palabras del título del artículo.
    b) Anticipen el valor que recibirá el lector.
-   c) Incluyan un dato o estadística de impacto.
+   c) Incluyan un dato o estadística real contrastada (si no existe un dato verificable, omítelo).
 2. <h2>Los N [elementos] de {topic}</h2> (usa número concreto entre 7 y 10) — Cada ítem con:
    - <h3>N. Nombre del elemento</h3>
    - Párrafo de 60-100 palabras explicando el punto con contexto, mecanismo y ejemplo real.
    - (Cuando aplique) <blockquote>Cita de experto o estadística relevante con fuente</blockquote>
 3. <h2>¿Cómo aplicar este conocimiento?</h2> — Lista <ol> con 4-5 pasos concretos para que el lector implemente lo aprendido.
-4. <h2>Conclusión</h2> — Recapitulación de los 3 puntos más importantes + llamada a la reflexión o siguiente acción del lector.
+4. <h2>[Titular de cierre llamativo — NUNCA uses «Conclusión»; usa una pregunta retórica, una afirmación rotunda o una llamada a la acción, p. ej.: «¿Estás listo para cambiar tu relación con [tema]?» o «El primer paso está en tus manos»]</h2> — Recapitulación de los 3 puntos más importantes + llamada a la reflexión o siguiente acción del lector.
 
 Requisitos de calidad:
 - Longitud: 950–1150 palabras.
@@ -336,14 +360,13 @@ Requisitos de calidad:
 - Usa datos cuantitativos REALES (porcentajes, estudios, fechas); cada uno con hipervínculo a la fuente.
 - Los <blockquote> con citas de expertos deben indicar autor, cargo y fuente con enlace.
 - Optimiza para: "mejores {topic}", "top {topic}", "los más importantes {topic}".
-- Termina con la sección <h2>Referencias</h2> enlazando todas las fuentes citadas.
 
 Devuelve SOLO este JSON:
 {{
   "title": "Título listicle SEO. Máx. 55 caracteres. DEBE incluir un número (7, 8, 10…). REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto(s) / exclusivo(s) / definitivo(s) / garantizado(s) / imprescindible(s) / transformador(es) / poderoso(s) / extraordinario(s) / revelado(s) / único(s) / radical(es); (2) PALABRA EMOCIONALelige UNA SOLA: increíble(s) / sorprendente(s) / fascinante(s) / maravilloso(s) / asombroso(s) / brillante(s) / espectacular(es) / emocionante(s); (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Los 7 Secretos Increíbles que Transformarán Tu Salud Hoy'. SIN puntos al final.",
   "meta_description": "Meta con número y promesa de valor (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'mejores X' o 'top X'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo..."
 }}
 """
 
@@ -356,7 +379,7 @@ TAREA: Escribe una guía práctica paso a paso en español sobre: "{topic}".
 Las guías how-to de alta calidad posicionan en featured snippets y búsquedas de intención "cómo hacer".
 
 Estructura requerida (en este orden exacto):
-1. <h2>Introducción</h2> — Qué logrará el lector, en cuánto tiempo y qué necesita previamente. Usa tono motivador. 2 párrafos.
+1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 motivador que anticipe el resultado de la guía, por ejemplo: «Todo lo que necesitas para [objetivo]» o «Por qué dominar [tema] cambia las reglas del juego»]</h2> — Qué logrará el lector, en cuánto tiempo y qué necesita previamente. Usa tono motivador. 2 párrafos.
 2. <h2>Antes de empezar: requisitos y conceptos previos</h2> — Lista <ul> con lo que el lector necesita saber o tener. Explica brevemente cada ítem.
 3. <h2>Guía paso a paso</h2> — Mínimo 5 pasos, cada uno con:
    - <h3>Paso N: [título descriptivo del paso]</h3>
@@ -373,14 +396,13 @@ Requisitos de calidad:
 - Cuando cites estudios, estadísticas o recomendaciones de organismos, incluye hipervínculo a la fuente.
 - El FAQ está estructurado para posicionar en "People Also Ask" de Google.
 - Optimiza para: "cómo {topic}", "guía {topic}", "paso a paso {topic}", "tutorial {topic}".
-- Termina con la sección <h2>Referencias</h2> enlazando todas las fuentes citadas.
 
 Devuelve SOLO este JSON:
 {{
   "title": "Título how-to SEO. Máx. 55 caracteres. DEBE empezar con 'Cómo' o 'Guía'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: definitivamente / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / fácilmente / rápidamente / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / emocionante; (3) PALABRA COMÚN'Cómo' al inicio YA cuenta como palabra común; añade también una de: mejor / más / nuevo / hoy / fácil / rápido / tus / real / nunca / siempre / ahora / descubre; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: 'Cómo Mejorar la Calidad de Tu Sueño en Casa'. BUEN EJEMPLO: 'Cómo Transformar Tu Sueño con Este Método Increíble'. SIN puntos al final.",
   "meta_description": "Meta con promesa de aprendizaje (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'cómo X' o 'guía X'",
-  "content": "<h2>...</h2>...HTML completo del artículo incluyendo <h2>Referencias</h2> al final..."
+  "content": "<h2>...</h2>...HTML completo del artículo..."
 }}
 """
 
@@ -403,11 +425,13 @@ def build_prompt(
     affiliate_url: str,
     focus: str = "",
     reviewer: str = "",
+    voice_profile: str = "",
 ) -> str:
     """
-    Construye el prompt final inyectando focus_block y reviewer_block
+    Construye el prompt final inyectando voice_block, focus_block y reviewer_block
     en el BASE_CONTEXT, luego formatea {topic} y {affiliate_url}.
     """
+    voice_block    = _build_voice_block(voice_profile)
     focus_block    = _build_focus_block(focus)
     reviewer_block = _build_reviewer_block(reviewer)
     _meses = ["enero","febrero","marzo","abril","mayo","junio",
@@ -418,6 +442,7 @@ def build_prompt(
 
     # Primero resolver los bloques en el contexto base
     prompt = prompt_template.format(
+        voice_block    = voice_block,
         focus_block    = focus_block,
         reviewer_block = reviewer_block,
         topic          = topic,

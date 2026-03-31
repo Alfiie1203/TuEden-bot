@@ -1,13 +1,20 @@
 <!DOCTYPE html>
-<html lang="es" data-bs-theme="dark">
+<html lang="es" id="htmlRoot">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Blog Content Generator{% endblock %}</title>
+  <script>/* apply theme before CSS to avoid flash */
+    (function(){
+      var t = '{{ current_user.theme if (current_user and current_user.theme) else "dark" }}';
+      document.getElementById('htmlRoot').setAttribute('data-theme', t);
+      document.getElementById('htmlRoot').setAttribute('data-bs-theme', t);
+    })();
+  </script>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     /* ── Dark theme palette ───────────────────────────────────── */
-    :root {
+    :root, [data-theme="dark"] {
       --bg:       #0f1117;
       --surface:  #1a1f2e;
       --surface2: #222840;
@@ -18,10 +25,25 @@
       --green:    #6dde88;
       --amber:    #ffd166;
       --red:      #ff7070;
+      --navbar-bg: #070a12;
     }
-    body { background: var(--bg); color: var(--text); }
+    /* ── Light theme palette ──────────────────────────────────── */
+    [data-theme="light"] {
+      --bg:       #f3f4f8;
+      --surface:  #ffffff;
+      --surface2: #e9ecf3;
+      --border:   #d0d5e0;
+      --text:     #1a1f2e;
+      --muted:    #6b7280;
+      --accent:   #2563eb;
+      --green:    #16a34a;
+      --amber:    #d97706;
+      --red:      #dc2626;
+      --navbar-bg: #1e293b;
+    }
+    body { background: var(--bg); color: var(--text); transition: background .2s, color .2s; }
     /* ── Navbar ── */
-    .navbar { background: #070a12 !important; border-bottom: 1px solid var(--border); }
+    .navbar { background: var(--navbar-bg) !important; border-bottom: 1px solid var(--border); }
     .navbar-brand { font-weight:700; letter-spacing:-0.5px; color:#fff !important; }
     .nav-link { color: var(--muted) !important; }
     .nav-link:hover, .nav-link.active { color: var(--accent) !important; font-weight:600; }
@@ -113,6 +135,7 @@
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='historial' %}active{% endif %}" href="/historial">📜 Historial</a></li>
         {% if current_user and current_user.role == 'admin' %}
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='admin_page' %}active{% endif %}" href="/admin">⚙️ Admin</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='prompts_page' %}active{% endif %}" href="/admin/prompts">📝 Prompts</a></li>
         {% endif %}
       </ul>
       <div class="d-flex align-items-center gap-2">
@@ -124,6 +147,8 @@
         {% else %}
           <span class="badge-mode badge-real">✅ WP Real</span>
         {% endif %}
+        <!-- Theme toggle -->
+        <button id="btnTheme" class="btn btn-sm btn-outline-light" title="Cambiar tema" onclick="toggleTheme()">🌙</button>
         <!-- Token toggle (solo admin) -->
         {% if current_user and current_user.role == 'admin' %}
         <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="offcanvas" data-bs-target="#tokenSidebar" id="btnTokens">
@@ -142,6 +167,8 @@
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><span class="dropdown-item-text small text-muted">Rol: {{ current_user.role }}</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item {% if request.endpoint=='perfil_page' %}active{% endif %}" href="/perfil">🎙️ Mi perfil de voz</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item" href="/logout">🚪 Cerrar sesión</a></li>
           </ul>
@@ -178,6 +205,32 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// ── Theme system ──────────────────────────────────────────────────────────────
+// El tema ya fue aplicado en el <head> desde el servidor. Solo sincronizamos el icono.
+(function() {
+  const current = document.getElementById('htmlRoot').getAttribute('data-theme') || 'dark';
+  applyTheme(current);
+})();
+
+function applyTheme(theme) {
+  const root = document.getElementById('htmlRoot');
+  root.setAttribute('data-theme', theme);
+  root.setAttribute('data-bs-theme', theme);
+  const btn = document.getElementById('btnTheme');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  const current = document.getElementById('htmlRoot').getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  fetch('/api/tema', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({theme: next})
+  }).catch(() => {});
+}
+
 // ── Toast helper ───────────────────────────────────────────────────────────
 function showToast(msg, type='success') {
   const el = document.createElement('div');

@@ -98,7 +98,7 @@ def classify_post(
     categories: list[dict],
 ) -> dict:
     """
-    Usa Gemini para que elija 1 categoría existing y sugiera entre 3 y 6 etiquetas.
+    Usa Gemini para que elija 1 categoría existing y sugiera entre 3 y 5 etiquetas.
 
     Args:
         gemini:          Instancia de GeminiClient.
@@ -137,7 +137,7 @@ CATEGORÍAS DISPONIBLES EN EL BLOG (elige EXACTAMENTE 1, no puedes crear nuevas)
 
 INSTRUCCIONES:
 1. Selecciona la categoría más adecuada de la lista anterior.
-2. Sugiere entre 3 y 6 etiquetas relevantes en español (pueden ser nuevas).
+2. Sugiere entre 3 y 5 etiquetas relevantes en español (pueden ser nuevas).
 3. Las etiquetas deben ser palabras clave específicas y útiles para SEO.
 4. Responde ÚNICAMENTE con un JSON válido, sin explicaciones adicionales.
 
@@ -166,7 +166,7 @@ FORMATO DE RESPUESTA (JSON):
             result["category_name"] = categories[0]["name"]
 
         # Limpiar etiquetas
-        result["tags"] = [str(t).strip() for t in result.get("tags", []) if str(t).strip()][:6]
+        result["tags"] = [str(t).strip() for t in result.get("tags", []) if str(t).strip()][:5]
 
         logger.info(
             f"[Taxonomy] Clasificación: categoría='{result['category_name']}' "

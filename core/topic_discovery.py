@@ -34,10 +34,10 @@ if TYPE_CHECKING:
 _CACHE_PATH = Path("logs/daily_topics.json")
 
 PROMPT_TOPIC_DISCOVERY = """\
-Eres un editor jefe de un blog de referencia en salud, medicina clínica y psicología. \
-Tu misión es generar los 20 temas más relevantes y con mayor potencial de impacto para hoy, {today}.
+Eres un editor jefe de un blog de referencia en salud, medicina clínica, psicología y bienestar. \
+Tu misión es generar los 40 temas más relevantes y con mayor potencial de impacto para hoy, {today}.
 
-Genera EXACTAMENTE 20 títulos divididos en 4 grupos de 5:
+Genera EXACTAMENTE 60 títulos divididos en 8 grupos: 5 títulos para los grupos 1-4, y 10 títulos para los grupos 5-8:
 
 ━━━ GRUPO 1 — MEDICINA · Noticias y tendencias de actualidad ━━━
 5 tópicos DIRECTAMENTE relacionados con medicina, salud física o investigación clínica.
@@ -60,6 +60,28 @@ terapéuticos, redes sociales y mente, etc.
 política, etc.) abordados DESDE la óptica de un psicólogo.
 Ejemplo: si hay un campeonato deportivo mundial → \
 "La psicología detrás del miedo al fracaso en los atletas de élite y cómo superarlo".
+
+━━━ GRUPO 5 — SALUD Y NUTRICIÓN ━━━
+10 tópicos sobre alimentación saludable, nutrición, dietas, superalimentos, suplementos, \
+microbiota intestinal, ayuno intermitente y relación entre comida y bienestar físico/mental.
+Temas prácticos y accionables para el lector cotidiano. Varía entre enfoques científicos, \
+consejos prácticos, mitos a desmentir y tendencias actuales.
+
+━━━ GRUPO 6 — BIENESTAR EMOCIONAL ━━━
+10 tópicos sobre mindfulness, meditación, gestión del estrés y la ansiedad, resiliencia, \
+inteligencia emocional, hábitos de bienestar, desconexión digital y salud holística.
+Enfoque práctico, empático y motivador. Incluye tanto técnicas concretas como reflexiones \
+profundas sobre el bienestar mental cotidiano.
+
+━━━ GRUPO 7 — FAMILIA Y EDUCACIÓN ━━━
+10 tópicos sobre crianza positiva, desarrollo infantil, educación en valores, salud de los \
+hijos, adolescencia, relaciones familiares, conciliación laboral y paternidad/maternidad \
+consciente. Alterna entre consejos prácticos, alertas de salud familiar y enfoques pedagógicos.
+
+━━━ GRUPO 8 — ESTÉTICA Y AUTOCUIDADO ━━━
+10 tópicos sobre cuidado de la piel, rutinas de belleza saludables, cosmética natural, \
+bienestar corporal, hábitos de autocuidado, dermatología preventiva y la conexión entre \
+aspecto físico y autoestima. Mezcla tendencias actuales, ciencia dermatológica y rituales prácticos.
 
 ━━━ REGLAS DE ORO PARA LOS TÍTULOS ━━━
 • Máximo 15 palabras por título.
@@ -101,6 +123,54 @@ Responde ÚNICAMENTE con el siguiente objeto JSON válido:
     "Título 3",
     "Título 4",
     "Título 5"
+  ],
+  "salud_nutricion": [
+    "Título 1",
+    "Título 2",
+    "Título 3",
+    "Título 4",
+    "Título 5",
+    "Título 6",
+    "Título 7",
+    "Título 8",
+    "Título 9",
+    "Título 10"
+  ],
+  "bienestar_emocional": [
+    "Título 1",
+    "Título 2",
+    "Título 3",
+    "Título 4",
+    "Título 5",
+    "Título 6",
+    "Título 7",
+    "Título 8",
+    "Título 9",
+    "Título 10"
+  ],
+  "familia_educacion": [
+    "Título 1",
+    "Título 2",
+    "Título 3",
+    "Título 4",
+    "Título 5",
+    "Título 6",
+    "Título 7",
+    "Título 8",
+    "Título 9",
+    "Título 10"
+  ],
+  "estetica_autocuidado": [
+    "Título 1",
+    "Título 2",
+    "Título 3",
+    "Título 4",
+    "Título 5",
+    "Título 6",
+    "Título 7",
+    "Título 8",
+    "Título 9",
+    "Título 10"
   ]
 }}
 """
@@ -181,10 +251,14 @@ def fetch_daily_topics(gemini_client: "GeminiClient") -> dict:
                 f"No se pudo parsear la respuesta de tópicos de Gemini:\n{raw_text[:400]}"
             )
 
-    # Garantizar estructura mínima con los 4 grupos
+    # Garantizar estructura mínima con todos los grupos
     data["fecha"] = today_str
-    for key in ("medicina_relacionados", "medicina_no_relacionados",
-                "psicologia_relacionados", "psicologia_no_relacionados"):
+    for key in (
+        "medicina_relacionados", "medicina_no_relacionados",
+        "psicologia_relacionados", "psicologia_no_relacionados",
+        "salud_nutricion", "bienestar_emocional",
+        "familia_educacion", "estetica_autocuidado",
+    ):
         data.setdefault(key, [])
 
     # Añadir sugerencias Amazon (ignorar errores para no bloquear la carga principal)

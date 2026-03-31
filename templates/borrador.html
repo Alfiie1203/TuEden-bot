@@ -106,13 +106,29 @@
       <div class="main-card p-3 mb-3 edit-toolbar">
         <h6 class="section-title">⚡ Acciones</h6>
         <button class="btn btn-secondary w-100 mb-2" onclick="guardarBorrador()">💾 Guardar borrador</button>
-        <button id="btnPublicar" class="btn btn-primary w-100 mb-2" onclick="publicarEnWP()" disabled>
+        <button id="btnPublicar" class="btn btn-primary w-100 mb-2" onclick="publicarEnWP()">
           🚀 {% if simulate_wp %}Enviar a WP (simulado){% else %}Publicar en WordPress{% endif %}
         </button>
-        <div id="publishNote" class="text-muted small mb-2">Agrega 1 imagen para habilitar el botón.</div>
+        <div id="publishNote" class="text-muted small mb-2"></div>
         <a id="btnDescargar" class="btn btn-outline-secondary w-100 mb-2" download>⬇️ Descargar JSON</a>
         <button class="btn btn-outline-danger w-100" onclick="eliminarBorrador()">🗑️ Eliminar borrador</button>
         <div id="actionMsg" class="mt-2"></div>
+      </div>
+
+      <!-- Redes sociales -->
+      <div class="main-card p-3 mb-3">
+        <h6 class="section-title">📱 Contenido para Redes</h6>
+        <p class="text-muted small mb-2">Genera contenido optimizado para cada plataforma con IA.</p>
+        <button class="btn btn-outline-dark w-100 mb-2" onclick="generarRedesSociales('tiktok')">
+          🎵 Guión para TikTok
+        </button>
+        <button class="btn btn-outline-danger w-100 mb-2" onclick="generarRedesSociales('instagram')">
+          📸 Caption para Instagram
+        </button>
+        <button class="btn btn-outline-primary w-100 mb-2" onclick="generarRedesSociales('facebook')">
+          👥 Post para Facebook
+        </button>
+        <div id="socialMsg" class="mt-1"></div>
       </div>
 
       <!-- Panel de imágenes -->
@@ -160,6 +176,7 @@
 const TYPE_ICONS = {comparativa:"📊",guia:"📖",resena_seo:"🔍",opinion:"💬",listicle:"📋",howto:"🛠️"};
 const BLOCK_TAGS = new Set(['h1','h2','h3','h4','p','li','blockquote','pre']);
 const filename   = "{{ filename }}";
+window.__WP_BASE_URL = "{{ wp_base_url | default('') }}";
 
 let _draftData  = null;
 let _blocks     = [];
@@ -237,6 +254,18 @@ function poblarFormulario(d, fname) {
   document.getElementById('postTypeIcon').textContent  = TYPE_ICONS[d.post_type] || '📄';
   document.getElementById('postTypeLabel').textContent = d.post_type || '';
   document.getElementById('filenameLabel').textContent = fname;
+
+  // Si ya fue publicado en WP, bloquear el botón de publicar
+  if (d.wp_post_id && d.status === 'published') {
+    const wp_url = window.__WP_BASE_URL || '';
+    document.getElementById('btnPublicar').disabled = true;
+    document.getElementById('btnPublicar').textContent = '✅ Ya publicado en WordPress';
+    document.getElementById('publishNote').innerHTML =
+      `ID de WP: <strong>${d.wp_post_id}</strong>` +
+      (wp_url ? ` — <a href="${wp_url}/wp-admin/post.php?post=${d.wp_post_id}&action=edit" target="_blank">Editar en WP ↗</a>` : '');
+    document.getElementById('publishNote').classList.remove('text-muted');
+    document.getElementById('publishNote').classList.add('text-success');
+  }
 
   // Auto-detectar autor
   const titleLower   = (d.title||'').toLowerCase();
@@ -398,9 +427,8 @@ function buildImgThumb(img) {
 function renderImagenes() {
   const list = document.getElementById('imageList');
   if (!_images.length) {
-    list.innerHTML = '<p class="text-muted small">Sin imágenes. Agrega 1 para habilitar la publicación.</p>';
-    document.getElementById('btnPublicar').disabled = true;
-    document.getElementById('publishNote').textContent = 'Agrega 1 imagen para habilitar el botón.';
+    list.innerHTML = '<p class="text-muted small">Sin imágenes.</p>';
+    document.getElementById('publishNote').textContent = '';
     return;
   }
   let html = '';
@@ -616,5 +644,54 @@ function autoDetectarAutor() {
   document.getElementById('metaAuthor').value = author;
   showToast(`Autor detectado: ${author}`);
 }
+
+// ── Redes sociales ─────────────────────────────────────────────────────────
+async function generarRedesSociales(platform) {
+  const platformLabels = {tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook'};
+  const label = platformLabels[platform] || platform;
+  const msgEl = document.getElementById('socialMsg');
+  msgEl.innerHTML = `<span class="text-muted small">⏳ Generando contenido para ${label}…</span>`;
+  try {
+    const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/social`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({platform})
+    });
+    const d = await r.json();
+    msgEl.innerHTML = '';
+    if (!d.ok) { showToast(d.error || 'Error generando contenido', 'danger'); return; }
+    // Mostrar en modal
+    document.getElementById('socialModalTitle').textContent = `📱 Contenido para ${label}`;
+    document.getElementById('socialModalBody').textContent  = d.content;
+    const modal = new bootstrap.Modal(document.getElementById('socialModal'));
+    modal.show();
+  } catch(e) {
+    msgEl.innerHTML = '';
+    showToast('Error de red al generar contenido social', 'danger');
+  }
+}
+function copiarContenidoSocial() {
+  const text = document.getElementById('socialModalBody').textContent;
+  navigator.clipboard.writeText(text).then(() => showToast('✅ Copiado al portapapeles'));
+}
 </script>
+
+<!-- Modal: Contenido para redes sociales -->
+<div class="modal fade" id="socialModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="socialModalTitle">📱 Contenido para Redes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <pre id="socialModalBody" style="white-space:pre-wrap;font-family:inherit;font-size:.9rem;max-height:65vh;overflow-y:auto"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" onclick="copiarContenidoSocial()">📋 Copiar</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -136,6 +136,7 @@ class ContentOrchestrator:
         custom_titles: dict[str, str] | None = None,
         username: str = "",
         badge_html: str = "",
+        voice_profile: str = "",
     ) -> list[PostDraft]:
         """
         Flujo completo: recibe 1 input → genera 3 borradores → los sube a WP.
@@ -205,9 +206,10 @@ class ContentOrchestrator:
                 # Llamada a Gemini (pasamos el prompt_map y los nuevos parámetros)
                 raw = self.gemini.generate_draft(
                     post_type, topic, affiliate_url,
-                    prompt_map = prompt_map,
-                    focus      = individual_focus,
-                    reviewer   = reviewer,
+                    prompt_map    = prompt_map,
+                    focus         = individual_focus,
+                    reviewer      = reviewer,
+                    voice_profile = voice_profile,
                 )
 
                 # Garantizar que meta_description siempre tiene contenido
@@ -235,20 +237,33 @@ class ContentOrchestrator:
                     reviewer  = reviewer,
                 )
 
-                # Clasificar categoría y etiquetas (solo en modo real con WP configurado)
+                # Clasificar categoría y etiquetas (siempre que haya credenciales WP disponibles)
                 wp_categories: list[int] = []
                 wp_tags: list[int] = []
-                if hasattr(self, "_wp_auth") and self._wp_auth is not None:
+                _seo_kws: list[str] = []
+                _tax_base_url = (
+                    getattr(self.wp, "base_url", None)
+                    or os.getenv("WP_BASE_URL", "")
+                ).rstrip("/")
+                _tax_auth = getattr(self.wp, "auth", None)
+                if not _tax_auth:
+                    _wp_user = os.getenv("WP_USERNAME", "")
+                    _wp_pass = os.getenv("WP_APP_PASSWORD", "")
+                    if _wp_user and _wp_pass:
+                        from requests.auth import HTTPBasicAuth
+                        _tax_auth = HTTPBasicAuth(_wp_user, _wp_pass)
+                if _tax_base_url and _tax_auth:
                     try:
                         self.progress_cb(step, total, f"Clasificando categorías y etiquetas para {label}…")
                         from core.wp_taxonomy import assign_taxonomy
-                        wp_categories, wp_tags = assign_taxonomy(
-                            gemini    = self.gemini,
-                            base_url  = self._wp_base_url,
-                            auth      = self._wp_auth,
-                            title     = raw["title"],
-                            content   = raw["content"],
-                            post_type = post_type,
+                        wp_categories, wp_tags, _seo_kws = assign_taxonomy(
+                            gemini        = self.gemini,
+                            base_url      = _tax_base_url,
+                            auth          = _tax_auth,
+                            title         = raw["title"],
+                            content       = raw["content"],
+                            post_type     = post_type,
+                            focus_keyword = raw.get("focus_keyword", ""),
                         )
                     except Exception as tax_exc:
                         logger.warning(f"[Orchestrator] No se pudo clasificar taxonomy: {tax_exc}")
@@ -261,6 +276,7 @@ class ContentOrchestrator:
                     "img_prompts":   img_prompts,
                     "wp_categories": wp_categories,
                     "wp_tags":       wp_tags,
+                    "seo_keywords":  _seo_kws,
                 })
 
             except Exception as exc:
@@ -295,13 +311,14 @@ class ContentOrchestrator:
 
             content = item["raw"]["content"]
 
-            # Badge de revisión profesional al INICIO del artículo
-            if badge_html and "professional-review-badge" not in content:
-                content = badge_html + "\n\n" + content
-
             # Bloque «También te puede interesar» al FINAL
             siblings     = [c for c in successful if c is not item]
             related_html = _build_related_posts_html(siblings)
+
+            # Badge de revisión profesional AL FINAL, antes del bloque de relacionados
+            if badge_html and "professional-review-badge" not in content:
+                content = content + "\n\n" + badge_html
+
             if related_html:
                 content = content + "\n\n" + related_html
 
@@ -316,6 +333,7 @@ class ContentOrchestrator:
                 image_prompts    = item["img_prompts"],
                 categories       = item["wp_categories"],
                 tags             = item["wp_tags"],
+                seo_keywords     = item.get("seo_keywords", []),
             )
 
             self.progress_cb(step, total, f"Subiendo {label} a WordPress…")

@@ -85,6 +85,13 @@
       </select>
     </div>
     <div class="col-md-2">
+      <select id="statusFilter" class="form-select form-select-sm" onchange="filtrar()">
+        <option value="">Todos los estados</option>
+        <option value="published">✅ Publicados</option>
+        <option value="draft">📝 Borradores</option>
+      </select>
+    </div>
+    <div class="col-md-2">
       <button class="btn btn-sm btn-outline-secondary w-100" onclick="cargarHistorial()">🔃 Refrescar</button>
     </div>
   </div>
@@ -116,9 +123,10 @@ function cargarHistorial() {
 }
 
 function filtrar() {
-  const search = document.getElementById('searchInput').value.toLowerCase();
-  const typeF  = document.getElementById('typeFilter').value;
-  const modeF  = document.getElementById('modeFilter').value;
+  const search  = document.getElementById('searchInput').value.toLowerCase();
+  const typeF   = document.getElementById('typeFilter').value;
+  const modeF   = document.getElementById('modeFilter').value;
+  const statusF = document.getElementById('statusFilter').value;
 
   const filtered = _allEntries.filter(e => {
     if (search) {
@@ -127,6 +135,7 @@ function filtrar() {
     }
     if (typeF && e.post_type !== typeF) return false;
     if (modeF && e.wp_mode !== modeF) return false;
+    if (statusF && e.draft_status !== statusF) return false;
     return true;
   });
 
@@ -172,16 +181,22 @@ function filtrar() {
       const label = TYPE_LABELS[pt] || pt;
       const title = e.title || '(sin título)';
       const kw    = e.focus_keyword || '';
-      const wpId  = e.wp_post_id || '?';
       const tokens = e.tokens_used || 0;
       const df    = e.draft_file || '';
       const exists = e.draft_exists;
+      const isPublished = e.draft_status === 'published';
+      const wpIdActual  = e.draft_wp_id || e.wp_post_id || null;
 
-      html += `<div class="d-flex justify-content-between align-items-start p-3 border-bottom">
+      const statusBadge = isPublished
+        ? `<span class="badge" style="background:#198754;font-size:.75rem">✅ Publicado en WP${wpIdActual ? ' #'+wpIdActual : ''}</span>`
+        : `<span class="badge" style="background:#6c757d;font-size:.75rem">📝 Borrador</span>`;
+
+      html += `<div class="d-flex justify-content-between align-items-start p-3 border-bottom${isPublished ? ' ' : ''}" style="${isPublished ? 'border-left:3px solid #198754' : 'border-left:3px solid #6c757d'}">
         <div>
           <strong>${icon} ${label}</strong> — ${title}<br>
           <span class="badge bg-secondary">${kw}</span>
-          <span class="text-muted small ms-1">ID: <code>${wpId}</code> · ${tokens.toLocaleString()} tokens</span>
+          ${statusBadge}
+          <span class="text-muted small ms-1">${tokens.toLocaleString()} tokens</span>
         </div>
         <div class="ms-2 flex-shrink-0">`;
 

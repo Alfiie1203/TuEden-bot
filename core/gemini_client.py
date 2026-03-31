@@ -435,6 +435,7 @@ class GeminiClient:
         prompt_map: dict | None = None,
         focus: str = "",
         reviewer: str = "",
+        voice_profile: str = "",
     ) -> dict:
         """
         Genera un borrador de post.
@@ -461,9 +462,10 @@ class GeminiClient:
             return self._generate_mock(post_type, topic, affiliate_url)
         return self._generate_real(
             post_type, topic, affiliate_url,
-            prompt_map = active_map,
-            focus      = focus,
-            reviewer   = reviewer,
+            prompt_map    = active_map,
+            focus         = focus,
+            reviewer      = reviewer,
+            voice_profile = voice_profile,
         )
 
     # ------------------------------------------------------------------
@@ -502,6 +504,7 @@ class GeminiClient:
         prompt_map: dict | None = None,
         focus: str = "",
         reviewer: str = "",
+        voice_profile: str = "",
     ) -> dict:
         """Llama a la API de Gemini con hasta 3 reintentos y registra tokens reales."""
         # Rotar clave si la activa está agotada antes de intentar
@@ -510,13 +513,14 @@ class GeminiClient:
 
         active_map = prompt_map if prompt_map is not None else PROMPT_MAP
 
-        # Usar build_prompt para inyectar focus_block y reviewer_block correctamente
+        # Usar build_prompt para inyectar voice_block, focus_block y reviewer_block
         prompt = build_prompt(
             prompt_template = active_map[post_type],
             topic           = topic,
             affiliate_url   = affiliate_url or "#",
             focus           = focus,
             reviewer        = reviewer,
+            voice_profile   = voice_profile,
         )
 
         logger.info(

@@ -289,6 +289,7 @@ def borrador():
         mock_mode=mock_mode,
         simulate_wp=simulate_wp,
         filename=filename,
+        wp_base_url=os.getenv("WP_BASE_URL", "").rstrip("/"),
     )
 
 
@@ -297,6 +298,206 @@ def borrador():
 def admin_page():
     mock_mode, simulate_wp = _get_modes()
     return render_template("admin.html", mock_mode=mock_mode, simulate_wp=simulate_wp)
+
+
+# ==================================================================================
+# GESTIÓN DE PROMPTS (solo admin)
+# ==================================================================================
+
+# Nombres legibles para el editor
+_PROMPT_LABELS = {
+    "BASE_CONTEXT":      "Contexto base — Modo Amazon",
+    "BASE_CONTEXT_LIBRE":"Contexto base — Modo Libre",
+    "PROMPT_COMPARATIVA":"Post Amazon: Comparativa",
+    "PROMPT_GUIA":       "Post Amazon: Guía de Beneficios",
+    "PROMPT_RESENA_SEO": "Post Amazon: Reseña SEO",
+    "PROMPT_OPINION":    "Post Libre: Artículo de Opinión",
+    "PROMPT_LISTICLE":   "Post Libre: Listicle / Top N",
+    "PROMPT_HOWTO":      "Post Libre: Guía Paso a Paso",
+    "_REVIEWER_Médico":  "Bloque Revisor: Médico",
+    "_REVIEWER_Psicólogo":"Bloque Revisor: Psicólogo",
+    "_REVIEWER_Editor":  "Bloque Revisor: Editor",
+    "_VOICE_BLOCK":      "Bloque Voz del Autor",
+    "_FOCUS_BLOCK":      "Bloque Enfoque del Artículo",
+}
+
+# Archivo donde se guardan los overrides editados por el admin
+_PROMPTS_OVERRIDE_FILE = Path("prompts_override.json")
+
+
+def _load_prompt_overrides() -> dict:
+    if _PROMPTS_OVERRIDE_FILE.exists():
+        try:
+            return json.loads(_PROMPTS_OVERRIDE_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _save_prompt_overrides(data: dict) -> None:
+    _PROMPTS_OVERRIDE_FILE.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def _get_all_prompts() -> list[dict]:
+    """Devuelve todos los prompts con su valor actual (override o default)."""
+    import core.prompt_templates as pt
+    overrides = _load_prompt_overrides()
+    result = []
+    for key, label in _PROMPT_LABELS.items():
+        if key.startswith("_REVIEWER_"):
+            lang = key.replace("_REVIEWER_", "")
+            default_val = pt._REVIEWER_BLOCKS.get(lang, "")
+        elif key == "_VOICE_BLOCK":
+            default_val = pt._VOICE_BLOCK
+        elif key == "_FOCUS_BLOCK":
+            default_val = pt._FOCUS_BLOCK
+        else:
+            default_val = getattr(pt, key, "")
+        current_val = overrides.get(key, default_val)
+        result.append({
+            "key":      key,
+            "label":    label,
+            "default":  default_val,
+            "current":  current_val,
+            "modified": key in overrides,
+        })
+    return result
+
+
+@app.route("/admin/prompts")
+@admin_required
+def prompts_page():
+    mock_mode, simulate_wp = _get_modes()
+    prompts = _get_all_prompts()
+    return render_template(
+        "prompts.html",
+        mock_mode=mock_mode,
+        simulate_wp=simulate_wp,
+        prompts=prompts,
+    )
+
+
+@app.get("/api/admin/prompts")
+@admin_required
+def api_prompts_get():
+    return jsonify({"ok": True, "prompts": _get_all_prompts()})
+
+
+@app.put("/api/admin/prompts/<key>")
+@admin_required
+def api_prompts_update(key):
+    if key not in _PROMPT_LABELS:
+        return jsonify({"error": "Clave de prompt no válida"}), 400
+    data = request.get_json() or {}
+    new_text = data.get("value", "")
+    overrides = _load_prompt_overrides()
+    overrides[key] = new_text
+    _save_prompt_overrides(overrides)
+    # Aplicar en caliente al módulo cargado
+    _apply_prompt_override(key, new_text)
+    return jsonify({"ok": True})
+
+
+@app.delete("/api/admin/prompts/<key>")
+@admin_required
+def api_prompts_reset(key):
+    if key not in _PROMPT_LABELS:
+        return jsonify({"error": "Clave de prompt no válida"}), 400
+    overrides = _load_prompt_overrides()
+    overrides.pop(key, None)
+    _save_prompt_overrides(overrides)
+    # Restaurar el valor del módulo desde disco
+    import importlib, core.prompt_templates as pt
+    importlib.reload(pt)
+    return jsonify({"ok": True})
+
+
+def _apply_prompt_override(key: str, value: str) -> None:
+    """Aplica un override directamente al módulo en memoria."""
+    import core.prompt_templates as pt
+    if key.startswith("_REVIEWER_"):
+        lang = key.replace("_REVIEWER_", "")
+        pt._REVIEWER_BLOCKS[lang] = value
+    elif key == "_VOICE_BLOCK":
+        pt._VOICE_BLOCK = value
+    elif key == "_FOCUS_BLOCK":
+        pt._FOCUS_BLOCK = value
+    else:
+        setattr(pt, key, value)
+
+
+def _apply_all_overrides_on_startup() -> None:
+    """Aplica al módulo todos los overrides guardados al iniciar el servidor."""
+    for key, value in _load_prompt_overrides().items():
+        try:
+            _apply_prompt_override(key, value)
+        except Exception:
+            pass
+
+
+_apply_all_overrides_on_startup()
+
+
+# ==================================================================================
+# API - TEMA
+# ==================================================================================
+
+@app.put("/api/tema")
+@login_required
+def api_tema_update():
+    """Guarda la preferencia de tema (dark/light) del usuario."""
+    data = request.get_json() or {}
+    theme = data.get("theme", "dark")
+    if theme not in ("dark", "light"):
+        return jsonify({"error": "Tema no válido"}), 400
+    username = session.get("username")
+    if username:
+        users = load_users()
+        if username in users:
+            users[username]["theme"] = theme
+            save_users(users)
+    return jsonify({"ok": True})
+
+
+# ==================================================================================
+# PERFIL DE VOZ DEL USUARIO
+# ==================================================================================
+
+@app.route("/perfil")
+@login_required
+def perfil_page():
+    mock_mode, simulate_wp = _get_modes()
+    user = get_current_user()
+    voice = user.get("voice_profile") or {}
+    return render_template(
+        "perfil.html",
+        mock_mode=mock_mode,
+        simulate_wp=simulate_wp,
+        voice=voice,
+    )
+
+
+@app.put("/api/perfil")
+@login_required
+def api_perfil_update():
+    """Guarda el perfil de voz del usuario autenticado."""
+    data = request.get_json() or {}
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "No autenticado"}), 401
+
+    allowed_keys = {"style", "tone", "vocabulary", "examples", "sample", "compiled"}
+    voice_data = {k: str(data.get(k, "")).strip() for k in allowed_keys}
+
+    users = load_users()
+    if username not in users:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+
+    users[username]["voice_profile"] = voice_data
+    save_users(users)
+    return jsonify({"ok": True})
 
 
 # ==================================================================================
@@ -373,6 +574,7 @@ def api_generar():
     _progress_queues[task_id] = q
     _current_username = (get_current_user() or {}).get("username", "")
     _current_badge    = (get_current_user() or {}).get("professional_badge", "")
+    _current_voice    = (get_current_user() or {}).get("voice_profile", {}).get("compiled", "")
 
     def run():
         global _token_manager
@@ -388,7 +590,7 @@ def api_generar():
                 token_manager=tm,
                 gemini_model=gemini_model,
             )
-            drafts = orchestrator.run(user_input, mode=gen_mode, focus=focus, reviewer=reviewer, username=_current_username, badge_html=_current_badge)
+            drafts = orchestrator.run(user_input, mode=gen_mode, focus=focus, reviewer=reviewer, username=_current_username, badge_html=_current_badge, voice_profile=_current_voice)
             _token_manager = orchestrator.gemini.token_manager
 
             result = []
@@ -425,7 +627,12 @@ def api_progreso(task_id):
 
     def stream():
         while True:
-            msg = q.get()
+            try:
+                msg = q.get(timeout=20)
+            except queue.Empty:
+                # Heartbeat para evitar que Gunicorn mate al worker por inactividad
+                yield ": keepalive\n\n"
+                continue
             yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
             if msg.get("type") in ("done", "error"):
                 _progress_queues.pop(task_id, None)
@@ -456,11 +663,13 @@ def api_topicos_cargar():
         gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
         topics = get_topics(gemini, force_refresh=force)
         _token_manager = gemini.token_manager
-        # Filtrar por rol de usuario
+        # Filtrar por rol de usuario (las 4 categorías de bienestar son universales para todos los roles)
         user    = get_current_user()
         allowed = user.get("topic_categories") if user else None
         if allowed and isinstance(topics, dict):
-            topics = {k: v for k, v in topics.items() if k == "fecha" or k in allowed}
+            _universal = ["salud_nutricion", "bienestar_emocional", "familia_educacion", "estetica_autocuidado"]
+            _allowed_full = list(allowed) + _universal
+            topics = {k: v for k, v in topics.items() if k == "fecha" or k in _allowed_full}
         return jsonify({"ok": True, "data": topics, "from_cache": not force})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
@@ -504,6 +713,7 @@ def api_topicos_generar():
     _progress_queues[task_id] = q
     _current_username = (get_current_user() or {}).get("username", "")
     _current_badge    = (get_current_user() or {}).get("professional_badge", "")
+    _current_voice    = (get_current_user() or {}).get("voice_profile", {}).get("compiled", "")
 
     def run():
         global _token_manager
@@ -540,6 +750,7 @@ def api_topicos_generar():
                         custom_titles=ct or None,
                         username=_current_username,
                         badge_html=_current_badge,
+                        voice_profile=_current_voice,
                     )
                     _token_manager = orch.gemini.token_manager
                     tm = _token_manager
@@ -646,6 +857,11 @@ def api_borrador_publicar(filename):
         return jsonify({"error": "No encontrado"}), 404
     draft_data     = json.loads(safe.read_text(encoding="utf-8"))
     _, simulate_wp = _get_modes()
+    # Bloquear re-publicación si el borrador ya fue publicado en WP
+    if draft_data.get("wp_post_id") and not simulate_wp:
+        return jsonify({
+            "error": f"⚠️ Este borrador ya fue publicado en WordPress (ID: {draft_data['wp_post_id']}). No se puede publicar dos veces."
+        }), 409
     body           = request.get_json() or {}
     images         = body.get("images",     draft_data.get("images", []))
     categories     = body.get("categories", draft_data.get("categories", []))
@@ -728,29 +944,20 @@ def api_borrador_publicar(filename):
         _pub_user     = get_current_user()
         _badge_html   = (_pub_user or {}).get("professional_badge", "")
         if _badge_html and "professional-review-badge" not in post_draft.content:
-            # Insertar el badge DESPUÉS del primer párrafo para que la focus keyword
-            # esté en el primer párrafo visible y AIOSEO lo detecte correctamente.
-            _first_p_end = post_draft.content.find("</p>")
-            if _first_p_end != -1:
-                _insert_at = _first_p_end + len("</p>")
-                post_draft.content = (
-                    post_draft.content[:_insert_at]
-                    + "\n\n" + _badge_html + "\n\n"
-                    + post_draft.content[_insert_at:]
-                )
-            else:
-                # Fallback: no hay <p>, añadir al inicio
-                post_draft.content = _badge_html + "\n\n" + post_draft.content
+            # Insertar el badge AL FINAL del artículo
+            post_draft.content = post_draft.content + "\n\n" + _badge_html
 
         wid = wp.create_draft(post_draft)
         if not simulate_wp:
-            safe.unlink(missing_ok=True)
+            # Conservar el borrador actualizado con el ID de WP (no eliminar)
+            draft_data["wp_post_id"] = wid
+            draft_data["status"]     = "published"
+            safe.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
             wp_url = os.getenv("WP_BASE_URL", "").rstrip("/")
             return jsonify({
-                "ok": True,
+                "ok":        True,
                 "wp_post_id": wid,
                 "edit_url":   f"{wp_url}/wp-admin/post.php?post={wid}&action=edit",
-                "deleted":    True,
             })
         return jsonify({"ok": True, "wp_post_id": wid, "simulated": True})
     except Exception as e:
@@ -827,6 +1034,82 @@ def serve_image(img_name):
     return send_file(safe)
 
 
+@app.post("/api/borrador/<path:filename>/social")
+@login_required
+def api_borrador_social(filename):
+    """Genera contenido optimizado para redes sociales usando Gemini."""
+    safe = _safe_draft_path(filename)
+    if safe is None or not safe.exists():
+        return jsonify({"error": "No encontrado"}), 404
+    body     = request.get_json() or {}
+    platform = body.get("platform", "").lower()
+    if platform not in ("tiktok", "instagram", "facebook"):
+        return jsonify({"error": "Plataforma no válida. Usa: tiktok, instagram, facebook"}), 400
+    draft_data = json.loads(safe.read_text(encoding="utf-8"))
+    title      = draft_data.get("title", "")
+    focus_kw   = draft_data.get("focus_keyword", "")
+    # Extracto del contenido (máx. 600 palabras) para no gastar demasiados tokens
+    plain_content = " ".join(
+        w for w in (draft_data.get("content", "")
+                    .replace("<", " <").replace(">", "> ")
+                    .split())
+        if not w.startswith("<") and not w.startswith(">")
+    )[:3000]
+    platform_prompts = {
+        "tiktok": (
+            f"Escribe un guión viral para TikTok basado en este artículo de salud/bienestar.\n"
+            f"Título del artículo: \"{title}\"\n"
+            f"Palabra clave: \"{focus_kw}\"\n"
+            f"Resumen del contenido: {plain_content}\n\n"
+            f"El guión debe:\n"
+            f"- Durar entre 45-60 segundos (aprox. 130-160 palabras habladas).\n"
+            f"- Empezar con un GANCHO impactante (primeros 3 segundos) que genere curiosidad.\n"
+            f"- Usar lenguaje directo y cercano (tuteo).\n"
+            f"- Incluir indicaciones de escena entre corchetes: [PAUSA], [MOSTRAR TEXTO], [ZOOM IN], etc.\n"
+            f"- Terminar con una llamada a la acción clara: comentar, seguir o guardar el vídeo.\n"
+            f"- Sugerir 5 hashtags relevantes al final.\n"
+            f"Escribe el guión completo en español de España."
+        ),
+        "instagram": (
+            f"Escribe el copy completo para un post de Instagram basado en este artículo.\n"
+            f"Título del artículo: \"{title}\"\n"
+            f"Palabra clave: \"{focus_kw}\"\n"
+            f"Resumen del contenido: {plain_content}\n\n"
+            f"El copy debe incluir:\n"
+            f"1. PRIMERA LÍNEA gancho (máx. 20 palabras, sin emojis al inicio).\n"
+            f"2. Cuerpo: 3-5 párrafos cortos con insights del artículo, usando emojis estratégicos.\n"
+            f"3. Llamada a la acción.\n"
+            f"4. Bloque de 20-25 hashtags relevantes (mezcla de populares y nicho), separados por espacios.\n"
+            f"5. Sugerencia de descripción para la imagen/carrusel (1-2 frases).\n"
+            f"Escribe en español de España, tono empático y motivador."
+        ),
+        "facebook": (
+            f"Escribe un post completo para Facebook basado en este artículo de salud/bienestar.\n"
+            f"Título del artículo: \"{title}\"\n"
+            f"Palabra clave: \"{focus_kw}\"\n"
+            f"Resumen del contenido: {plain_content}\n\n"
+            f"El post de Facebook debe:\n"
+            f"- Tener entre 150-300 palabras (formato largo, Facebook lo permite).\n"
+            f"- Empezar con una pregunta o dato sorprendente para generar interacción.\n"
+            f"- Desarrollar los puntos clave del artículo de forma conversacional.\n"
+            f"- Invitar a la comunidad a compartir su experiencia en los comentarios.\n"
+            f"- Incluir 3-5 emojis distribuidos naturalmente.\n"
+            f"- Terminar con el enlace al artículo (deja el placeholder: [URL DEL ARTÍCULO]).\n"
+            f"- Añadir 5-8 hashtags relevantes al final.\n"
+            f"Escribe en español de España, tono cálido y comunitario."
+        ),
+    }
+    mock_mode, _ = _get_modes()
+    try:
+        from core.gemini_client import GeminiClient
+        tm     = get_token_manager()
+        gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
+        result = gemini.call_raw(platform_prompts[platform])
+        return jsonify({"ok": True, "platform": platform, "content": result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ==================================================================================
 # API - HISTORIAL
 # ==================================================================================
@@ -849,7 +1132,18 @@ def api_historial():
                         if wp_id:
                             e["draft_file"] = _find_draft_file(wp_id, pt) or ""
                     df = e.get("draft_file", "")
-                    e["draft_exists"] = bool(df) and (DRAFTS_DIR / Path(df).name).exists()
+                    draft_path = (DRAFTS_DIR / Path(df).name) if df else None
+                    e["draft_exists"] = bool(draft_path) and draft_path.exists()
+                    # Read status from the actual draft file
+                    e["draft_status"]  = "draft"
+                    e["draft_wp_id"]   = None
+                    if e["draft_exists"]:
+                        try:
+                            _d = json.loads(draft_path.read_text(encoding="utf-8"))
+                            e["draft_status"] = _d.get("status", "draft")
+                            e["draft_wp_id"]  = _d.get("wp_post_id")
+                        except Exception:
+                            pass
                     entries.append(e)
                 except json.JSONDecodeError:
                     pass

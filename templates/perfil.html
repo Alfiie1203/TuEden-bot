@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Mi perfil de voz · Blog Content Generator{% endblock %}
+
+{% block head %}
+<style>
+  .voice-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .voice-section h6 {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  .question-label {
+    font-size: .88rem;
+    color: var(--text);
+    margin-bottom: .35rem;
+    font-weight: 500;
+  }
+  .question-hint {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-top: -.2rem;
+    margin-bottom: .6rem;
+  }
+  #compiledPreview {
+    min-height: 140px;
+    font-size: .85rem;
+    line-height: 1.6;
+    border-left: 3px solid var(--accent) !important;
+    background: rgba(110,168,254,.04) !important;
+  }
+  .badge-active { background: rgba(109,222,136,.15); color: var(--green); border:1px solid rgba(109,222,136,.3); }
+  .badge-empty  { background: rgba(255,209,102,.12); color: var(--amber); border:1px solid rgba(255,209,102,.3); }
+  .btn-build {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: .82rem;
+    padding: .35rem .9rem;
+  }
+  .btn-build:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="max-width:860px">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center gap-3 mb-4">
+    <div style="font-size:2.2rem;line-height:1">🎙️</div>
+    <div>
+      <h1 class="h4 mb-0">Mi perfil de voz</h1>
+      <p class="text-muted mb-0" style="font-size:.88rem">
+        Responde las preguntas para que la IA escriba los artículos con tu estilo y personalidad.
+      </p>
+    </div>
+    <div class="ms-auto">
+      {% if voice and voice.compiled %}
+        <span class="badge badge-active rounded-pill px-3 py-2">✅ Perfil activo</span>
+      {% else %}
+        <span class="badge badge-empty rounded-pill px-3 py-2">⚠️ Sin configurar</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <form id="voiceForm">
+
+    <!-- Sección 1 — Estilo y tono -->
+    <div class="voice-section">
+      <h6>📝 Estilo y Tono</h6>
+
+      <p class="question-label">¿Cómo describirías tu forma de escribir?</p>
+      <p class="question-hint">Por ejemplo: directo y sin rodeos, narrativo y con historias, técnico pero accesible, conversacional…</p>
+      <textarea class="form-control mb-3" id="fStyle" rows="2" placeholder="Mi estilo es...">{{ voice.style or '' }}</textarea>
+
+      <p class="question-label">¿Qué tono quieres transmitir en tus artículos?</p>
+      <p class="question-hint">Cercano, empático, crítico, optimista, irónico, riguroso, apasionado…</p>
+      <textarea class="form-control" id="fTone" rows="2" placeholder="El tono que busco es...">{{ voice.tone or '' }}</textarea>
+    </div>
+
+    <!-- Sección 2 — Vocabulario y recursos -->
+    <div class="voice-section">
+      <h6>🗣️ Vocabulario y Recursos Propios</h6>
+
+      <p class="question-label">¿Hay palabras, expresiones o giros que uses con frecuencia?</p>
+      <p class="question-hint">Palabras que te definen, muletillas positivas, términos que prefieres evitar, registro formal o informal…</p>
+      <textarea class="form-control mb-3" id="fVocabulary" rows="2" placeholder="Suelo usar... / Evito...">{{ voice.vocabulary or '' }}</textarea>
+
+      <p class="question-label">¿Qué tipo de ejemplos o analogías usas para explicar las ideas?</p>
+      <p class="question-hint">Ejemplos del día a día, referencias culturales, metáforas del deporte, comparaciones con tecnología…</p>
+      <textarea class="form-control" id="fExamples" rows="2" placeholder="Para explicar algo complicado, suelo compararlo con...">{{ voice.examples or '' }}</textarea>
+    </div>
+
+    <!-- Sección 3 — Ejemplo de escritura -->
+    <div class="voice-section">
+      <h6>✍️ Ejemplo de Escritura</h6>
+
+      <p class="question-label">Pega o escribe aquí un párrafo o texto tuyo (de un artículo, email o red social)</p>
+      <p class="question-hint">
+        Cuanto más representativo sea de cómo escribes, mejor captará la IA tu voz.
+        Unas 100-250 palabras es suficiente.
+      </p>
+      <textarea class="form-control" id="fSample" rows="7"
+        placeholder="Aquí un ejemplo de cómo escribo...&#10;&#10;Puedes pegar el texto de un artículo tuyo, un hilo de Twitter, una entrada de Instagram o cualquier texto que consideres representativo de tu estilo.">{{ voice.sample or '' }}</textarea>
+    </div>
+
+    <!-- Sección 4 — Perfil compilado -->
+    <div class="voice-section">
+      <h6>🤖 Perfil de Voz para la IA</h6>
+
+      <p class="text-muted mb-2" style="font-size:.85rem">
+        Este texto es lo que se envía directamente a la IA cada vez que se genera un artículo.
+        Puedes editarlo manualmente o generarlo automáticamente desde tus respuestas anteriores.
+      </p>
+
+      <div class="d-flex gap-2 mb-2">
+        <button type="button" class="btn btn-build" id="btnBuild">
+          ⚙️ Generar automáticamente desde mis respuestas
+        </button>
+      </div>
+
+      <textarea class="form-control" id="compiledPreview" rows="6"
+        placeholder="El perfil de voz compilado aparecerá aquí…">{{ voice.compiled or '' }}</textarea>
+      <div class="form-text mt-1">Puedes editarlo libremente antes de guardar.</div>
+    </div>
+
+    <!-- Botón guardar -->
+    <div class="d-flex gap-3 align-items-center">
+      <button type="submit" class="btn btn-primary px-4">💾 Guardar perfil</button>
+      <span id="saveMsg" class="text-muted" style="font-size:.85rem;display:none"></span>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+// ── Auto-compilar el perfil desde las respuestas ──────────────────────────
+document.getElementById('btnBuild').addEventListener('click', () => {
+  const style      = document.getElementById('fStyle').value.trim();
+  const tone       = document.getElementById('fTone').value.trim();
+  const vocabulary = document.getElementById('fVocabulary').value.trim();
+  const examples   = document.getElementById('fExamples').value.trim();
+  const sample     = document.getElementById('fSample').value.trim();
+
+  let parts = [];
+
+  if (style)
+    parts.push(`Estilo de escritura: ${style}`);
+
+  if (tone)
+    parts.push(`Tono: ${tone}`);
+
+  if (vocabulary)
+    parts.push(`Vocabulario y expresiones habituales: ${vocabulary}`);
+
+  if (examples)
+    parts.push(`Recursos explicativos: ${examples}`);
+
+  if (sample)
+    parts.push(
+      `Ejemplo de cómo escribe el autor (úsalo como referencia de voz y estilo):\n"""\n${sample}\n"""`
+    );
+
+  if (!parts.length) {
+    alert('Rellena al menos una de las preguntas antes de generar el perfil.');
+    return;
+  }
+
+  document.getElementById('compiledPreview').value = parts.join('\n\n');
+});
+
+// ── Guardar perfil vía PUT /api/perfil ────────────────────────────────────
+document.getElementById('voiceForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    style:      document.getElementById('fStyle').value.trim(),
+    tone:       document.getElementById('fTone').value.trim(),
+    vocabulary: document.getElementById('fVocabulary').value.trim(),
+    examples:   document.getElementById('fExamples').value.trim(),
+    sample:     document.getElementById('fSample').value.trim(),
+    compiled:   document.getElementById('compiledPreview').value.trim(),
+  };
+
+  if (!payload.compiled) {
+    alert('El perfil de voz compilado está vacío. Rellena las preguntas y pulsa "Generar automáticamente", o escríbelo manualmente.');
+    return;
+  }
+
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  try {
+    const res = await fetch('/api/perfil', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    const msg = document.getElementById('saveMsg');
+    if (data.ok) {
+      msg.textContent = '✅ Perfil guardado correctamente';
+      msg.style.color = 'var(--green)';
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display = 'none'; location.reload(); }, 2000);
+    } else {
+      msg.textContent = '❌ Error: ' + (data.error || 'desconocido');
+      msg.style.color = 'var(--red)';
+      msg.style.display = 'inline';
+    }
+  } catch (err) {
+    alert('Error de red: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar perfil';
+  }
+});
+</script>
+{% endblock %}
