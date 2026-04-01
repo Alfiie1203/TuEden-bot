@@ -204,8 +204,13 @@ def admin_required(f):
 
 
 @app.context_processor
-def inject_current_user():
-    return {"current_user": get_current_user()}
+def inject_globals():
+    mock_mode, simulate_wp = _get_modes()
+    return {
+        "current_user": get_current_user(),
+        "mock_mode":    mock_mode,
+        "simulate_wp":  simulate_wp,
+    }
 
 
 # -- .env file helpers -------------------------------------------------------------
@@ -256,39 +261,27 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    mock_mode, simulate_wp = _get_modes()
-    return render_template(
-        "index.html",
-        mock_mode=mock_mode,
-        simulate_wp=simulate_wp,
-        wp_url=os.getenv("WP_BASE_URL", ""),
-    )
+    return render_template("index.html", wp_url=os.getenv("WP_BASE_URL", ""))
 
 
 @app.route("/historial")
 @login_required
 def historial():
-    mock_mode, simulate_wp = _get_modes()
-    return render_template("historial.html", mock_mode=mock_mode, simulate_wp=simulate_wp)
+    return render_template("historial.html")
 
 
 @app.route("/topicos")
 @login_required
 def topicos():
-    mock_mode, simulate_wp = _get_modes()
-    return render_template("topicos.html", mock_mode=mock_mode, simulate_wp=simulate_wp)
+    return render_template("topicos.html")
 
 
 @app.route("/borrador")
 @login_required
 def borrador():
-    mock_mode, simulate_wp = _get_modes()
-    filename = request.args.get("file", "")
     return render_template(
         "borrador.html",
-        mock_mode=mock_mode,
-        simulate_wp=simulate_wp,
-        filename=filename,
+        filename=request.args.get("file", ""),
         wp_base_url=os.getenv("WP_BASE_URL", "").rstrip("/"),
     )
 
@@ -296,29 +289,93 @@ def borrador():
 @app.route("/admin")
 @admin_required
 def admin_page():
-    mock_mode, simulate_wp = _get_modes()
-    return render_template("admin.html", mock_mode=mock_mode, simulate_wp=simulate_wp)
+    return render_template("admin.html")
 
 
 # ==================================================================================
 # GESTIÓN DE PROMPTS (solo admin)
 # ==================================================================================
 
-# Nombres legibles para el editor
-_PROMPT_LABELS = {
-    "BASE_CONTEXT":      "Contexto base — Modo Amazon",
-    "BASE_CONTEXT_LIBRE":"Contexto base — Modo Libre",
-    "PROMPT_COMPARATIVA":"Post Amazon: Comparativa",
-    "PROMPT_GUIA":       "Post Amazon: Guía de Beneficios",
-    "PROMPT_RESENA_SEO": "Post Amazon: Reseña SEO",
-    "PROMPT_OPINION":    "Post Libre: Artículo de Opinión",
-    "PROMPT_LISTICLE":   "Post Libre: Listicle / Top N",
-    "PROMPT_HOWTO":      "Post Libre: Guía Paso a Paso",
-    "_REVIEWER_Médico":  "Bloque Revisor: Médico",
-    "_REVIEWER_Psicólogo":"Bloque Revisor: Psicólogo",
-    "_REVIEWER_Editor":  "Bloque Revisor: Editor",
-    "_VOICE_BLOCK":      "Bloque Voz del Autor",
-    "_FOCUS_BLOCK":      "Bloque Enfoque del Artículo",
+# Metadatos por prompt: label, descripción, variables requeridas y contexto de uso
+_PROMPT_META: dict[str, dict] = {
+    "BASE_CONTEXT": {
+        "label":       "Contexto base — Modo Amazon",
+        "description": "Reglas globales (estilo, SEO, gramática, formato) inyectadas al inicio de los 3 posts de Modo Amazon. Cualquier cambio aquí afecta a comparativa, guía y reseña.",
+        "vars":        ["{topic}", "{today}", "{focus_block}", "{reviewer_block}", "{voice_block}", "{username}", "{badge_html}"],
+        "used_in":     "Modo Amazon · los 3 posts",
+    },
+    "BASE_CONTEXT_LIBRE": {
+        "label":       "Contexto base — Modo Libre",
+        "description": "Reglas globales para los 3 posts de Modo Libre (sin producto). Define tono cercano, normas SEO y gramática. Es el prompt más influyente del modo libre.",
+        "vars":        ["{topic}", "{today}", "{focus_block}", "{reviewer_block}", "{voice_block}", "{username}", "{badge_html}"],
+        "used_in":     "Modo Libre · los 3 posts",
+    },
+    "PROMPT_OPINION": {
+        "label":       "Post Libre · Artículo de Opinión",
+        "description": "Genera el post 1/3: una reflexión o análisis personal/profesional sobre el tópico. Ideal para posicionar autoridad y generar debate.",
+        "vars":        ["{title}"],
+        "used_in":     "Modo Libre · Post 1 de 3",
+    },
+    "PROMPT_LISTICLE": {
+        "label":       "Post Libre · Listicle / Top N",
+        "description": "Genera el post 2/3: una lista numerada (Top 5, Los 7 mejores…). Alta viralidad y buen rendimiento en snippets de Google.",
+        "vars":        ["{title}"],
+        "used_in":     "Modo Libre · Post 2 de 3",
+    },
+    "PROMPT_HOWTO": {
+        "label":       "Post Libre · Guía Paso a Paso",
+        "description": "Genera el post 3/3: una guía práctica con pasos concretos. Alta intención de búsqueda y conversión.",
+        "vars":        ["{title}"],
+        "used_in":     "Modo Libre · Post 3 de 3",
+    },
+    "PROMPT_COMPARATIVA": {
+        "label":       "Post Amazon · Comparativa",
+        "description": "Genera el post 1/3 de Amazon: comparativa con tabla pros/contras y CTAs de afiliado. Ideal para búsquedas 'mejor X vs Y'.",
+        "vars":        ["{title}", "{affiliate_url}"],
+        "used_in":     "Modo Amazon · Post 1 de 3",
+    },
+    "PROMPT_GUIA": {
+        "label":       "Post Amazon · Guía de Beneficios",
+        "description": "Genera el post 2/3 de Amazon: guía educativa que presenta el producto de forma no invasiva, destacando beneficios y casos de uso.",
+        "vars":        ["{title}", "{affiliate_url}"],
+        "used_in":     "Modo Amazon · Post 2 de 3",
+    },
+    "PROMPT_RESENA_SEO": {
+        "label":       "Post Amazon · Reseña SEO",
+        "description": "Genera el post 3/3 de Amazon: reseña detallada con puntuación, pros/contras y CTA final. Muy efectiva para búsquedas 'review de X'.",
+        "vars":        ["{title}", "{affiliate_url}"],
+        "used_in":     "Modo Amazon · Post 3 de 3",
+    },
+    "_REVIEWER_Médico": {
+        "label":       "Bloque Revisor · Médico",
+        "description": "Se inserta al final del contexto base solo cuando el revisor seleccionado es Médico. Añade rigor clínico, citación de evidencias y nota de descargo médico.",
+        "vars":        [],
+        "used_in":     "Todos los posts — solo si revisor = Médico",
+    },
+    "_REVIEWER_Psicólogo": {
+        "label":       "Bloque Revisor · Psicólogo",
+        "description": "Se inserta cuando el revisor es Psicólogo. Añade lenguaje no estigmatizante, referencias a corrientes psicológicas y nota de descargo en salud mental.",
+        "vars":        [],
+        "used_in":     "Todos los posts — solo si revisor = Psicólogo",
+    },
+    "_REVIEWER_Editor": {
+        "label":       "Bloque Revisor · Editor",
+        "description": "Se inserta cuando el revisor es Editor. Enfoca a Gemini en claridad narrativa, fluidez y pirámide invertida, sin restricciones clínicas.",
+        "vars":        [],
+        "used_in":     "Todos los posts — solo si revisor = Editor",
+    },
+    "_VOICE_BLOCK": {
+        "label":       "Bloque Voz del Autor",
+        "description": "Se inserta si el usuario tiene configurado su perfil de voz. Replica el estilo personal, tono y vocabulario del autor en el texto generado por Gemini.",
+        "vars":        ["{style}", "{tone}", "{vocabulary}", "{examples}", "{sample}"],
+        "used_in":     "Todos los posts — solo si el usuario tiene perfil de voz",
+    },
+    "_FOCUS_BLOCK": {
+        "label":       "Bloque Enfoque del Artículo",
+        "description": "Se inserta solo cuando el usuario rellena el campo 'Enfoque' en el formulario. Fuerza a Gemini a ceñirse a ese ángulo sin desviarse.",
+        "vars":        ["{focus}"],
+        "used_in":     "Todos los posts — solo si se indica un enfoque",
+    },
 }
 
 # Archivo donde se guardan los overrides editados por el admin
@@ -341,11 +398,11 @@ def _save_prompt_overrides(data: dict) -> None:
 
 
 def _get_all_prompts() -> list[dict]:
-    """Devuelve todos los prompts con su valor actual (override o default)."""
+    """Devuelve todos los prompts con su valor actual (override o default) y metadatos."""
     import core.prompt_templates as pt
     overrides = _load_prompt_overrides()
     result = []
-    for key, label in _PROMPT_LABELS.items():
+    for key, meta in _PROMPT_META.items():
         if key.startswith("_REVIEWER_"):
             lang = key.replace("_REVIEWER_", "")
             default_val = pt._REVIEWER_BLOCKS.get(lang, "")
@@ -357,11 +414,14 @@ def _get_all_prompts() -> list[dict]:
             default_val = getattr(pt, key, "")
         current_val = overrides.get(key, default_val)
         result.append({
-            "key":      key,
-            "label":    label,
-            "default":  default_val,
-            "current":  current_val,
-            "modified": key in overrides,
+            "key":         key,
+            "label":       meta["label"],
+            "description": meta["description"],
+            "vars":        meta["vars"],
+            "used_in":     meta["used_in"],
+            "default":     default_val,
+            "current":     current_val,
+            "modified":    key in overrides,
         })
     return result
 
@@ -369,14 +429,7 @@ def _get_all_prompts() -> list[dict]:
 @app.route("/admin/prompts")
 @admin_required
 def prompts_page():
-    mock_mode, simulate_wp = _get_modes()
-    prompts = _get_all_prompts()
-    return render_template(
-        "prompts.html",
-        mock_mode=mock_mode,
-        simulate_wp=simulate_wp,
-        prompts=prompts,
-    )
+    return render_template("prompts.html", prompts=_get_all_prompts())
 
 
 @app.get("/api/admin/prompts")
@@ -388,7 +441,7 @@ def api_prompts_get():
 @app.put("/api/admin/prompts/<key>")
 @admin_required
 def api_prompts_update(key):
-    if key not in _PROMPT_LABELS:
+    if key not in _PROMPT_META:
         return jsonify({"error": "Clave de prompt no válida"}), 400
     data = request.get_json() or {}
     new_text = data.get("value", "")
@@ -403,7 +456,7 @@ def api_prompts_update(key):
 @app.delete("/api/admin/prompts/<key>")
 @admin_required
 def api_prompts_reset(key):
-    if key not in _PROMPT_LABELS:
+    if key not in _PROMPT_META:
         return jsonify({"error": "Clave de prompt no válida"}), 400
     overrides = _load_prompt_overrides()
     overrides.pop(key, None)
@@ -468,15 +521,8 @@ def api_tema_update():
 @app.route("/perfil")
 @login_required
 def perfil_page():
-    mock_mode, simulate_wp = _get_modes()
     user = get_current_user()
-    voice = user.get("voice_profile") or {}
-    return render_template(
-        "perfil.html",
-        mock_mode=mock_mode,
-        simulate_wp=simulate_wp,
-        voice=voice,
-    )
+    return render_template("perfil.html", voice=(user.get("voice_profile") or {}))
 
 
 @app.put("/api/perfil")

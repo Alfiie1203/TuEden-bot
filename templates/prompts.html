@@ -3,45 +3,81 @@
 
 {% block head %}
 <style>
+  /* ── Cards ── */
   .prompt-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 10px;
-    margin-bottom: 1rem;
+    margin-bottom: .75rem;
     overflow: hidden;
-    transition: border-color .2s;
+    transition: border-color .2s, box-shadow .2s;
   }
   .prompt-card.modified { border-left: 3px solid var(--amber); }
   .prompt-card.default  { border-left: 3px solid var(--border); }
+  .prompt-card:hover    { box-shadow: 0 2px 12px rgba(0,0,0,.25); }
+
+  /* ── Header ── */
   .prompt-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: .75rem;
-    padding: .85rem 1.1rem;
+    padding: .9rem 1.1rem;
     cursor: pointer;
     user-select: none;
     background: var(--surface2);
   }
   .prompt-header:hover { background: rgba(110,168,254,.07); }
-  .prompt-header .label { font-weight: 600; font-size: .93rem; flex: 1; }
-  .prompt-header .badge-mod {
+  .prompt-header-main { flex: 1; min-width: 0; }
+  .prompt-label { font-weight: 600; font-size: .93rem; color: var(--text); }
+  .prompt-description {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+  .prompt-meta-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-top: .45rem;
+  }
+
+  /* ── Badges ── */
+  .badge-used-in {
+    font-size: .68rem; padding: 2px 8px; border-radius: 10px;
+    background: rgba(110,168,254,.12); color: var(--accent);
+    border: 1px solid rgba(110,168,254,.25);
+    white-space: nowrap;
+  }
+  .badge-var {
+    font-family: 'Courier New', monospace;
+    font-size: .68rem; padding: 1px 6px; border-radius: 6px;
+    background: rgba(109,222,136,.1); color: var(--green);
+    border: 1px solid rgba(109,222,136,.25);
+  }
+  .badge-mod {
     font-size: .7rem; padding: 2px 8px; border-radius: 10px;
     background: rgba(255,209,102,.15); color: var(--amber);
     border: 1px solid rgba(255,209,102,.3);
+    white-space: nowrap; flex-shrink: 0;
   }
-  .prompt-header .badge-def {
+  .badge-def {
     font-size: .7rem; padding: 2px 8px; border-radius: 10px;
     background: var(--surface); color: var(--muted);
     border: 1px solid var(--border);
+    white-space: nowrap; flex-shrink: 0;
   }
-  .prompt-body { display: none; padding: 1rem 1.1rem; }
+
+  /* ── Body / editor ── */
+  .prompt-body { display: none; padding: 1rem 1.1rem; border-top: 1px solid var(--border); }
   .prompt-body.open { display: block; }
   .prompt-textarea {
     width: 100%;
-    min-height: 260px;
+    min-height: 280px;
     font-family: 'Courier New', monospace;
     font-size: .8rem;
-    line-height: 1.5;
+    line-height: 1.55;
     background: var(--bg) !important;
     color: var(--text) !important;
     border: 1px solid var(--border) !important;
@@ -49,22 +85,40 @@
     padding: .6rem .8rem;
     resize: vertical;
   }
-  .prompt-textarea:focus { border-color: var(--accent) !important; outline: none; }
+  .prompt-textarea:focus { border-color: var(--accent) !important; outline: none;
+    box-shadow: 0 0 0 .15rem rgba(110,168,254,.2) !important; }
   .char-count { font-size: .75rem; color: var(--muted); }
-  .btn-reset { font-size: .78rem; }
-  .group-title {
-    font-size: .72rem;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    color: var(--muted);
-    font-weight: 700;
-    margin: 1.5rem 0 .5rem;
+
+  /* ── Group headers ── */
+  .group-header {
+    margin: 1.8rem 0 .6rem;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--border);
   }
+  .group-title {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--text);
+    font-weight: 700;
+  }
+  .group-subtitle {
+    font-size: .78rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ── Diff indicator dot ── */
   .diff-indicator {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 5px;
   }
   .diff-amber { background: var(--amber); }
   .diff-muted { background: var(--border); }
+
+  /* ── Arrow ── */
+  .prompt-arrow { color: var(--muted); font-size: .85rem; flex-shrink: 0; margin-top: 4px; }
+
+  /* ── Save toast ── */
   #saveIndicator {
     position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
     background: var(--green); color: #fff; padding: .5rem 1.4rem;
@@ -75,34 +129,54 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid" style="max-width:960px">
+<div class="container-fluid" style="max-width:980px">
 
-  <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-4">
+  <!-- ── Cabecera ── -->
+  <div class="d-flex align-items-start gap-3 mb-4">
     <div style="font-size:2rem;line-height:1">📝</div>
     <div>
       <h1 class="h4 mb-0">Gestión de Prompts</h1>
-      <p class="text-muted mb-0" style="font-size:.88rem">
-        Edita los prompts enviados a Gemini. Los cambios se aplican en caliente sin reiniciar el servidor.
+      <p class="text-muted mb-0" style="font-size:.85rem">
+        Edita las instrucciones enviadas a Gemini. Los cambios se aplican <strong>en caliente</strong> sin reiniciar el servidor y se guardan en <code>prompts_override.json</code>.
       </p>
     </div>
-    <div class="ms-auto d-flex gap-2 align-items-center">
-      <span id="modCount" class="badge" style="background:rgba(255,209,102,.15);color:var(--amber);border:1px solid rgba(255,209,102,.3)"></span>
-      <button class="btn btn-sm btn-outline-secondary" onclick="resetAll()" title="Restaurar todos a los valores por defecto">🔄 Restaurar todo</button>
+    <div class="ms-auto d-flex gap-2 align-items-center flex-shrink-0">
+      <span id="modCount" class="badge" style="background:rgba(255,209,102,.15);color:var(--amber);border:1px solid rgba(255,209,102,.3);display:none"></span>
+      <button class="btn btn-sm btn-outline-secondary" onclick="resetAll()">🔄 Restaurar todo</button>
     </div>
   </div>
 
-  <!-- Aviso -->
-  <div class="alert alert-warning py-2 small mb-3">
-    ⚠️ <strong>Las variables entre llaves como <code>{topic}</code>, <code>{today}</code>, <code>{focus_block}</code>, <code>{reviewer_block}</code>, <code>{voice_block}</code> son obligatorias</strong> y no deben eliminarse de los bloques que las usan. Los cambios se guardan en <code>prompts_override.json</code> y sobreviven a reinicios.
+  <!-- ── Aviso variables ── -->
+  <div class="alert alert-warning py-2 small mb-4">
+    ⚠️ <strong>No elimines las variables entre llaves</strong> de los prompts que las usan.
+    Son marcadores que el sistema reemplaza automáticamente en cada generación:
+    <code>{topic}</code> <code>{today}</code> <code>{focus_block}</code>
+    <code>{reviewer_block}</code> <code>{voice_block}</code> <code>{username}</code>
+    <code>{badge_html}</code> <code>{title}</code> <code>{affiliate_url}</code>
   </div>
 
-  <!-- Grupos de prompts -->
+  <!-- ── Grupos ── -->
   {% set groups = [
-    ("🌐 Contextos Base", ["BASE_CONTEXT", "BASE_CONTEXT_LIBRE"]),
-    ("🔵 Bloques de Sistema", ["_FOCUS_BLOCK", "_VOICE_BLOCK", "_REVIEWER_Médico", "_REVIEWER_Psicólogo", "_REVIEWER_Editor"]),
-    ("🛒 Modo Amazon", ["PROMPT_COMPARATIVA", "PROMPT_GUIA", "PROMPT_RESENA_SEO"]),
-    ("✍️ Modo Libre", ["PROMPT_OPINION", "PROMPT_LISTICLE", "PROMPT_HOWTO"]),
+    (
+      "🌐 Contextos Base",
+      "Reglas globales inyectadas al inicio de TODOS los posts de cada modo. Son los prompts más influyentes — un cambio aquí afecta a los 3 posts generados.",
+      ["BASE_CONTEXT", "BASE_CONTEXT_LIBRE"]
+    ),
+    (
+      "🧩 Bloques Condicionales",
+      "Fragmentos que se insertan automáticamente solo cuando se cumple una condición (hay enfoque, hay perfil de voz, se seleccionó revisor). Si la condición no se cumple, el bloque no aparece.",
+      ["_FOCUS_BLOCK", "_VOICE_BLOCK", "_REVIEWER_Médico", "_REVIEWER_Psicólogo", "_REVIEWER_Editor"]
+    ),
+    (
+      "🛒 Modo Amazon",
+      "Prompts específicos para el trío de posts de producto Amazon: comparativa, guía y reseña SEO. Se usan cuando el input es una URL o nombre de producto con enlace de afiliado.",
+      ["PROMPT_COMPARATIVA", "PROMPT_GUIA", "PROMPT_RESENA_SEO"]
+    ),
+    (
+      "✍️ Modo Libre",
+      "Prompts específicos para el trío de posts sin producto: opinión, listicle y how-to. Se usan cuando el input es un tópico libre (bienestar, psicología, salud…).",
+      ["PROMPT_OPINION", "PROMPT_LISTICLE", "PROMPT_HOWTO"]
+    ),
   ] %}
 
   {% set prompt_map = {} %}
@@ -110,33 +184,50 @@
     {% if prompt_map.update({p.key: p}) %}{% endif %}
   {% endfor %}
 
-  {% for group_name, keys in groups %}
-    <div class="group-title">{{ group_name }}</div>
+  {% for group_name, group_desc, keys in groups %}
+    <div class="group-header">
+      <div class="group-title">{{ group_name }}</div>
+      <div class="group-subtitle">{{ group_desc }}</div>
+    </div>
+
     {% for key in keys %}
       {% if key in prompt_map %}
         {% set p = prompt_map[key] %}
         <div class="prompt-card {{ 'modified' if p.modified else 'default' }}" id="card-{{ key }}">
+
+          <!-- cabecera clicable -->
           <div class="prompt-header" onclick="togglePrompt('{{ key }}')">
             <span class="diff-indicator {{ 'diff-amber' if p.modified else 'diff-muted' }}" id="dot-{{ key }}"></span>
-            <span class="label">{{ p.label }}</span>
+            <div class="prompt-header-main">
+              <div class="prompt-label">{{ p.label }}</div>
+              <div class="prompt-description">{{ p.description }}</div>
+              <div class="prompt-meta-row">
+                <span class="badge-used-in">📍 {{ p.used_in }}</span>
+                {% for v in p.vars %}
+                  <span class="badge-var">{{ v }}</span>
+                {% endfor %}
+              </div>
+            </div>
             {% if p.modified %}
               <span class="badge-mod">✏️ Modificado</span>
             {% else %}
-              <span class="badge-def">Por defecto</span>
+              <span class="badge-def">Original</span>
             {% endif %}
-            <span style="color:var(--muted);font-size:.85rem" id="arrow-{{ key }}">▼</span>
+            <span class="prompt-arrow" id="arrow-{{ key }}">▼</span>
           </div>
+
+          <!-- editor -->
           <div class="prompt-body" id="body-{{ key }}">
             <div class="d-flex justify-content-between align-items-center mb-2">
               <span class="char-count" id="chars-{{ key }}">{{ p.current | length }} caracteres</span>
               <div class="d-flex gap-2">
                 {% if p.modified %}
-                <button class="btn btn-sm btn-outline-warning btn-reset" onclick="resetPrompt('{{ key }}')">
+                <button class="btn btn-sm btn-outline-warning" onclick="resetPrompt('{{ key }}')">
                   🔄 Restaurar original
                 </button>
                 {% endif %}
                 <button class="btn btn-sm btn-primary" onclick="savePrompt('{{ key }}')">
-                  💾 Guardar
+                  💾 Guardar cambios
                 </button>
               </div>
             </div>
@@ -151,6 +242,7 @@
             </details>
             {% endif %}
           </div>
+
         </div>
       {% endif %}
     {% endfor %}
@@ -166,69 +258,57 @@ const modifiedSet = new Set(promptData.filter(p => p.modified).map(p => p.key));
 
 function updateModCount() {
   const el = document.getElementById('modCount');
-  const n = modifiedSet.size;
-  el.textContent = n > 0 ? `${n} modificado${n > 1 ? 's' : ''}` : '';
+  const n  = modifiedSet.size;
+  el.textContent   = n > 0 ? `${n} modificado${n > 1 ? 's' : ''}` : '';
   el.style.display = n > 0 ? 'inline' : 'none';
 }
 updateModCount();
 
 function togglePrompt(key) {
-  const body  = document.getElementById('body-' + key);
+  const body  = document.getElementById('body-'  + key);
   const arrow = document.getElementById('arrow-' + key);
   const open  = body.classList.toggle('open');
   arrow.textContent = open ? '▲' : '▼';
 }
 
 function onEdit(key) {
-  const ta  = document.getElementById('ta-' + key);
-  const cEl = document.getElementById('chars-' + key);
-  cEl.textContent = ta.value.length + ' caracteres';
+  document.getElementById('chars-' + key).textContent =
+    document.getElementById('ta-' + key).value.length + ' caracteres';
 }
 
 async function savePrompt(key) {
   const value = document.getElementById('ta-' + key).value;
-  const res = await fetch(`/api/admin/prompts/${encodeURIComponent(key)}`, {
-    method: 'PUT',
+  const res   = await fetch(`/api/admin/prompts/${encodeURIComponent(key)}`, {
+    method:  'PUT',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({value}),
+    body:    JSON.stringify({value}),
   });
   const data = await res.json();
-  if (data.ok) {
-    markModified(key, true);
-    flashSaved();
-  } else {
-    alert('Error: ' + (data.error || 'desconocido'));
-  }
+  if (data.ok) { markModified(key, true); flashSaved(); }
+  else          { alert('Error: ' + (data.error || 'desconocido')); }
 }
 
 async function resetPrompt(key) {
   if (!confirm('¿Restaurar este prompt a su valor original?')) return;
-  const res = await fetch(`/api/admin/prompts/${encodeURIComponent(key)}`, {
-    method: 'DELETE',
-  });
+  const res  = await fetch(`/api/admin/prompts/${encodeURIComponent(key)}`, { method: 'DELETE' });
   const data = await res.json();
-  if (data.ok) {
-    // Recargar la página para mostrar el valor original actualizado
-    location.reload();
-  } else {
-    alert('Error: ' + (data.error || 'desconocido'));
-  }
+  if (data.ok) location.reload();
+  else         alert('Error: ' + (data.error || 'desconocido'));
 }
 
 async function resetAll() {
   if (!confirm('¿Restaurar TODOS los prompts a sus valores originales? Esta acción no se puede deshacer.')) return;
-  const keys = promptData.map(p => p.key);
-  for (const key of keys) {
-    await fetch(`/api/admin/prompts/${encodeURIComponent(key)}`, {method: 'DELETE'});
+  for (const p of promptData) {
+    await fetch(`/api/admin/prompts/${encodeURIComponent(p.key)}`, { method: 'DELETE' });
   }
   location.reload();
 }
 
 function markModified(key, isModified) {
   const card = document.getElementById('card-' + key);
-  const dot  = document.getElementById('dot-' + key);
-  card.classList.toggle('modified', isModified);
-  card.classList.toggle('default', !isModified);
+  const dot  = document.getElementById('dot-'  + key);
+  card.classList.toggle('modified',  isModified);
+  card.classList.toggle('default',  !isModified);
   dot.classList.toggle('diff-amber', isModified);
   dot.classList.toggle('diff-muted', !isModified);
   if (isModified) modifiedSet.add(key); else modifiedSet.delete(key);
