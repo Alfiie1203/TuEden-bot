@@ -133,6 +133,7 @@
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='index' %}active{% endif %}" href="/">🏠 Inicio</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='topicos' %}active{% endif %}" href="/topicos">📰 Tópicos del día</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='historial' %}active{% endif %}" href="/historial">📜 Historial</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='editor_page' %}active{% endif %}" href="/editor">🖼️ Editor</a></li>
         {% if current_user and current_user.role == 'admin' %}
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='admin_page' %}active{% endif %}" href="/admin">⚙️ Admin</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='prompts_page' %}active{% endif %}" href="/admin/prompts">📝 Prompts</a></li>

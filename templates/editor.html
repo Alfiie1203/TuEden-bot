@@ -1,0 +1,833 @@
+{% extends "base.html" %}
+{% block title %}Editor de Imágenes{% endblock %}
+
+{% block head %}
+<!-- Fabric.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Playfair+Display:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Dancing+Script:wght@400;700&family=Pacifico&family=Lobster&family=Bebas+Neue&family=Permanent+Marker&family=Caveat:wght@400;700&family=Abril+Fatface&family=Righteous&family=Fredoka+One&family=Satisfy&family=Comfortaa:wght@400;700&family=Quicksand:wght@400;700&family=Indie+Flower&family=Amatic+SC:wght@400;700&family=Press+Start+2P&family=Bangers&family=Chewy&family=Alfa+Slab+One&family=Titan+One&family=Bungee&family=Courgette&family=Great+Vibes&family=Sacramento&family=Kaushan+Script&display=swap" rel="stylesheet">
+<style>
+  /* ── Editor Layout ── */
+  .editor-wrap { display:flex; gap:12px; height:calc(100vh - 110px); }
+  .editor-sidebar {
+    width: 310px; min-width:310px;
+    background: var(--surface); border:1px solid var(--border); border-radius:10px;
+    overflow-y:auto; padding:14px;
+  }
+  .editor-canvas-area {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    background: var(--surface); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; position:relative;
+  }
+  .canvas-container { box-shadow: 0 4px 24px rgba(0,0,0,.4); }
+
+  /* ── Sidebar sections ── */
+  .sidebar-section { margin-bottom:16px; }
+  .sidebar-section h6 { font-size:.85rem; text-transform:uppercase; color:var(--muted); margin-bottom:8px; letter-spacing:.5px; }
+  .sidebar-section .btn-sm { font-size:.78rem; }
+
+  /* ── Vignette grid ── */
+  .vignette-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .vignette-item {
+    cursor:pointer; padding:6px; border:1px solid var(--border); border-radius:6px;
+    text-align:center; transition: all .15s;
+    background: var(--bg);
+  }
+  .vignette-item:hover { border-color:var(--accent); background:rgba(110,168,254,.08); transform:scale(1.04); }
+  .vignette-item svg { width:100%; height:auto; max-height:60px; }
+
+  /* ── Color picker row ── */
+  .color-row { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; }
+  .color-swatch {
+    width:24px; height:24px; border-radius:50%; cursor:pointer;
+    border:2px solid transparent; transition: border-color .15s;
+  }
+  .color-swatch:hover, .color-swatch.active { border-color:var(--accent); }
+
+  /* ── Font selector ── */
+  .font-list { max-height:180px; overflow-y:auto; }
+  .font-item {
+    padding:4px 8px; cursor:pointer; border-radius:4px; font-size:.85rem;
+    transition: background .1s;
+  }
+  .font-item:hover { background:var(--surface2); }
+  .font-item.active { background:rgba(110,168,254,.15); color:var(--accent); }
+
+  /* ── Toolbar ── */
+  .editor-toolbar {
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    background: var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:4px 10px; display:flex; gap:6px; z-index:10;
+    box-shadow:0 2px 12px rgba(0,0,0,.3);
+  }
+  .editor-toolbar .btn { font-size:.8rem; padding:4px 10px; }
+
+  /* ── Vignette category tabs ── */
+  .vig-tabs { display:flex; gap:4px; margin-bottom:8px; flex-wrap:wrap; }
+  .vig-tab {
+    font-size:.72rem; padding:3px 8px; border-radius:12px; cursor:pointer;
+    background: var(--bg); border:1px solid var(--border); color:var(--muted);
+    transition: all .15s;
+  }
+  .vig-tab:hover, .vig-tab.active { background:rgba(110,168,254,.12); border-color:var(--accent); color:var(--accent); }
+
+  /* ── Upload area ── */
+  .upload-zone {
+    border:2px dashed var(--border); border-radius:10px; padding:40px;
+    text-align:center; cursor:pointer; transition: border-color .2s;
+  }
+  .upload-zone:hover { border-color:var(--accent); }
+  .upload-zone.drag-over { border-color:var(--green); background:rgba(109,222,136,.06); }
+
+  /* ── Size indicator ── */
+  .size-badge { font-size:.75rem; padding:2px 8px; border-radius:8px; }
+  .size-ok { background:rgba(109,222,136,.15); color:var(--green); }
+  .size-warn { background:rgba(255,209,102,.15); color:var(--amber); }
+  .size-over { background:rgba(255,112,112,.15); color:var(--red); }
+
+  /* ── Responsive ── */
+  @media (max-width:992px) {
+    .editor-wrap { flex-direction:column; height:auto; }
+    .editor-sidebar { width:100%; min-width:auto; max-height:300px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-wrap" id="editorApp">
+
+  <!-- ════════ SIDEBAR ════════ -->
+  <div class="editor-sidebar">
+
+    <!-- UPLOAD -->
+    <div class="sidebar-section">
+      <h6>📷 Imagen</h6>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:2rem;">📁</div>
+        <div class="small text-muted">Arrastra una imagen o haz clic</div>
+        <div class="small text-muted mt-1">PNG, JPG, WebP (máx 2 MB)</div>
+      </div>
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/webp" hidden>
+      <button class="btn btn-sm btn-outline-success w-100 mt-2" id="btnRemoveBg" onclick="removeBackground()" disabled>
+        ✂️ Quitar fondo
+      </button>
+      <div id="removeBgStatus" class="small text-muted mt-1" style="display:none"></div>
+    </div>
+
+    <!-- VIGNETTES -->
+    <div class="sidebar-section">
+      <h6>💬 Viñetas</h6>
+      <div class="vig-tabs" id="vigTabs"></div>
+      <div class="vignette-grid" id="vignetteGrid"></div>
+      <div class="mt-2">
+        <label class="small text-muted">Color de la viñeta:</label>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <input type="color" id="vigColor" value="#ffffff" class="form-control form-control-sm" style="width:40px;height:30px;padding:2px;">
+          <div class="color-row" id="vigQuickColors"></div>
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="small text-muted">Transparencia viñeta:</label>
+        <div class="d-flex align-items-center gap-2">
+          <input type="range" id="vigOpacity" min="0" max="100" value="100" class="form-range flex-fill" oninput="applyVigOpacity()">
+          <span class="small" id="vigOpacityLabel" style="min-width:32px">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TEXT -->
+    <div class="sidebar-section">
+      <h6>✏️ Texto</h6>
+      <div class="d-flex gap-2 mb-2">
+        <button class="btn btn-sm btn-outline-info flex-fill" onclick="addText()">+ Texto libre</button>
+        <button class="btn btn-sm btn-outline-warning flex-fill" onclick="addTextToVignette()">+ En viñeta</button>
+      </div>
+      <div class="mb-2">
+        <label class="small text-muted">Fuente:</label>
+        <input type="text" id="fontSearch" class="form-control form-control-sm mb-1" placeholder="Buscar fuente...">
+        <div class="font-list" id="fontList"></div>
+      </div>
+      <div class="d-flex gap-2 mb-2">
+        <div class="flex-fill">
+          <label class="small text-muted">Color texto:</label>
+          <input type="color" id="textColor" value="#ffffff" class="form-control form-control-sm" style="width:100%;height:30px;padding:2px;">
+        </div>
+        <div class="flex-fill">
+          <label class="small text-muted">Tamaño:</label>
+          <input type="number" id="fontSize" value="24" min="8" max="200" class="form-control form-control-sm">
+        </div>
+      </div>
+      <div class="d-flex gap-1 mb-2">
+        <button class="btn btn-sm btn-outline-light" onclick="setTextStyle('bold')" title="Negrita"><b>B</b></button>
+        <button class="btn btn-sm btn-outline-light" onclick="setTextStyle('italic')" title="Cursiva"><i>I</i></button>
+        <button class="btn btn-sm btn-outline-light" onclick="setTextStyle('underline')" title="Subrayado"><u>U</u></button>
+        <button class="btn btn-sm btn-outline-light" onclick="setTextStyle('shadow')" title="Sombra">S</button>
+      </div>
+      <div>
+        <label class="small text-muted">Transparencia texto:</label>
+        <div class="d-flex align-items-center gap-2">
+          <input type="range" id="textOpacity" min="0" max="100" value="100" class="form-range flex-fill" oninput="applyTextOpacity()">
+          <span class="small" id="textOpacityLabel" style="min-width:32px">100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="sidebar-section">
+      <h6>💾 Guardar</h6>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="small text-muted">Tamaño estimado:</span>
+        <span class="size-badge size-ok" id="sizeEstimate">-- KB</span>
+      </div>
+      <div class="mb-2">
+        <label class="small text-muted">Calidad JPEG (%):</label>
+        <input type="range" id="jpegQuality" min="10" max="100" value="85" class="form-range" oninput="updateQualityLabel()">
+        <span class="small" id="qualityLabel">85%</span>
+      </div>
+      <div class="mb-2">
+        <label class="small text-muted">Nombre del archivo:</label>
+        <input type="text" id="fileName" class="form-control form-control-sm" placeholder="mi-imagen">
+      </div>
+      <button class="btn btn-sm btn-success w-100 mb-2" onclick="saveImage()">💾 Guardar imagen</button>
+      <button class="btn btn-sm btn-outline-danger w-100" onclick="resetCanvas()">🗑️ Limpiar todo</button>
+    </div>
+
+  </div>
+
+  <!-- ════════ CANVAS AREA ════════ -->
+  <div class="editor-canvas-area" id="canvasArea">
+    <!-- Toolbar -->
+    <div class="editor-toolbar" id="editorToolbar" style="display:none;">
+      <button class="btn btn-sm btn-outline-light" onclick="bringForward()" title="Traer al frente">⬆️</button>
+      <button class="btn btn-sm btn-outline-light" onclick="sendBackward()" title="Enviar atrás">⬇️</button>
+      <button class="btn btn-sm btn-outline-light" onclick="duplicateObj()" title="Duplicar">📋</button>
+      <button class="btn btn-sm btn-outline-danger" onclick="deleteSelected()" title="Eliminar">🗑️</button>
+    </div>
+    <canvas id="editorCanvas"></canvas>
+  </div>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   IMAGE EDITOR - Fabric.js Based
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── Constants ──
+const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const WATERMARK_TEXT = 'tueden.com';
+
+const FONTS = [
+  'Roboto','Open Sans','Lato','Montserrat','Poppins','Playfair Display',
+  'Oswald','Raleway','Dancing Script','Pacifico','Lobster','Bebas Neue',
+  'Permanent Marker','Caveat','Abril Fatface','Righteous','Fredoka One',
+  'Satisfy','Comfortaa','Quicksand','Indie Flower','Amatic SC',
+  'Press Start 2P','Bangers','Chewy','Alfa Slab One','Titan One',
+  'Bungee','Courgette','Great Vibes','Sacramento','Kaushan Script',
+  'Arial','Verdana','Georgia','Times New Roman','Courier New','Impact'
+];
+
+const QUICK_COLORS = [
+  '#ffffff','#000000','#ff4444','#ff8800','#ffcc00','#44cc44',
+  '#44aaff','#8844ff','#ff44ff','#00cccc','#ff6688','#88ff88',
+  '#334455','#ff5722','#9c27b0','#2196f3'
+];
+
+// ── Vignette catalog ──
+const VIGNETTES = {
+  "Bocadillos": [
+    { name:"Globo clásico", path:"M20,10 Q20,2 50,2 Q80,2 80,10 Q80,18 50,18 Q45,18 40,22 Q42,18 20,18 Q20,18 20,10 Z" },
+    { name:"Globo redondo", path:"M50,2 C78,2 95,15 95,30 C95,45 78,58 50,58 C45,58 35,65 38,58 C22,58 5,45 5,30 C5,15 22,2 50,2 Z" },
+    { name:"Pensamiento", path:"M50,5 C70,5 85,15 85,30 C85,45 70,55 50,55 C30,55 15,45 15,30 C15,15 30,5 50,5 Z M25,55 C22,58 20,58 18,56 M20,58 C18,61 16,62 14,60 M15,62 C14,64 12,65 11,63" },
+    { name:"Grito", path:"M50,2 L60,8 L90,5 L80,15 L95,25 L78,28 L85,45 L65,35 L50,55 L35,35 L15,45 L22,28 L5,25 L20,15 L10,5 L40,8 Z" },
+    { name:"Cuadrado redondeado", path:"M10,5 Q10,2 13,2 L87,2 Q90,2 90,5 L90,45 Q90,48 87,48 L35,48 L25,58 L28,48 L13,48 Q10,48 10,45 Z" },
+    { name:"Nube", path:"M25,45 C10,45 5,38 8,30 C3,25 5,15 15,12 C15,5 25,0 35,3 C40,-2 55,-2 60,3 C68,0 78,3 80,10 C90,12 95,22 90,30 C95,38 88,45 75,45 C70,50 60,55 50,52 C40,55 30,50 25,45 Z" },
+  ],
+  "Banners": [
+    { name:"Cinta simple", path:"M0,15 L10,15 L10,5 L90,5 L90,15 L100,15 L100,25 L90,25 L90,35 L10,35 L10,25 L0,25 Z" },
+    { name:"Banner ondulado", path:"M5,10 Q25,0 50,10 Q75,20 95,10 L95,35 Q75,45 50,35 Q25,25 5,35 Z" },
+    { name:"Cinta con puntas", path:"M0,20 L8,10 L8,5 L92,5 L92,10 L100,20 L92,30 L92,35 L8,35 L8,30 Z" },
+    { name:"Etiqueta", path:"M5,5 L75,5 L95,20 L75,35 L5,35 Z" },
+    { name:"Pergamino", path:"M10,8 Q10,2 20,2 L80,2 Q90,2 90,8 L90,42 Q90,48 80,48 L20,48 Q10,48 10,42 Z M10,8 Q15,12 20,8 M90,42 Q85,38 80,42"},
+    { name:"Hexágono", path:"M25,2 L75,2 L97,25 L75,48 L25,48 L3,25 Z"},
+  ],
+  "Stickers": [
+    { name:"Estrella", path:"M50,0 L61,35 L98,35 L68,57 L79,91 L50,70 L21,91 L32,57 L2,35 L39,35 Z" },
+    { name:"Corazón", path:"M50,88 C25,65 0,45 0,25 C0,10 12,0 25,0 C35,0 45,8 50,18 C55,8 65,0 75,0 C88,0 100,10 100,25 C100,45 75,65 50,88 Z" },
+    { name:"Círculo", path:"M50,2 A48,48 0 1,1 50,98 A48,48 0 1,1 50,2 Z" },
+    { name:"Diamante", path:"M50,0 L100,50 L50,100 L0,50 Z" },
+    { name:"Escudo", path:"M50,2 L90,15 L90,45 C90,70 70,90 50,98 C30,90 10,70 10,45 L10,15 Z" },
+    { name:"Explosión", path:"M50,0 L56,18 L72,5 L65,23 L88,18 L73,32 L98,38 L76,42 L92,58 L70,50 L78,72 L58,55 L50,78 L42,55 L22,72 L30,50 L8,58 L24,42 L2,38 L27,32 L12,18 L35,23 L28,5 L44,18 Z"},
+  ],
+  "Flechas": [
+    { name:"Flecha derecha", path:"M5,20 L60,20 L60,8 L95,30 L60,52 L60,40 L5,40 Z" },
+    { name:"Flecha izquierda", path:"M95,20 L40,20 L40,8 L5,30 L40,52 L40,40 L95,40 Z" },
+    { name:"Flecha curva", path:"M10,45 Q10,10 50,10 L50,2 L80,18 L50,34 L50,25 Q25,25 25,45 Z" },
+    { name:"Señal", path:"M35,5 L65,5 L65,55 L80,55 L50,85 L20,55 L35,55 Z" },
+    { name:"Flecha doble", path:"M5,25 L25,8 L25,18 L75,18 L75,8 L95,25 L75,42 L75,32 L25,32 L25,42 Z" },
+    { name:"Rayo", path:"M60,0 L25,42 L45,42 L20,85 L75,38 L55,38 Z" },
+  ],
+  "Marcos": [
+    { name:"Marco simple", path:"M2,2 L98,2 L98,98 L2,98 Z M8,8 L92,8 L92,92 L8,92 Z" },
+    { name:"Marco doble", path:"M2,2 L98,2 L98,98 L2,98 Z M6,6 L94,6 L94,94 L6,94 Z M10,10 L90,10 L90,90 L10,90 Z" },
+    { name:"Esquinas", path:"M2,2 L25,2 M75,2 L98,2 L98,25 M98,75 L98,98 L75,98 M25,98 L2,98 L2,75 M2,25 L2,2" },
+    { name:"Óvalo", path:"M50,5 C80,5 95,20 95,50 C95,80 80,95 50,95 C20,95 5,80 5,50 C5,20 20,5 50,5 Z M50,12 C75,12 88,25 88,50 C88,75 75,88 50,88 C25,88 12,75 12,50 C12,25 25,12 50,12 Z" },
+    { name:"Ondulado", path:"M5,10 Q15,5 25,10 Q35,15 45,10 Q55,5 65,10 Q75,15 85,10 Q95,5 95,10 L95,90 Q85,95 75,90 Q65,85 55,90 Q45,95 35,90 Q25,85 15,90 Q5,95 5,90 Z" },
+    { name:"Polaroid", path:"M10,5 L90,5 L90,80 L10,80 Z M15,10 L85,10 L85,65 L15,65 Z" },
+  ],
+  "Captions": [
+    { name:"Subtítulo", path:"M5,30 L95,30 L95,50 L5,50 Z" },
+    { name:"Subtítulo redondeado", path:"M10,30 Q5,30 5,35 L5,45 Q5,50 10,50 L90,50 Q95,50 95,45 L95,35 Q95,30 90,30 Z" },
+    { name:"Cinta inferior", path:"M0,32 L100,32 L100,48 L0,48 Z" },
+    { name:"Título superior", path:"M0,2 L100,2 L100,18 L0,18 Z" },
+    { name:"Diagonal", path:"M0,30 L100,20 L100,40 L0,50 Z" },
+    { name:"Arco", path:"M5,40 Q50,20 95,40 L95,50 Q50,30 5,50 Z" },
+  ]
+};
+
+// ── State ──
+let canvas = null;
+let currentImage = null;
+let selectedFont = 'Roboto';
+let canvasWidth = 800;
+let canvasHeight = 600;
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  initCanvas();
+  initVignettes();
+  initFonts();
+  initQuickColors();
+  initUpload();
+});
+
+function initCanvas() {
+  const area = document.getElementById('canvasArea');
+  canvasWidth = Math.min(area.clientWidth - 40, 1200);
+  canvasHeight = Math.min(area.clientHeight - 40, 800);
+
+  canvas = new fabric.Canvas('editorCanvas', {
+    width: canvasWidth,
+    height: canvasHeight,
+    backgroundColor: '#1a1a2e',
+    preserveObjectStacking: true,
+  });
+
+  canvas.on('selection:created', () => document.getElementById('editorToolbar').style.display = 'flex');
+  canvas.on('selection:cleared', () => document.getElementById('editorToolbar').style.display = 'none');
+  canvas.on('selection:updated', () => document.getElementById('editorToolbar').style.display = 'flex');
+
+  // Update text properties from selected object
+  canvas.on('selection:created', syncTextProps);
+  canvas.on('selection:updated', syncTextProps);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Delete' && canvas.getActiveObject()) deleteSelected();
+    if (e.ctrlKey && e.key === 'd') { e.preventDefault(); duplicateObj(); }
+  });
+}
+
+function syncTextProps(e) {
+  const obj = e.selected?.[0];
+  if (obj && obj.type === 'i-text') {
+    document.getElementById('textColor').value = obj.fill || '#ffffff';
+    document.getElementById('fontSize').value = obj.fontSize || 24;
+    document.getElementById('textOpacity').value = Math.round((obj.opacity ?? 1) * 100);
+    document.getElementById('textOpacityLabel').textContent = Math.round((obj.opacity ?? 1) * 100) + '%';
+  }
+  if (obj && obj.vignetteData) {
+    document.getElementById('vigOpacity').value = Math.round((obj.opacity ?? 1) * 100);
+    document.getElementById('vigOpacityLabel').textContent = Math.round((obj.opacity ?? 1) * 100) + '%';
+  }
+}
+
+// ── Upload ──
+function initUpload() {
+  const zone = document.getElementById('uploadZone');
+  const input = document.getElementById('fileInput');
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) loadImage(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', e => { if (e.target.files.length) loadImage(e.target.files[0]); });
+}
+
+function loadImage(file) {
+  if (file.size > MAX_SIZE_BYTES) {
+    showToast('La imagen supera 2 MB', 'danger');
+    return;
+  }
+  if (!['image/png','image/jpeg','image/webp'].includes(file.type)) {
+    showToast('Formato no soportado. Usa PNG, JPG o WebP', 'danger');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    fabric.Image.fromURL(e.target.result, img => {
+      // Remove previous background image
+      if (currentImage) canvas.remove(currentImage);
+
+      // Scale to fill canvas
+      const scaleX = canvas.width / img.width;
+      const scaleY = canvas.height / img.height;
+      const scale = Math.max(scaleX, scaleY);
+      img.set({
+        scaleX: scale, scaleY: scale,
+        originX:'center', originY:'center',
+        left: canvas.width/2, top: canvas.height/2,
+        selectable: false, evented: false,
+      });
+      currentImage = img;
+      canvas.add(img);
+      canvas.sendToBack(img);
+      canvas.renderAll();
+      updateSizeEstimate();
+      document.getElementById('btnRemoveBg').disabled = false;
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Remove background ──
+async function removeBackground() {
+  if (!currentImage) { showToast('Carga una imagen primero', 'warning'); return; }
+  const btn = document.getElementById('btnRemoveBg');
+  const status = document.getElementById('removeBgStatus');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Procesando...';
+  status.style.display = 'block';
+  status.textContent = 'Eliminando fondo, puede tardar unos segundos...';
+
+  // Get current image as data URL
+  const dataUrl = currentImage.toDataURL({ format:'png' });
+
+  try {
+    const resp = await fetch('/api/editor/quitar-fondo', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ image: dataUrl }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      // Replace image on canvas with the no-bg version
+      fabric.Image.fromURL(data.image, newImg => {
+        canvas.remove(currentImage);
+        const scaleX = canvas.width / newImg.width;
+        const scaleY = canvas.height / newImg.height;
+        const scale = Math.max(scaleX, scaleY);
+        newImg.set({
+          scaleX: scale, scaleY: scale,
+          originX:'center', originY:'center',
+          left: canvas.width/2, top: canvas.height/2,
+          selectable: false, evented: false,
+        });
+        currentImage = newImg;
+        canvas.add(newImg);
+        canvas.sendToBack(newImg);
+        canvas.renderAll();
+        updateSizeEstimate();
+        showToast('✅ Fondo eliminado', 'success');
+        status.textContent = 'Fondo eliminado correctamente';
+      });
+    } else {
+      showToast('❌ ' + (data.error || 'Error al quitar fondo'), 'danger');
+      status.textContent = data.error || 'Error';
+    }
+  } catch(err) {
+    showToast('❌ Error de conexión', 'danger');
+    status.textContent = 'Error de conexión';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✂️ Quitar fondo';
+  }
+}
+
+// ── Vignettes ──
+function initVignettes() {
+  const tabs = document.getElementById('vigTabs');
+  const grid = document.getElementById('vignetteGrid');
+  const categories = Object.keys(VIGNETTES);
+
+  categories.forEach((cat, i) => {
+    const tab = document.createElement('span');
+    tab.className = 'vig-tab' + (i === 0 ? ' active' : '');
+    tab.textContent = cat;
+    tab.onclick = () => {
+      document.querySelectorAll('.vig-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderVignettes(cat);
+    };
+    tabs.appendChild(tab);
+  });
+
+  renderVignettes(categories[0]);
+}
+
+function renderVignettes(category) {
+  const grid = document.getElementById('vignetteGrid');
+  grid.innerHTML = '';
+  VIGNETTES[category].forEach(v => {
+    const div = document.createElement('div');
+    div.className = 'vignette-item';
+    div.title = v.name;
+    // Create SVG preview
+    div.innerHTML = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <path d="${v.path}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+    </svg><div class="small" style="font-size:.65rem;margin-top:2px;color:var(--muted)">${v.name}</div>`;
+    div.onclick = () => addVignette(v);
+    grid.appendChild(div);
+  });
+}
+
+function addVignette(v) {
+  const color = document.getElementById('vigColor').value;
+  fabric.loadSVGFromString(
+    `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+       <path d="${v.path}" fill="${color}" stroke="#333333" stroke-width="1.5"/>
+     </svg>`,
+    (objects, options) => {
+      const group = fabric.util.groupSVGElements(objects, options);
+      group.set({
+        left: canvas.width/2 - 75,
+        top: canvas.height/2 - 75,
+        scaleX: 1.5,
+        scaleY: 1.5,
+        vignetteData: v,
+      });
+      canvas.add(group);
+      canvas.setActiveObject(group);
+      canvas.renderAll();
+      updateSizeEstimate();
+    }
+  );
+}
+
+// ── Quick Colors ──
+function initQuickColors() {
+  const container = document.getElementById('vigQuickColors');
+  QUICK_COLORS.forEach(c => {
+    const swatch = document.createElement('div');
+    swatch.className = 'color-swatch';
+    swatch.style.background = c;
+    swatch.onclick = () => {
+      document.getElementById('vigColor').value = c;
+      // Also apply to selected vignette
+      const obj = canvas.getActiveObject();
+      if (obj && obj.vignetteData) {
+        changeVignetteColor(obj, c);
+      }
+    };
+    container.appendChild(swatch);
+  });
+}
+
+function changeVignetteColor(obj, color) {
+  if (obj._objects) {
+    obj._objects.forEach(o => {
+      if (o.type === 'path') o.set('fill', color);
+    });
+  } else if (obj.type === 'path') {
+    obj.set('fill', color);
+  }
+  canvas.renderAll();
+}
+
+// ── Fonts ──
+function initFonts() {
+  const list = document.getElementById('fontList');
+  const search = document.getElementById('fontSearch');
+
+  const render = (filter = '') => {
+    list.innerHTML = '';
+    FONTS.filter(f => f.toLowerCase().includes(filter.toLowerCase())).forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'font-item' + (f === selectedFont ? ' active' : '');
+      div.textContent = f;
+      div.style.fontFamily = `"${f}", sans-serif`;
+      div.onclick = () => {
+        selectedFont = f;
+        document.querySelectorAll('.font-item').forEach(fi => fi.classList.remove('active'));
+        div.classList.add('active');
+        // Apply to selected text
+        const obj = canvas.getActiveObject();
+        if (obj && obj.type === 'i-text') {
+          obj.set('fontFamily', f);
+          canvas.renderAll();
+        }
+      };
+      list.appendChild(div);
+    });
+  };
+
+  render();
+  search.addEventListener('input', e => render(e.target.value));
+}
+
+// ── Text ──
+function addText() {
+  const color = document.getElementById('textColor').value;
+  const size = parseInt(document.getElementById('fontSize').value) || 24;
+  const text = new fabric.IText('Escribe aquí', {
+    left: canvas.width/2 - 80,
+    top: canvas.height/2 - 15,
+    fontFamily: selectedFont,
+    fontSize: size,
+    fill: color,
+    stroke: '#000000',
+    strokeWidth: 0.5,
+    shadow: new fabric.Shadow({ color:'rgba(0,0,0,0.5)', blur:3, offsetX:2, offsetY:2 }),
+    editable: true,
+  });
+  canvas.add(text);
+  canvas.setActiveObject(text);
+  canvas.renderAll();
+  updateSizeEstimate();
+}
+
+function addTextToVignette() {
+  const obj = canvas.getActiveObject();
+  if (!obj || !obj.vignetteData) {
+    showToast('Selecciona una viñeta primero', 'warning');
+    return;
+  }
+  const color = document.getElementById('textColor').value;
+  const size = parseInt(document.getElementById('fontSize').value) || 18;
+  const bounds = obj.getBoundingRect();
+  const text = new fabric.IText('Texto', {
+    left: bounds.left + bounds.width/2 - 30,
+    top: bounds.top + bounds.height/2 - 10,
+    fontFamily: selectedFont,
+    fontSize: size,
+    fill: color === '#ffffff' ? '#000000' : color,
+    editable: true,
+    textAlign: 'center',
+    originX: 'center',
+    originY: 'center',
+  });
+  text.set({ left: bounds.left + bounds.width/2, top: bounds.top + bounds.height/2 });
+  canvas.add(text);
+  canvas.setActiveObject(text);
+  canvas.renderAll();
+  updateSizeEstimate();
+}
+
+function setTextStyle(style) {
+  const obj = canvas.getActiveObject();
+  if (!obj || obj.type !== 'i-text') return;
+  switch(style) {
+    case 'bold':
+      obj.set('fontWeight', obj.fontWeight === 'bold' ? 'normal' : 'bold'); break;
+    case 'italic':
+      obj.set('fontStyle', obj.fontStyle === 'italic' ? 'normal' : 'italic'); break;
+    case 'underline':
+      obj.set('underline', !obj.underline); break;
+    case 'shadow':
+      obj.set('shadow', obj.shadow ? null : new fabric.Shadow({color:'rgba(0,0,0,0.6)',blur:4,offsetX:2,offsetY:2}));
+      break;
+  }
+  canvas.renderAll();
+}
+
+// Update text props when changed in sidebar
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('textColor').addEventListener('input', e => {
+    const obj = canvas.getActiveObject();
+    if (obj && obj.type === 'i-text') { obj.set('fill', e.target.value); canvas.renderAll(); }
+  });
+  document.getElementById('fontSize').addEventListener('input', e => {
+    const obj = canvas.getActiveObject();
+    if (obj && obj.type === 'i-text') { obj.set('fontSize', parseInt(e.target.value)||24); canvas.renderAll(); }
+  });
+  document.getElementById('vigColor').addEventListener('input', e => {
+    const obj = canvas.getActiveObject();
+    if (obj && obj.vignetteData) changeVignetteColor(obj, e.target.value);
+  });
+});
+
+// ── Opacity controls ──
+function applyVigOpacity() {
+  const val = parseInt(document.getElementById('vigOpacity').value);
+  document.getElementById('vigOpacityLabel').textContent = val + '%';
+  const obj = canvas.getActiveObject();
+  if (obj && obj.vignetteData) {
+    obj.set('opacity', val / 100);
+    canvas.renderAll();
+  }
+}
+
+function applyTextOpacity() {
+  const val = parseInt(document.getElementById('textOpacity').value);
+  document.getElementById('textOpacityLabel').textContent = val + '%';
+  const obj = canvas.getActiveObject();
+  if (obj && obj.type === 'i-text') {
+    obj.set('opacity', val / 100);
+    canvas.renderAll();
+  }
+}
+
+// ── Toolbar ──
+function deleteSelected() {
+  const objs = canvas.getActiveObjects();
+  objs.forEach(o => { if (o !== currentImage) canvas.remove(o); });
+  canvas.discardActiveObject();
+  canvas.renderAll();
+  updateSizeEstimate();
+}
+
+function bringForward() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.bringForward(obj); canvas.renderAll(); }
+}
+
+function sendBackward() {
+  const obj = canvas.getActiveObject();
+  if (obj && obj !== currentImage) { canvas.sendBackwards(obj); canvas.renderAll(); }
+}
+
+function duplicateObj() {
+  const obj = canvas.getActiveObject();
+  if (!obj || obj === currentImage) return;
+  obj.clone(cloned => {
+    cloned.set({ left: obj.left + 20, top: obj.top + 20 });
+    if (obj.vignetteData) cloned.vignetteData = obj.vignetteData;
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+  });
+}
+
+function resetCanvas() {
+  canvas.clear();
+  canvas.setBackgroundColor('#1a1a2e', canvas.renderAll.bind(canvas));
+  currentImage = null;
+  updateSizeEstimate();
+}
+
+// ── Watermark ──
+function addWatermark() {
+  // We add watermark just before export, then remove
+  const wm = new fabric.Text(WATERMARK_TEXT, {
+    left: canvas.width - 15,
+    top: canvas.height - 10,
+    fontFamily: 'Roboto',
+    fontSize: 14,
+    fill: 'rgba(255,255,255,0.35)',
+    originX: 'right',
+    originY: 'bottom',
+    selectable: false,
+    evented: false,
+    _isWatermark: true,
+  });
+  canvas.add(wm);
+  return wm;
+}
+
+// ── Size estimation ──
+function updateSizeEstimate() {
+  if (!canvas) return;
+  const quality = parseInt(document.getElementById('jpegQuality').value) / 100;
+  const dataUrl = canvas.toDataURL({ format:'jpeg', quality: quality, multiplier:1 });
+  const sizeBytes = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3 / 4);
+  const el = document.getElementById('sizeEstimate');
+  if (sizeBytes < 1024) {
+    el.textContent = sizeBytes + ' B';
+  } else if (sizeBytes < 1024*1024) {
+    el.textContent = (sizeBytes/1024).toFixed(0) + ' KB';
+  } else {
+    el.textContent = (sizeBytes/(1024*1024)).toFixed(2) + ' MB';
+  }
+  el.className = 'size-badge ' + (sizeBytes > MAX_SIZE_BYTES ? 'size-over' : sizeBytes > MAX_SIZE_BYTES*0.8 ? 'size-warn' : 'size-ok');
+}
+
+function updateQualityLabel() {
+  document.getElementById('qualityLabel').textContent = document.getElementById('jpegQuality').value + '%';
+  updateSizeEstimate();
+}
+
+// ── Save ──
+async function saveImage() {
+  const fileName = document.getElementById('fileName').value.trim();
+  if (!fileName) { showToast('Escribe un nombre para el archivo', 'warning'); return; }
+
+  // Sanitize filename
+  const safeName = fileName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+
+  // Add watermark temporarily
+  const wm = addWatermark();
+  canvas.renderAll();
+
+  const quality = parseInt(document.getElementById('jpegQuality').value) / 100;
+
+  // Try JPEG first, reduce quality if > 2MB
+  let dataUrl;
+  let q = quality;
+  do {
+    dataUrl = canvas.toDataURL({ format:'jpeg', quality: q, multiplier:1 });
+    const sizeBytes = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3/4);
+    if (sizeBytes <= MAX_SIZE_BYTES) break;
+    q -= 0.05;
+  } while (q > 0.1);
+
+  // Remove watermark from canvas
+  canvas.remove(wm);
+  canvas.renderAll();
+
+  // Check final size
+  const finalSize = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3/4);
+  if (finalSize > MAX_SIZE_BYTES) {
+    showToast('No se puede reducir a menos de 2 MB. Reduce el tamaño del canvas.', 'danger');
+    return;
+  }
+
+  // Send to server
+  const btn = document.querySelector('.btn-success');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Guardando...';
+
+  try {
+    const resp = await fetch('/api/editor/guardar', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        image: dataUrl,
+        filename: safeName,
+      }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      showToast(`✅ Imagen guardada: ${data.path}`, 'success');
+    } else {
+      showToast('❌ Error: ' + (data.error || 'desconocido'), 'danger');
+    }
+  } catch(err) {
+    showToast('❌ Error de conexión', 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Guardar imagen';
+  }
+}
+
+// ── Toast ──
+function showToast(msg, type='info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) { alert(msg); return; }
+  const id = 'toast_' + Date.now();
+  container.insertAdjacentHTML('beforeend',
+    `<div id="${id}" class="toast show align-items-center text-white bg-${type==='danger'?'danger':type==='success'?'success':type==='warning'?'warning':'info'} border-0 mb-2" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">${msg}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>`);
+  setTimeout(() => { const el = document.getElementById(id); if (el) el.remove(); }, 4000);
+}
+
+// ── Periodic size update ──
+setInterval(updateSizeEstimate, 3000);
+</script>
+{% endblock %}

@@ -13,6 +13,7 @@ httpx>=0.27.0                    # Cliente HTTP (scraping de Amazon)
 dnspython>=2.6.0                 # Resolver DNS alternativo (bypass bloqueo DNS corporativo)
 truststore>=0.9.1                # Usar almacén de certs del SO (para redes con proxy TLS)
 Pillow>=10.0.0                   # Redimensionar imágenes antes de subir a WordPress
+rembg>=2.0.50                    # Eliminador de fondos de imágenes con IA
 
 # ── Utilidades ───────────────────────────────────────────
 python-dotenv>=1.0.0             # Cargar variables de entorno desde .env

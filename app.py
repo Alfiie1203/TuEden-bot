@@ -1461,6 +1461,142 @@ def api_admin_gemini_keys_delete(n):
 
 
 # ==================================================================================
+# EDITOR DE IMAGENES
+# ==================================================================================
+
+@app.route("/editor")
+@login_required
+def editor_page():
+    return render_template("editor.html")
+
+
+@app.post("/api/editor/quitar-fondo")
+@login_required
+def api_editor_quitar_fondo():
+    """Elimina el fondo de una imagen usando rembg."""
+    import base64
+    from io import BytesIO
+    try:
+        from rembg import remove as rembg_remove
+    except ImportError as ie:
+        import sys
+        return jsonify({"error": f"rembg no instalado ({sys.executable}): {ie}"}), 500
+
+    data = request.get_json(force=True)
+    image_b64 = data.get("image", "")
+
+    try:
+        header, b64data = image_b64.split(",", 1)
+        img_bytes = base64.b64decode(b64data)
+    except Exception:
+        return jsonify({"error": "Imagen inválida"}), 400
+
+    try:
+        result_bytes = rembg_remove(img_bytes)
+    except Exception as exc:
+        return jsonify({"error": f"Error al procesar: {exc}"}), 500
+
+    result_b64 = base64.b64encode(result_bytes).decode("ascii")
+    return jsonify({
+        "ok": True,
+        "image": f"data:image/png;base64,{result_b64}",
+    })
+
+
+@app.post("/api/editor/guardar")
+@login_required
+def api_editor_guardar():
+    """Guarda la imagen editada (JPEG, ≤2 MB, con marca de agua del servidor)."""
+    import base64
+    import platform
+    from io import BytesIO
+    from PIL import Image, ImageDraw, ImageFont
+
+    data = request.get_json(force=True)
+    image_b64 = data.get("image", "")
+    filename  = data.get("filename", "imagen").strip()
+
+    # Validar filename
+    filename = re.sub(r'[^a-zA-Z0-9_\-]', '_', filename)
+    if not filename:
+        return jsonify({"error": "Nombre de archivo inválido"}), 400
+
+    # Decodificar base64
+    try:
+        header, b64data = image_b64.split(",", 1)
+        img_bytes = base64.b64decode(b64data)
+    except Exception:
+        return jsonify({"error": "Imagen inválida"}), 400
+
+    # Validar tamaño
+    if len(img_bytes) > 2 * 1024 * 1024:
+        return jsonify({"error": "La imagen supera 2 MB"}), 400
+
+    # Abrir con Pillow y agregar marca de agua del servidor
+    try:
+        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+    except Exception:
+        return jsonify({"error": "No se pudo procesar la imagen"}), 400
+
+    draw = ImageDraw.Draw(img)
+    wm_text = "tueden.com"
+    try:
+        font = ImageFont.truetype("arial.ttf", 16)
+    except Exception:
+        font = ImageFont.load_default()
+    bbox = draw.textbbox((0, 0), wm_text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    x = img.width - tw - 12
+    y = img.height - th - 10
+    draw.text((x, y), wm_text, fill=(255, 255, 255, 90), font=font)
+
+    # Comprimir a JPEG ≤ 2 MB
+    quality = 90
+    while quality >= 10:
+        buf = BytesIO()
+        img.save(buf, format="JPEG", quality=quality, optimize=True)
+        if buf.tell() <= 2 * 1024 * 1024:
+            break
+        quality -= 5
+    else:
+        return jsonify({"error": "No se pudo comprimir a menos de 2 MB"}), 400
+
+    img_final = buf.getvalue()
+
+    # Determinar ruta de guardado
+    now = datetime.now()
+    year = str(now.year)
+    month = f"{now.month:02d}"
+
+    is_production = platform.system() == "Linux"
+    if is_production:
+        base_dir = Path("/var/www/html/wp-content/uploads") / year / month
+    else:
+        base_dir = Path(r"C:\Users\Luis.RANGEL-GONZALEZ\OneDrive - Akkodis\Desktop\entornoTuEden\TU EDEN\sd")
+
+    base_dir.mkdir(parents=True, exist_ok=True)
+
+    # Evitar sobreescritura
+    final_name = f"{filename}.jpg"
+    final_path = base_dir / final_name
+    counter = 1
+    while final_path.exists():
+        final_name = f"{filename}_{counter}.jpg"
+        final_path = base_dir / final_name
+        counter += 1
+
+    final_path.write_bytes(img_final)
+
+    size_kb = len(img_final) / 1024
+    return jsonify({
+        "ok": True,
+        "path": str(final_path),
+        "size_kb": round(size_kb, 1),
+        "filename": final_name,
+    })
+
+
+# ==================================================================================
 # MAIN
 # ==================================================================================
 
