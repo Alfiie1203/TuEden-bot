@@ -116,6 +116,18 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+    /* ── Mobile global ── */
+    @media (max-width:576px) {
+      .main-card { border-radius:8px; }
+      .main-card.p-4 { padding:1rem !important; }
+      .main-card.p-3 { padding:.75rem !important; }
+      .section-title { font-size:.95rem; }
+      .btn-lg { font-size:1rem; padding:.6rem 1rem; }
+      h5.section-title, h5.fw-bold { font-size:1rem; }
+      /* prevent horizontal overflow */
+      table { display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      pre, code { white-space:pre-wrap; word-break:break-all; }
+    }
   </style>
   {% block head %}{% endblock %}
 </head>
@@ -134,6 +146,7 @@
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='topicos' %}active{% endif %}" href="/topicos">📰 Tópicos del día</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='historial' %}active{% endif %}" href="/historial">📜 Historial</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='editor_page' %}active{% endif %}" href="/editor">🖼️ Editor</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint=='social_page' %}active{% endif %}" href="/social">📱 Social Media</a></li>
         {% if current_user and current_user.role == 'admin' %}
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='admin_page' %}active{% endif %}" href="/admin">⚙️ Admin</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint=='prompts_page' %}active{% endif %}" href="/admin/prompts">📝 Prompts</a></li>
@@ -192,7 +205,7 @@
 </div>
 
 <!-- ── Contenido principal ──────────────────────────────────────────────── -->
-<div class="container-fluid px-4">
+<div class="container-fluid px-2 px-sm-3 px-md-4">
   {% block content %}{% endblock %}
 </div>
 

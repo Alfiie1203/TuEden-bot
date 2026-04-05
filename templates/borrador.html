@@ -15,6 +15,9 @@
   .wy-bq { border-left:4px solid #2d3348; padding:.3rem 1rem; color:#8892a4; font-style:italic; background:rgba(255,255,255,.03); }
   .wy-ul, .wy-ol { color:#d1d5db; line-height:1.75; }
   .edit-toolbar { position:sticky; top:60px; z-index:100; }
+  @media (max-width:991px) {
+    .edit-toolbar { position:static; }
+  }
   .img-thumb { width:60px; height:60px; object-fit:cover; border-radius:4px; }
 </style>
 {% endblock %}
@@ -35,7 +38,7 @@
 <div id="editorPanel" style="display:none">
   <div class="row g-3">
     <!-- ── Columna principal: editor ──────────────────────────────────── -->
-    <div class="col-lg-8">
+    <div class="col-lg-8 order-2 order-lg-1">
       <div class="main-card p-4">
         <div class="d-flex justify-content-between align-items-center mb-3">
           <div>
@@ -54,11 +57,11 @@
           <input id="metaTitle" type="text" class="form-control">
         </div>
         <div class="row g-2 mb-2">
-          <div class="col-md-6">
+          <div class="col-6 col-md-6">
             <label class="form-label fw-semibold">Focus keyword</label>
             <input id="metaKw" type="text" class="form-control">
           </div>
-          <div class="col-md-6">
+          <div class="col-6 col-md-6">
             <label class="form-label fw-semibold">Affiliate URL</label>
             <input id="metaAff" type="text" class="form-control" placeholder="https://amazon.es/…">
           </div>
@@ -70,15 +73,15 @@
 
         <!-- Taxonomía WP -->
         <div class="row g-2 mb-3">
-          <div class="col-md-4">
+          <div class="col-6 col-md-4">
             <label class="form-label fw-semibold">Categorías <span class="text-muted fw-normal">(IDs, coma)</span></label>
             <input id="metaCats" type="text" class="form-control" placeholder="1, 5, 12">
           </div>
-          <div class="col-md-4">
+          <div class="col-6 col-md-4">
             <label class="form-label fw-semibold">Etiquetas <span class="text-muted fw-normal">(IDs, coma)</span></label>
             <input id="metaTags" type="text" class="form-control" placeholder="3, 7">
           </div>
-          <div class="col-md-4">
+          <div class="col-12 col-md-4">
             <label class="form-label fw-semibold">Autor WP</label>
             <select id="metaAuthor" class="form-select">
               <option value="luis">🧑‍💼 Luis (admin)</option>
@@ -101,7 +104,7 @@
     </div>
 
     <!-- ── Columna lateral: acciones e imágenes ─────────────────────── -->
-    <div class="col-lg-4">
+    <div class="col-lg-4 order-1 order-lg-2">
       <!-- Acciones rápidas (sticky) -->
       <div class="main-card p-3 mb-3 edit-toolbar">
         <h6 class="section-title">⚡ Acciones</h6>
@@ -110,6 +113,7 @@
           🚀 {% if simulate_wp %}Enviar a WP (simulado){% else %}Publicar en WordPress{% endif %}
         </button>
         <div id="publishNote" class="text-muted small mb-2"></div>
+        <button id="btnRegenerar" class="btn btn-outline-warning w-100 mb-2" onclick="regenerarContenido()">♻️ Regenerar contenido</button>
         <a id="btnDescargar" class="btn btn-outline-secondary w-100 mb-2" download>⬇️ Descargar JSON</a>
         <button class="btn btn-outline-danger w-100" onclick="eliminarBorrador()">🗑️ Eliminar borrador</button>
         <div id="actionMsg" class="mt-2"></div>
@@ -256,13 +260,17 @@ function poblarFormulario(d, fname) {
   document.getElementById('filenameLabel').textContent = fname;
 
   // Si ya fue publicado en WP, bloquear el botón de publicar
-  if (d.wp_post_id && d.status === 'published') {
+  if (d.wp_post_id) {
     const wp_url = window.__WP_BASE_URL || '';
     document.getElementById('btnPublicar').disabled = true;
-    document.getElementById('btnPublicar').textContent = '✅ Ya publicado en WordPress';
+    document.getElementById('btnPublicar').textContent = '✅ Ya enviado a WordPress';
     document.getElementById('publishNote').innerHTML =
       `ID de WP: <strong>${d.wp_post_id}</strong>` +
-      (wp_url ? ` — <a href="${wp_url}/wp-admin/post.php?post=${d.wp_post_id}&action=edit" target="_blank">Editar en WP ↗</a>` : '');
+      (wp_url ? ` — <a href="${wp_url}/wp-admin/post.php?post=${d.wp_post_id}&action=edit" target="_blank">Editar en WP ↗</a>` : '') +
+      `<div class="d-flex flex-column gap-1 mt-2">
+        <button class="btn btn-sm btn-outline-primary" onclick="rePublicarEnWP()">&#x1F504; Actualizar en WordPress</button>
+        <button class="btn btn-sm btn-outline-warning" onclick="rePublicarNuevo()">&#x1F195; Enviar de nuevo a WP</button>
+      </div>`;
     document.getElementById('publishNote').classList.remove('text-muted');
     document.getElementById('publishNote').classList.add('text-success');
   }
@@ -562,15 +570,30 @@ function publicarEnWP() {
   fetch(`/api/borrador/${encodeURIComponent(filename)}/publicar`, {
     method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
   }).then(r=>r.json()).then(d => {
-    document.getElementById('btnPublicar').disabled = false;
     document.getElementById('actionMsg').innerHTML = '';
     if (d.ok) {
       if (d.simulated) {
+        document.getElementById('btnPublicar').disabled = false;
         showToast(`✅ [Simulado] Borrador enviado — ID: ${d.wp_post_id}`);
       } else {
         _lastWpPostId  = d.wp_post_id;
         _lastPostType  = data.post_type  || '';
         _lastPostTitle = data.title      || '';
+        _draftData.wp_post_id = d.wp_post_id;
+        _draftData.status     = 'published';
+        // Mostrar botones de re-publicación
+        document.getElementById('btnPublicar').disabled = true;
+        document.getElementById('btnPublicar').textContent = '✅ Ya enviado a WordPress';
+        const wp_url = window.__WP_BASE_URL || '';
+        document.getElementById('publishNote').innerHTML =
+          `ID de WP: <strong>${d.wp_post_id}</strong>` +
+          (wp_url ? ` — <a href="${wp_url}/wp-admin/post.php?post=${d.wp_post_id}&action=edit" target="_blank">Editar en WP ↗</a>` : '') +
+          `<div class="d-flex flex-column gap-1 mt-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="rePublicarEnWP()">&#x1F504; Actualizar en WordPress</button>
+            <button class="btn btn-sm btn-outline-warning" onclick="rePublicarNuevo()">&#x1F195; Enviar de nuevo a WP</button>
+          </div>`;
+        document.getElementById('publishNote').classList.remove('text-muted');
+        document.getElementById('publishNote').classList.add('text-success');
         document.getElementById('actionMsg').innerHTML = `
           <div class="alert alert-success p-2 mt-2 mb-0">
             <strong>✅ Publicado en WordPress</strong> (ID: ${d.wp_post_id})<br>
@@ -583,9 +606,100 @@ function publicarEnWP() {
         showToast('✅ Borrador enviado a WordPress.');
       }
     } else {
+      document.getElementById('btnPublicar').disabled = false;
       showToast(d.error || 'Error al publicar', 'danger');
     }
   });
+}
+
+async function rePublicarNuevo() {
+  if (!confirm(
+    '¿Enviar este borrador a WordPress como post NUEVO?\n\n' +
+    'Se creará un nuevo post (nuevo ID). útil si el post anterior fue eliminado de WP.'
+  )) return;
+
+  const data = buildDraftData();
+  if (!data.categories || data.categories.length === 0) {
+    showToast('⚠️ Debes clasificar el artículo antes de publicar. Pulsa "Auto-clasificar con IA".', 'warning');
+    return;
+  }
+
+  const payload = {
+    ...data,
+    author_key:   document.getElementById('metaAuthor').value,
+    force_create: true,
+  };
+
+  document.getElementById('actionMsg').innerHTML = '<span class="text-muted small">⏳ Enviando a WordPress…</span>';
+  showToast('⏳ Enviando a WordPress…', 'info');
+
+  try {
+    const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/publicar`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    document.getElementById('actionMsg').innerHTML = '';
+    if (d.ok) {
+      _draftData.wp_post_id = d.wp_post_id;
+      _draftData.status     = 'published';
+      document.getElementById('actionMsg').innerHTML = `
+        <div class="alert alert-success p-2 mt-2 mb-0">
+          <strong>✅ Publicado en WordPress</strong> (ID: ${d.wp_post_id})<br>
+          <a href="${d.edit_url}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">✏️ Editar en WP ↗</a>
+        </div>`;
+      showToast('✅ Post enviado a WordPress.');
+    } else {
+      showToast('❌ ' + (d.error || 'Error al publicar'), 'danger');
+    }
+  } catch(e) {
+    document.getElementById('actionMsg').innerHTML = '';
+    showToast('❌ Error de red: ' + e, 'danger');
+  }
+}
+
+async function rePublicarEnWP() {
+  if (!confirm(
+    '¿Actualizar el post en WordPress?\n\n' +
+    'Esto sobreescribirá el contenido publicado con los cambios actuales del editor. ' +
+    'El ID del post en WordPress NO cambia.'
+  )) return;
+
+  const data = buildDraftData();
+  if (!data.categories || data.categories.length === 0) {
+    showToast('⚠️ Debes clasificar el artículo antes de actualizar. Pulsa "Auto-clasificar con IA".', 'warning');
+    return;
+  }
+
+  const payload = {
+    ...data,
+    author_key:   document.getElementById('metaAuthor').value,
+    force_update: true,
+  };
+
+  showToast('⏳ Actualizando en WordPress…', 'info');
+
+  try {
+    const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/publicar`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (d.ok && d.updated) {
+      document.getElementById('actionMsg').innerHTML = `
+        <div class="alert alert-success p-2 mt-2 mb-0">
+          <strong>✅ Post actualizado en WordPress</strong> (ID: ${d.wp_post_id})<br>
+          <a href="${d.edit_url}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">✏️ Editar en WP ↗</a>
+        </div>`;
+      showToast('✅ Post actualizado en WordPress.');
+    } else {
+      showToast('❌ ' + (d.error || 'Error al actualizar'), 'danger');
+    }
+  } catch(e) {
+    showToast('❌ Error de red: ' + e, 'danger');
+  }
 }
 
 async function recuperarDeWP(wpId) {
@@ -619,6 +733,48 @@ function eliminarBorrador() {
       showToast('Borrador eliminado');
       setTimeout(() => { window.location.href = '/borrador'; }, 1000);
     });
+}
+
+async function regenerarContenido() {
+  if (!confirm(
+    '¿Regenerar el contenido con IA?\n\n' +
+    'Se sobreescribirá el texto actual del artículo manteniendo título, imágenes y metadatos. ' +
+    'Guarda los cambios manuales antes de continuar.\n\n' +
+    '⏱️ Puede tardar hasta 60 segundos.'
+  )) return;
+
+  const btn = document.getElementById('btnRegenerar');
+  btn.disabled = true;
+  btn.textContent = '⏳ Regenerando…';
+  showToast('⏳ Regenerando contenido con IA… esto puede tardar hasta 60 segundos.', 'info');
+
+  try {
+    const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/regenerar`, {method:'POST'});
+    const d = await r.json();
+    if (!d.ok) {
+      showToast('❌ ' + (d.error || 'Error al regenerar'), 'danger');
+      return;
+    }
+    // Actualizar datos en memoria y re-renderizar
+    _draftData.content          = d.content;
+    _draftData.title            = d.title;
+    _draftData.meta_description = d.meta_description;
+    _draftData.focus_keyword    = d.focus_keyword;
+
+    document.getElementById('metaTitle').value = d.title;
+    document.getElementById('metaKw').value    = d.focus_keyword;
+    document.getElementById('metaDesc').value  = d.meta_description;
+
+    _blocks      = parseBlocks(d.content || '');
+    _editingIdx  = null;
+    renderWysiwyg();
+    showToast('✅ Contenido regenerado y actualizado.');
+  } catch(e) {
+    showToast('❌ Error de red al regenerar: ' + e, 'danger');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '♻️ Regenerar contenido';
+  }
 }
 
 function autoClasificar() {

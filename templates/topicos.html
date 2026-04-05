@@ -65,7 +65,7 @@
     <!-- Opciones de generación -->
     <h6 class="section-title">⚙️ Opciones de generación</h6>
     <div class="row g-3 mb-3">
-      <div class="col-md-4">
+      <div class="col-6 col-md-4">
         <label class="form-label fw-semibold">Revisado por</label>
         <select id="selReviewer" class="form-select" data-user-role="{{ current_user.role if current_user else '' }}"
           {% if current_user and current_user.role != 'admin' %}disabled{% endif %}>
@@ -75,7 +75,7 @@
           <option value="Editor">✍️ Editor</option>
         </select>
       </div>
-      <div class="col-md-4">
+      <div class="col-6 col-md-4">
         <label class="form-label fw-semibold">Modelo Gemini</label>
         <select id="selModel" class="form-select">
           <option value="gemini-2.5-flash">gemini-2.5-flash</option>
@@ -83,7 +83,7 @@
           <option value="gemini-1.5-pro">gemini-1.5-pro</option>
         </select>
       </div>
-      <div class="col-md-4">
+      <div class="col-12 col-md-4">
         <label class="form-label fw-semibold">Enfoque global <span class="text-muted fw-normal">(opcional)</span></label>
         <input id="focusGlobal" type="text" class="form-control"
           placeholder="Ej: orientado a padres con hijos entre 5 y 12 años">

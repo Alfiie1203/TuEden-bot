@@ -1,0 +1,776 @@
+{% extends "base.html" %}
+{% block title %}Creador de Contenido Social — TuEden{% endblock %}
+
+{% block head %}
+<style>
+/* ══════════════════════════
+   LAYOUT
+══════════════════════════ */
+.social-studio {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 12px;
+  height: calc(100vh - 115px);
+}
+.social-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.social-output {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* ── Mode cards ── */
+.mode-row { display:flex; gap:8px; }
+.mode-card {
+  flex:1; border:2px solid var(--border); border-radius:8px;
+  padding:10px 12px; cursor:pointer; background:var(--bg); transition:all .15s;
+}
+.mode-card:hover { border-color:var(--accent); }
+.mode-card.selected { border-color:var(--accent); background:rgba(110,168,254,.08); }
+.mode-card .mc-icon  { font-size:1.3rem; }
+.mode-card .mc-title { font-size:.84rem; font-weight:700; margin-top:2px; }
+.mode-card .mc-desc  { font-size:.72rem; color:var(--muted); }
+/* ── Platform pills ── */
+.plat-pills { display:flex; gap:6px; flex-wrap:wrap; }
+.plat-pill {
+  display:flex; align-items:center; gap:5px; padding:5px 12px; border-radius:50px;
+  cursor:pointer; border:2px solid var(--border); background:var(--bg);
+  color:var(--muted); font-size:.78rem; font-weight:600; transition:all .15s; user-select:none;
+}
+.plat-pill:hover { border-color:var(--accent); color:var(--text); }
+.plat-pill.on-tiktok    { border-color:#69c9d0; background:rgba(105,201,208,.1); color:#69c9d0; }
+.plat-pill.on-instagram { border-color:#e1306c; background:rgba(225,48,108,.1);  color:#e1306c; }
+.plat-pill.on-facebook  { border-color:#1877f2; background:rgba(24,119,242,.1);  color:#1877f2; }
+/* ── Tabs ── */
+.result-tabs {
+  display:flex; align-items:center; border-bottom:1px solid var(--border);
+  padding:0 16px; overflow-x:auto; flex-shrink:0;
+}
+.result-tabs::-webkit-scrollbar { height:0; }
+.rtab {
+  display:inline-flex; align-items:center; gap:5px; padding:11px 16px;
+  cursor:pointer; font-size:.83rem; font-weight:600; color:var(--muted);
+  border-bottom:3px solid transparent; white-space:nowrap; transition:all .15s; flex-shrink:0;
+}
+.rtab:hover { color:var(--text); }
+.rtab.active { color:var(--accent); border-bottom-color:var(--accent); }
+.rtab-saved { margin-left:auto; }
+.rtab-saved.active { color:var(--amber); border-bottom-color:var(--amber); }
+/* ── Panes ── */
+.result-content { flex:1; overflow-y:auto; padding:20px; }
+.pane { display:none; }
+.pane.active { display:block; }
+/* ── Empty state ── */
+.empty-state {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:300px; gap:12px; color:var(--muted); text-align:center;
+}
+.empty-icon { font-size:3rem; opacity:.35; }
+/* ══════════════════════════
+   TIKTOK STORYBOARD
+══════════════════════════ */
+.hook-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+@media(max-width:860px){ .hook-cards { grid-template-columns:1fr; } }
+.hook-card {
+  border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg); transition:border-color .15s;
+}
+.hook-card:hover { border-color:var(--accent); }
+.hook-type { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:6px; display:inline-block; margin-bottom:6px; }
+.ht-curiosidad { background:rgba(156,39,176,.18); color:#ce93d8; }
+.ht-fomo       { background:rgba(255,87,34,.18);  color:#ffab91; }
+.ht-beneficio  { background:rgba(76,175,80,.18);  color:#a5d6a7; }
+.hook-text   { font-size:.88rem; font-weight:600; color:var(--text); margin-bottom:5px; }
+.hook-visual { font-size:.75rem; color:var(--muted); font-style:italic; }
+.hook-copybtn {
+  margin-top:8px; font-size:.7rem; padding:3px 9px; background:var(--surface2);
+  border:1px solid var(--border); color:var(--muted); border-radius:5px; cursor:pointer;
+}
+.hook-copybtn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+.storyboard { display:flex; flex-direction:column; gap:10px; }
+.scene-card {
+  display:grid; grid-template-columns:70px 1fr;
+  border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg);
+  transition:box-shadow .15s;
+}
+.scene-card:hover { box-shadow:0 0 0 2px var(--accent); }
+.scene-left {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:10px 6px; gap:4px; border-right:1px solid var(--border);
+}
+.scene-num { font-size:1.4rem; font-weight:900; color:var(--accent); line-height:1; }
+.scene-sec {
+  font-size:.6rem; font-weight:800; padding:2px 5px; border-radius:5px; text-align:center; white-space:nowrap;
+}
+.sec-gancho    { background:rgba(255,71,114,.15); color:#ff4772; }
+.sec-retencion { background:rgba(255,209,102,.15);color:var(--amber); }
+.sec-valor     { background:rgba(109,222,136,.15);color:var(--green); }
+.sec-resultado { background:rgba(110,168,254,.15);color:var(--accent); }
+.sec-cta       { background:rgba(225,48,108,.15); color:#e1306c; }
+.scene-label   { font-size:.55rem; font-weight:700; text-transform:uppercase; color:var(--muted); margin-top:2px; }
+
+.scene-right { padding:12px 14px; display:flex; flex-direction:column; gap:7px; }
+.scene-toma {
+  font-size:.73rem; color:var(--muted); padding:4px 8px;
+  background:var(--surface2); border-radius:5px; border-left:3px solid var(--border);
+}
+.scene-dialogo {
+  font-size:.9rem; font-weight:500; color:var(--text); line-height:1.55;
+  padding:8px 10px; background:rgba(110,168,254,.06);
+  border-radius:6px; border-left:3px solid var(--accent);
+}
+.scene-meta { display:flex; gap:7px; flex-wrap:wrap; }
+.scene-pantalla {
+  font-size:.72rem; background:rgba(255,209,102,.1); color:var(--amber);
+  padding:3px 8px; border-radius:5px; border:1px solid rgba(255,209,102,.3);
+}
+.scene-edicion {
+  font-size:.72rem; background:rgba(109,222,136,.08); color:var(--green);
+  padding:3px 8px; border-radius:5px; border:1px solid rgba(109,222,136,.25);
+}
+/* ══════════════════════════
+   INSTAGRAM
+══════════════════════════ */
+.ig-carousel { display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
+.ig-carousel::-webkit-scrollbar { height:4px; }
+.ig-slide-thumb {
+  min-width:110px; max-width:110px; flex-shrink:0;
+  border:2px solid var(--border); border-radius:8px; padding:10px 8px;
+  background:var(--bg); cursor:pointer; transition:all .12s;
+  scroll-snap-align:start; text-align:center;
+}
+.ig-slide-thumb:hover { border-color:var(--accent); }
+.ig-slide-thumb.sel   { border-color:#e1306c; background:rgba(225,48,108,.06); }
+.slide-num-badge {
+  width:22px; height:22px; border-radius:50%; background:var(--surface2); color:var(--muted);
+  font-size:.68rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; margin-bottom:4px;
+}
+.ig-type-badge {
+  font-size:.6rem; font-weight:700; padding:2px 5px; border-radius:5px; display:inline-block; margin-bottom:4px;
+}
+.it-portada    { background:rgba(225,48,108,.18); color:#f48fb1; }
+.it-problema   { background:rgba(255,87,34,.18);  color:#ffab91; }
+.it-desarrollo { background:rgba(110,168,254,.18);color:var(--accent); }
+.it-resumen    { background:rgba(255,209,102,.18);color:var(--amber); }
+.it-cta        { background:rgba(109,222,136,.18);color:var(--green); }
+.ig-thumb-title { font-size:.68rem; font-weight:600; color:var(--text); line-height:1.3; }
+.ig-slide-detail {
+  border:1px solid var(--border); border-radius:10px; padding:16px; background:var(--bg); margin-top:12px;
+}
+.ig-detail-header { display:flex; gap:10px; align-items:flex-start; margin-bottom:10px; }
+.ig-detail-body   { font-size:.88rem; line-height:1.65; color:var(--text); white-space:pre-wrap; }
+.estetica-box {
+  display:flex; gap:8px; align-items:flex-start;
+  background:rgba(225,48,108,.06); border:1px solid rgba(225,48,108,.2);
+  border-radius:6px; padding:8px 12px; margin-top:10px; font-size:.79rem; color:var(--muted);
+}
+.hashtag-cloud { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.hashtag-pill {
+  background:rgba(225,48,108,.1); color:#e1306c;
+  padding:3px 10px; border-radius:50px; font-size:.76rem; font-weight:600;
+  border:1px solid rgba(225,48,108,.2); cursor:pointer; transition:background .12s;
+}
+.hashtag-pill:hover { background:rgba(225,48,108,.22); }
+/* ══════════════════════════
+   FACEBOOK
+══════════════════════════ */
+.fb-card {
+  max-width:540px; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--bg);
+}
+.fb-card-header {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px; border-bottom:1px solid var(--border);
+}
+.fb-avatar {
+  width:40px; height:40px; border-radius:50%;
+  background:linear-gradient(135deg,#1877f2,#42b72a);
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.1rem; color:#fff; font-weight:800; flex-shrink:0;
+}
+.fb-card-body { padding:14px 16px; font-size:.9rem; line-height:1.65; white-space:pre-wrap; }
+.fb-engagement {
+  margin-top:14px; padding:12px 14px;
+  background:rgba(24,119,242,.07); border:1px solid rgba(24,119,242,.2); border-radius:8px; font-size:.85rem;
+}
+.fb-eng-label { font-size:.68rem; text-transform:uppercase; font-weight:700; color:#1877f2; margin-bottom:4px; }
+/* ══════════════════════════
+   CHECKLISTS MIND-MAP
+══════════════════════════ */
+.cl-section {
+  border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:14px;
+}
+.cl-header {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 16px; cursor:pointer; user-select:none; border-bottom:1px solid var(--border);
+}
+.cl-icon  { font-size:1.2rem; }
+.cl-title { font-weight:700; font-size:.93rem; }
+.cl-prog  { margin-left:auto; font-size:.74rem; font-weight:600; padding:2px 10px; border-radius:50px; }
+.cl-arrow { font-size:.75rem; color:var(--muted); transition:transform .2s; }
+.cl-arrow.open { transform:rotate(180deg); }
+.cl-tiktok    .cl-header { background:rgba(105,201,208,.07); border-left:4px solid #69c9d0; }
+.cl-tiktok    .cl-prog   { background:rgba(105,201,208,.15); color:#69c9d0; }
+.cl-instagram .cl-header { background:rgba(225,48,108,.07);  border-left:4px solid #e1306c; }
+.cl-instagram .cl-prog   { background:rgba(225,48,108,.15);  color:#e1306c; }
+.cl-facebook  .cl-header { background:rgba(24,119,242,.07);  border-left:4px solid #1877f2; }
+.cl-facebook  .cl-prog   { background:rgba(24,119,242,.15);  color:#1877f2; }
+.cl-body { padding:14px 16px; display:none; }
+.cl-body.open { display:block; }
+.cl-pbar-wrap { height:4px; background:var(--border); border-radius:2px; margin-bottom:12px; }
+.cl-pbar-fill { height:100%; border-radius:2px; transition:width .3s; }
+.fill-tiktok    { background:#69c9d0; }
+.fill-instagram { background:#e1306c; }
+.fill-facebook  { background:#1877f2; }
+/* Mind-map grid */
+.mm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+.mm-node { border:1px solid var(--border); border-radius:8px; background:var(--bg); overflow:hidden; }
+.mm-node-head {
+  padding:7px 12px; font-size:.72rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.4px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:5px;
+}
+.nh-tt-grab { background:rgba(105,201,208,.12); color:#69c9d0; }
+.nh-tt-rec  { background:rgba(255,209,102,.1);  color:var(--amber); }
+.nh-tt-edit { background:rgba(109,222,136,.1);  color:var(--green); }
+.nh-ig-dis  { background:rgba(225,48,108,.1);   color:#e1306c; }
+.nh-ig-rec  { background:rgba(255,209,102,.1);  color:var(--amber); }
+.nh-ig-pub  { background:rgba(109,222,136,.1);  color:var(--green); }
+.nh-fb-con  { background:rgba(24,119,242,.1);   color:#1877f2; }
+.nh-fb-rec  { background:rgba(255,209,102,.1);  color:var(--amber); }
+.nh-fb-pub  { background:rgba(109,222,136,.1);  color:var(--green); }
+.mm-items { padding:8px 10px; display:flex; flex-direction:column; gap:5px; }
+.mm-item {
+  display:flex; align-items:flex-start; gap:8px;
+  padding:7px 8px; border-radius:6px; background:var(--surface2);
+  cursor:pointer; transition:background .12s;
+}
+.mm-item:hover   { background:rgba(110,168,254,.1); }
+.mm-item.checked { opacity:.5; }
+.mm-item.checked .mm-item-text { text-decoration:line-through; }
+.mm-chk {
+  width:15px; height:15px; border:2px solid var(--border); border-radius:4px; flex-shrink:0;
+  margin-top:1px; display:flex; align-items:center; justify-content:center;
+  font-size:.6rem; color:transparent; transition:all .12s;
+}
+.mm-item.checked .mm-chk { background:var(--green); border-color:var(--green); color:#fff; }
+.mm-item-text   { font-size:.78rem; font-weight:600; color:var(--text); line-height:1.3; }
+.mm-item-detail { font-size:.72rem; color:var(--muted); margin-top:3px; line-height:1.4; }
+.mm-tipo        { font-size:.6rem; padding:1px 5px; border-radius:4px; flex-shrink:0; margin-top:2px; background:var(--surface); border:1px solid var(--border); color:var(--muted); }
+/* ══════════════════════════
+   HISTORIAL
+══════════════════════════ */
+.hist-item {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px; border:1px solid var(--border); border-radius:8px;
+  background:var(--bg); margin-bottom:6px; transition:border-color .12s; cursor:pointer;
+}
+.hist-item:hover { border-color:var(--accent); }
+.hist-dot { width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; }
+.hist-dot.mock { background:var(--amber); }
+.hist-info  { flex:1; overflow:hidden; }
+.hist-topic { font-size:.84rem; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hist-meta  { font-size:.72rem; color:var(--muted); margin-top:1px; }
+/* ── Spinner ── */
+.gen-overlay {
+  display:none; position:absolute; inset:0;
+  background:rgba(10,12,20,.78); border-radius:10px;
+  z-index:20; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+}
+.gen-overlay.show { display:flex; }
+.gen-dots { display:flex; gap:7px; }
+.gd { width:11px; height:11px; border-radius:50%; background:var(--accent); animation:gdAnim .9s infinite ease-in-out; }
+.gd:nth-child(2) { animation-delay:.15s; }
+.gd:nth-child(3) { animation-delay:.3s; }
+@keyframes gdAnim { 0%,80%,100%{transform:scale(.55);opacity:.35} 40%{transform:scale(1);opacity:1} }
+/* ── Misc ── */
+.sec-lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); font-weight:700; margin-bottom:6px; }
+.panel-divider { border:none; border-top:1px solid var(--border); margin:2px 0; }
+.copy-bar { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.copy-bar .btn { font-size:.77rem; }
+@media(max-width:860px){
+  .social-studio { grid-template-columns:1fr; height:auto; }
+  .mm-grid { grid-template-columns:1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-2">
+  <div class="d-flex align-items-center justify-content-between mb-2">
+    <div>
+      <h4 class="mb-0 fw-bold">📱 Creador de Contenido Social</h4>
+      <p class="text-muted mb-0" style="font-size:.8rem;">TikTok · Instagram · Facebook — con checklists por plataforma</p>
+    </div>
+    <span id="savedBadge" class="d-none badge rounded-pill px-3 py-2" style="background:rgba(109,222,136,.15);color:var(--green);font-size:.78rem;"></span>
+  </div>
+
+  <div class="social-studio">
+
+    <!-- ══ PANEL IZQUIERDO ══ -->
+    <div class="social-panel">
+
+      <div>
+        <div class="sec-lbl">Modo de entrada</div>
+        <div class="mode-row">
+          <div class="mode-card selected" id="modeCardScratch" onclick="selectMode('scratch')">
+            <div class="mc-icon">💡</div><div class="mc-title">Desde cero</div><div class="mc-desc">Escribe tu tema</div>
+          </div>
+          <div class="mode-card" id="modeCardDraft" onclick="selectMode('borrador')">
+            <div class="mc-icon">📄</div><div class="mc-title">Desde borrador</div><div class="mc-desc">Pega texto de blog</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-lbl" id="inputLabel">Tema o idea</div>
+        <textarea id="inputTopic" class="form-control" rows="5"
+          placeholder="Ej: Los beneficios de la meditación para reducir el estrés"
+          style="resize:vertical;font-size:.86rem;"></textarea>
+        <div class="d-flex justify-content-between mt-1">
+          <span style="font-size:.7rem;color:var(--muted);"><span id="charCount">0</span>/4000</span>
+          <button onclick="clearInput()" style="background:none;border:none;font-size:.7rem;color:var(--muted);cursor:pointer;">Limpiar</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-lbl">Plataformas</div>
+        <div class="plat-pills">
+          <div class="plat-pill on-tiktok" id="pill-tiktok" onclick="togglePlatform('tiktok')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.26 8.26 0 0 0 4.83 1.55V6.78a4.84 4.84 0 0 1-1.06-.09z"/></svg>TikTok
+          </div>
+          <div class="plat-pill on-instagram" id="pill-instagram" onclick="togglePlatform('instagram')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>Instagram
+          </div>
+          <div class="plat-pill on-facebook" id="pill-facebook" onclick="togglePlatform('facebook')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>Facebook
+          </div>
+        </div>
+      </div>
+
+      <hr class="panel-divider">
+      <button id="btnGen" class="btn btn-primary fw-bold py-2" onclick="generarContenido()">⚡ Generar contenido</button>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="exportarJSON()">⬇️ Exportar JSON</button>
+        <button class="btn btn-outline-secondary btn-sm flex-fill" onclick="switchTab('historial')">📂 Guardados</button>
+      </div>
+    </div>
+
+    <!-- ══ PANEL DERECHO ══ -->
+    <div class="social-output" style="position:relative;">
+      <div class="gen-overlay" id="genOverlay">
+        <div class="gen-dots"><div class="gd"></div><div class="gd"></div><div class="gd"></div></div>
+        <div style="color:var(--muted);font-size:.86rem;" id="genMsg">Generando con Gemini AI...</div>
+      </div>
+
+      <div class="result-tabs">
+        <div class="rtab active" data-pane="empty"     onclick="switchTab('empty')"    style="display:none;"></div>
+        <div class="rtab active" data-pane="tiktok"    onclick="switchTab('tiktok')">📹 TikTok</div>
+        <div class="rtab"        data-pane="instagram" onclick="switchTab('instagram')">🖼️ Instagram</div>
+        <div class="rtab"        data-pane="facebook"  onclick="switchTab('facebook')">👥 Facebook</div>
+        <div class="rtab"        data-pane="checklist" onclick="switchTab('checklist')">✅ Checklists</div>
+        <div class="rtab rtab-saved" data-pane="historial" onclick="switchTab('historial')">📂 Guardados</div>
+      </div>
+
+      <div class="result-content">
+
+        <!-- Empty -->
+        <div class="pane active" id="pane-empty" style="display:block;">
+          <div class="empty-state">
+            <div class="empty-icon">📱</div>
+            <div style="font-weight:600;color:var(--text);">Genera tu primer contenido</div>
+            <div style="font-size:.82rem;max-width:280px;">Escribe un tema y pulsa <strong>Generar contenido</strong></div>
+          </div>
+        </div>
+
+        <!-- TikTok -->
+        <div class="pane" id="pane-tiktok">
+          <div class="copy-bar">
+            <button class="btn btn-sm btn-outline-secondary" onclick="copiarPlataforma('tiktok')">📋 Copiar guion completo</button>
+          </div>
+          <div class="sec-lbl mb-2">⚡ Elige tu gancho (0–3 seg)</div>
+          <div class="hook-cards" id="ttHooks"></div>
+          <div class="sec-lbl mb-2">🎬 Guion técnico — escena por escena</div>
+          <div class="storyboard" id="ttStoryboard"></div>
+        </div>
+
+        <!-- Instagram -->
+        <div class="pane" id="pane-instagram">
+          <div class="copy-bar">
+            <button class="btn btn-sm btn-outline-secondary" onclick="copiarPlataforma('instagram')">📋 Copiar carrusel</button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="copiarHashtags()">📋 Copiar hashtags</button>
+          </div>
+          <div class="sec-lbl mb-2">🖼️ Slides del carrusel</div>
+          <div class="ig-carousel" id="igCarousel"></div>
+          <div id="igSlideDetail"></div>
+          <div class="sec-lbl mt-3 mb-1">🔖 Hashtags sugeridos</div>
+          <div class="hashtag-cloud" id="igHashtags"></div>
+        </div>
+
+        <!-- Facebook -->
+        <div class="pane" id="pane-facebook">
+          <div class="copy-bar">
+            <button class="btn btn-sm btn-outline-secondary" onclick="copiarPlataforma('facebook')">📋 Copiar post</button>
+          </div>
+          <div class="fb-card">
+            <div class="fb-card-header">
+              <div class="fb-avatar" id="fbAvatar">U</div>
+              <div>
+                <div style="font-weight:700;font-size:.86rem;" id="fbName">Tu nombre</div>
+                <div style="font-size:.7rem;color:var(--muted);">Ahora · 🌐 Público</div>
+              </div>
+            </div>
+            <div class="fb-card-body" id="fbBody">—</div>
+          </div>
+          <div class="fb-engagement" id="fbEngagement" style="display:none;">
+            <div class="fb-eng-label">💬 Pregunta de engagement</div>
+            <div id="fbEngText" style="font-size:.87rem;"></div>
+          </div>
+        </div>
+
+        <!-- Checklists -->
+        <div class="pane" id="pane-checklist">
+          <div class="sec-lbl mb-3">✅ Tareas por plataforma — haz clic para marcar</div>
+          <div id="checklistBody">
+            <div class="empty-state" style="min-height:180px;">
+              <div class="empty-icon">✅</div>
+              <div style="font-size:.83rem;">Genera contenido primero para ver los checklists</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historial -->
+        <div class="pane" id="pane-historial">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="sec-lbl mb-0">📂 Contenidos guardados</div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="cargarHistorial()">🔄 Actualizar</button>
+          </div>
+          <div id="historialBody"><div style="color:var(--muted);font-size:.83rem;">Cargando...</div></div>
+        </div>
+
+      </div><!-- /result-content -->
+    </div><!-- /social-output -->
+  </div><!-- /social-studio -->
+</div>
+<div id="toastContainer" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ══════════════════════════
+   Estado
+══════════════════════════ */
+let currentMode = 'scratch';
+let selectedPlatforms = new Set(['tiktok','instagram','facebook']);
+let lastResult = null;
+
+/* ══════════════════════════
+   Modo
+══════════════════════════ */
+function selectMode(m) {
+  currentMode = m;
+  document.getElementById('modeCardScratch').classList.toggle('selected', m==='scratch');
+  document.getElementById('modeCardDraft').classList.toggle('selected', m==='borrador');
+  const ta = document.getElementById('inputTopic');
+  if (m==='borrador') {
+    document.getElementById('inputLabel').textContent = 'Pega tu borrador de blog';
+    ta.placeholder = 'Pega aquí el texto completo de tu artículo...';
+    ta.rows = 8;
+  } else {
+    document.getElementById('inputLabel').textContent = 'Tema o idea';
+    ta.placeholder = 'Ej: Los beneficios de la meditación para reducir el estrés';
+    ta.rows = 5;
+  }
+}
+document.getElementById('inputTopic').addEventListener('input', function() {
+  const l = this.value.length;
+  const el = document.getElementById('charCount');
+  el.textContent = l;
+  el.style.color = l>3800?'var(--red)':l>3000?'var(--amber)':'';
+});
+function clearInput() {
+  document.getElementById('inputTopic').value='';
+  document.getElementById('charCount').textContent='0';
+}
+
+/* ══════════════════════════
+   Plataformas
+══════════════════════════ */
+function togglePlatform(p) {
+  const pill = document.getElementById('pill-'+p);
+  if (selectedPlatforms.has(p)) {
+    if (selectedPlatforms.size===1) return;
+    selectedPlatforms.delete(p);
+    pill.className='plat-pill';
+  } else {
+    selectedPlatforms.add(p);
+    pill.className='plat-pill on-'+p;
+  }
+}
+
+/* ══════════════════════════
+   Generar
+══════════════════════════ */
+async function generarContenido() {
+  const input = document.getElementById('inputTopic').value.trim();
+  if (!input) { toast('Escribe un tema primero 💡','warning'); return; }
+  const btn = document.getElementById('btnGen');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generando...';
+  document.getElementById('genOverlay').classList.add('show');
+  try {
+    const res  = await fetch('/api/social/generar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:currentMode,input,platforms:[...selectedPlatforms]})});
+    const json = await res.json();
+    if (!res.ok||!json.ok) { toast(json.error||'Error al generar','danger'); return; }
+    lastResult = json.data;
+    renderAll(json.data);
+    if (json.saved_as) {
+      const b = document.getElementById('savedBadge');
+      b.textContent='✅ Guardado: '+json.saved_as; b.classList.remove('d-none');
+      setTimeout(()=>b.classList.add('d-none'),5000);
+    }
+    toast('¡Contenido generado! 🎉','success');
+    const first = selectedPlatforms.has('tiktok')?'tiktok':selectedPlatforms.has('instagram')?'instagram':'facebook';
+    switchTab(first);
+  } catch(e) { toast('Error de red: '+e.message,'danger'); }
+  finally {
+    btn.disabled=false; btn.innerHTML='⚡ Generar contenido';
+    document.getElementById('genOverlay').classList.remove('show');
+  }
+}
+
+/* ══════════════════════════
+   RENDER: TikTok
+══════════════════════════ */
+function renderTikTok(tk) {
+  const hBadge={curiosidad:['ht-curiosidad','🧠 Curiosidad'],fomo:['ht-fomo','⚠️ FOMO'],beneficio:['ht-beneficio','✅ Beneficio']};
+  document.getElementById('ttHooks').innerHTML=(tk.hooks||[]).map(h=>{
+    const[cls,lbl]=hBadge[h.tipo]||['',''];
+    return`<div class="hook-card"><span class="hook-type ${cls}">${lbl}</span><div class="hook-text">"${esc(h.texto)}"</div><div class="hook-visual">📷 ${esc(h.descripcion_visual||'')}</div><button class="hook-copybtn" onclick="copyTxt(${JSON.stringify(h.texto)})">Copiar frase</button></div>`;
+  }).join('');
+
+  const sCls={gancho:'sec-gancho',retencion:'sec-retencion',valor_1:'sec-valor',valor_2:'sec-valor',resultado:'sec-resultado',cta:'sec-cta'};
+  const sLbl={gancho:'GANCHO',retencion:'RETENCIÓN',valor_1:'VALOR 1',valor_2:'VALOR 2',resultado:'RESULTADO',cta:'CTA'};
+  document.getElementById('ttStoryboard').innerHTML=(tk.guion||[]).map(s=>{
+    const t=s.tipo||'gancho';
+    return`<div class="scene-card"><div class="scene-left"><div class="scene-num">${s.escena||''}</div><div class="scene-sec ${sCls[t]||'sec-valor'}">${s.segundos||''}</div><div class="scene-label">${sLbl[t]||t}</div></div><div class="scene-right"><div class="scene-toma">🎥 ${esc(s.toma||'')}</div><div class="scene-dialogo">🎤 ${esc(s.dialogo||'')}</div><div class="scene-meta">${s.texto_pantalla?`<div class="scene-pantalla">📺 ${esc(s.texto_pantalla)}</div>`:''} ${s.nota_edicion?`<div class="scene-edicion">✂️ ${esc(s.nota_edicion)}</div>`:''}</div></div></div>`;
+  }).join('');
+}
+
+/* ══════════════════════════
+   RENDER: Instagram
+══════════════════════════ */
+const IGBadge={portada:'it-portada',problema:'it-problema',desarrollo:'it-desarrollo',resumen:'it-resumen',cta:'it-cta'};
+const IGLabel={portada:'Portada',problema:'Problema',desarrollo:'Desarrollo',resumen:'Resumen',cta:'CTA'};
+
+function renderInstagram(ig) {
+  document.getElementById('igCarousel').innerHTML=(ig.slides||[]).map((s,i)=>{
+    return`<div class="ig-slide-thumb${i===0?' sel':''}" id="igt-${i}" onclick="selSlideIG(${i})"><div class="slide-num-badge">${s.numero||i+1}</div><div class="ig-type-badge ${IGBadge[s.tipo]||'it-desarrollo'}">${IGLabel[s.tipo]||s.tipo}</div><div class="ig-thumb-title">${esc(s.titulo||'')}</div></div>`;
+  }).join('');
+  if ((ig.slides||[]).length) selSlideIG(0);
+  document.getElementById('igHashtags').innerHTML=(ig.hashtags||[]).map(h=>`<span class="hashtag-pill" onclick="copyTxt(${JSON.stringify(h)})">${esc(h)}</span>`).join('');
+}
+
+function selSlideIG(idx) {
+  if (!lastResult?.instagram?.slides) return;
+  const sl=lastResult.instagram.slides[idx]; if(!sl) return;
+  document.querySelectorAll('.ig-slide-thumb').forEach((el,i)=>el.classList.toggle('sel',i===idx));
+  const body=sl.cuerpo||sl.texto||sl.subtitulo||'';
+  document.getElementById('igSlideDetail').innerHTML=`<div class="ig-slide-detail"><div class="ig-detail-header"><div class="slide-num-badge" style="width:30px;height:30px;font-size:.8rem;">${sl.numero||idx+1}</div><div><span class="ig-type-badge ${IGBadge[sl.tipo]||'it-desarrollo'}">${IGLabel[sl.tipo]||sl.tipo}</span><div style="font-weight:700;font-size:1rem;margin-top:2px;">${esc(sl.titulo||'')}</div>${sl.subtitulo?`<div style="font-size:.8rem;color:var(--muted);">${esc(sl.subtitulo)}</div>`:''}</div><button class="btn btn-sm btn-outline-secondary ms-auto" onclick="copyTxt(${JSON.stringify((sl.titulo||'')+'\n\n'+body)})">📋 Copiar</button></div><div class="ig-detail-body">${esc(body)}</div>${sl.estetica?`<div class="estetica-box"><span>🎨</span><div><strong>Estética:</strong> ${esc(sl.estetica)}</div></div>`:''}</div>`;
+}
+
+function copiarHashtags() {
+  if(!lastResult?.instagram?.hashtags) return;
+  copyTxt(lastResult.instagram.hashtags.join(' '));
+}
+
+/* ══════════════════════════
+   RENDER: Facebook
+══════════════════════════ */
+function renderFacebook(fb) {
+  const uname='{{ current_user.display_name if current_user else "Usuario" }}';
+  document.getElementById('fbAvatar').textContent=uname.charAt(0).toUpperCase();
+  document.getElementById('fbName').textContent=uname;
+  document.getElementById('fbBody').textContent=fb.post||'';
+  const eng=document.getElementById('fbEngagement');
+  if(fb.pregunta_engagement){document.getElementById('fbEngText').textContent=fb.pregunta_engagement; eng.style.display='';}
+  else eng.style.display='none';
+}
+
+/* ══════════════════════════
+   RENDER: Checklists
+══════════════════════════ */
+function renderChecklists(d) {
+  const sections=[
+    {key:'tiktok',icon:'📹',label:'TikTok',cls:'cl-tiktok',fill:'fill-tiktok',nodes:[
+      {key:'grabacion',label:'🎥 Grabación',hcls:'nh-tt-grab',items:d.tiktok?.checklist?.grabacion||[]},
+      {key:'recursos', label:'🧰 Recursos', hcls:'nh-tt-rec', items:d.tiktok?.checklist?.recursos||[]},
+      {key:'edicion',  label:'✂️ Edición',  hcls:'nh-tt-edit',items:d.tiktok?.checklist?.edicion||[]},
+    ]},
+    {key:'instagram',icon:'🖼️',label:'Instagram',cls:'cl-instagram',fill:'fill-instagram',nodes:[
+      {key:'diseno',     label:'🎨 Diseño',     hcls:'nh-ig-dis',items:d.instagram?.checklist?.diseno||[]},
+      {key:'recursos',   label:'🧰 Recursos',   hcls:'nh-ig-rec',items:d.instagram?.checklist?.recursos||[]},
+      {key:'publicacion',label:'📤 Publicación',hcls:'nh-ig-pub',items:d.instagram?.checklist?.publicacion||[]},
+    ]},
+    {key:'facebook',icon:'👥',label:'Facebook',cls:'cl-facebook',fill:'fill-facebook',nodes:[
+      {key:'contenido',  label:'📝 Contenido',  hcls:'nh-fb-con',items:d.facebook?.checklist?.contenido||[]},
+      {key:'recursos',   label:'🧰 Recursos',   hcls:'nh-fb-rec',items:d.facebook?.checklist?.recursos||[]},
+      {key:'publicacion',label:'📤 Publicación',hcls:'nh-fb-pub',items:d.facebook?.checklist?.publicacion||[]},
+    ]},
+  ];
+
+  document.getElementById('checklistBody').innerHTML=sections.map(sec=>{
+    const total=sec.nodes.reduce((a,n)=>a+n.items.length,0);
+    const nodesHtml=sec.nodes.map(node=>{
+      const itemsHtml=node.items.map((item,ii)=>{
+        const txt=item.item||item.toma||'';
+        const det=item.detalle||'';
+        const tipo=item.tipo||'';
+        const uid=`cl_${sec.key}_${node.key}_${ii}`;
+        return`<div class="mm-item" id="${uid}" onclick="toggleCheck('${uid}')"><div class="mm-chk" id="${uid}_chk">✓</div><div><div class="mm-item-text">${esc(txt)}</div>${det?`<div class="mm-item-detail">${esc(det)}</div>`:''}${tipo?`<span class="mm-tipo">${esc(tipo)}</span>`:''}</div></div>`;
+      }).join('');
+      return`<div class="mm-node"><div class="mm-node-head ${node.hcls}">${node.label}</div><div class="mm-items">${itemsHtml||'<div style="padding:6px 8px;font-size:.73rem;color:var(--muted);">Sin items</div>'}</div></div>`;
+    }).join('');
+    return`<div class="cl-section ${sec.cls}"><div class="cl-header" onclick="toggleCL('${sec.key}')"><span class="cl-icon">${sec.icon}</span><span class="cl-title">${sec.label}</span><span class="cl-prog" id="clp-${sec.key}">0/${total}</span><span class="cl-arrow open" id="cla-${sec.key}">▼</span></div><div class="cl-body open" id="clb-${sec.key}"><div class="cl-pbar-wrap"><div class="cl-pbar-fill ${sec.fill}" id="clbar-${sec.key}" style="width:0%"></div></div><div class="mm-grid">${nodesHtml}</div></div></div>`;
+  }).join('');
+}
+
+function toggleCL(k) {
+  const b=document.getElementById('clb-'+k); const a=document.getElementById('cla-'+k);
+  const o=b.classList.contains('open'); b.classList.toggle('open',!o); a.classList.toggle('open',!o);
+}
+
+function toggleCheck(uid) {
+  const el=document.getElementById(uid); if(!el) return;
+  el.classList.toggle('checked'); updateProgress();
+}
+
+function updateProgress() {
+  ['tiktok','instagram','facebook'].forEach(k=>{
+    const all=document.querySelectorAll(`[id^="cl_${k}_"]`);
+    const done=document.querySelectorAll(`[id^="cl_${k}_"].checked`);
+    const pct=all.length?Math.round(done.length/all.length*100):0;
+    const bar=document.getElementById('clbar-'+k); const prog=document.getElementById('clp-'+k);
+    if(bar) bar.style.width=pct+'%'; if(prog) prog.textContent=`${done.length}/${all.length}`;
+  });
+}
+
+/* ══════════════════════════
+   RENDER ALL
+══════════════════════════ */
+function renderAll(d) {
+  if(d.tiktok)    renderTikTok(d.tiktok);
+  if(d.instagram) renderInstagram(d.instagram);
+  if(d.facebook)  renderFacebook(d.facebook);
+  renderChecklists(d);
+  document.getElementById('pane-empty').style.display='none';
+}
+
+/* ══════════════════════════
+   Historial
+══════════════════════════ */
+async function cargarHistorial() {
+  const el=document.getElementById('historialBody');
+  el.innerHTML='<div style="color:var(--muted);font-size:.82rem;">Cargando...</div>';
+  try {
+    const list=await (await fetch('/api/social/historial')).json();
+    if (!list.length){el.innerHTML='<div style="color:var(--muted);font-size:.82rem;">No hay contenidos guardados aún.</div>';return;}
+    el.innerHTML=list.map(item=>{
+      const d=item.created_at?item.created_at.replace('T',' ').replace('Z',''):'';
+      return`<div class="hist-item" onclick="cargarBorrador('${esc(item.filename)}')"><div class="hist-dot${item.mock?' mock':''}"></div><div class="hist-info"><div class="hist-topic">${esc(item.topic||item.filename)}</div><div class="hist-meta">${d} · ${item.mode||'scratch'}${item.mock?' · MOCK':''}</div></div><span style="color:var(--muted)">→</span></div>`;
+    }).join('');
+  } catch{el.innerHTML='<div style="color:var(--red);font-size:.82rem;">Error al cargar historial</div>';}
+}
+
+async function cargarBorrador(fn) {
+  try {
+    const d=await (await fetch('/api/social/historial/'+encodeURIComponent(fn))).json();
+    if(d.error){toast(d.error,'danger');return;}
+    lastResult=d; renderAll(d);
+    const first=(d.meta?.platforms||['tiktok'])[0];
+    switchTab(first||'tiktok'); toast('Borrador cargado ✅','success');
+  } catch{toast('Error al cargar borrador','danger');}
+}
+
+/* ══════════════════════════
+   Tabs
+══════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.rtab').forEach(el=>el.classList.toggle('active',el.dataset.pane===name));
+  document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
+  const p=document.getElementById('pane-'+name); if(p) p.classList.add('active');
+  if(name==='historial') cargarHistorial();
+}
+
+/* ══════════════════════════
+   Copiar
+══════════════════════════ */
+async function copyTxt(text) {
+  try{ await navigator.clipboard.writeText(text); toast('¡Copiado!','success'); }
+  catch{ toast('No se pudo copiar','warning'); }
+}
+
+function copiarPlataforma(p) {
+  if(!lastResult){toast('Genera contenido primero','warning');return;}
+  let txt='';
+  if(p==='tiktok'){
+    const tk=lastResult.tiktok; txt='═══ TIKTOK GUION ═══\n\nGANCHOS:\n';
+    (tk.hooks||[]).forEach((h,i)=>txt+=`${i+1}. [${h.tipo.toUpperCase()}] "${h.texto}"\n   Visual: ${h.descripcion_visual}\n\n`);
+    txt+='GUION POR ESCENAS:\n';
+    (tk.guion||[]).forEach(s=>{
+      txt+=`\n[Escena ${s.escena} | ${s.segundos}s | ${(s.tipo||'').toUpperCase()}]\n`;
+      txt+=`Toma: ${s.toma}\nDialogo: ${s.dialogo}\n`;
+      if(s.texto_pantalla) txt+=`Texto pantalla: ${s.texto_pantalla}\n`;
+      if(s.nota_edicion)   txt+=`Edicion: ${s.nota_edicion}\n`;
+    });
+  } else if(p==='instagram'){
+    const ig=lastResult.instagram; txt='═══ INSTAGRAM CARRUSEL ═══\n\n';
+    (ig.slides||[]).forEach(s=>{
+      txt+=`[SLIDE ${s.numero} – ${(s.tipo||'').toUpperCase()}]\nTitulo: ${s.titulo||''}\n`;
+      if(s.subtitulo) txt+=`Subtitulo: ${s.subtitulo}\n`;
+      const body=s.cuerpo||s.texto||''; if(body) txt+=`Cuerpo:\n${body}\n`;
+      if(s.estetica) txt+=`Estetica: ${s.estetica}\n`; txt+='\n';
+    });
+    txt+='HASHTAGS:\n'+(ig.hashtags||[]).join(' ');
+  } else if(p==='facebook'){
+    const fb=lastResult.facebook;
+    txt='═══ FACEBOOK POST ═══\n\n'+(fb.post||'')+'\n\n'+(fb.pregunta_engagement||'');
+  }
+  copyTxt(txt);
+}
+
+function exportarJSON() {
+  if(!lastResult){toast('Genera contenido primero','warning');return;}
+  const b=new Blob([JSON.stringify(lastResult,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='social_'+Date.now()+'.json'; a.click(); toast('Exportado ✅','success');
+}
+
+/* ══════════════════════════
+   Utils
+══════════════════════════ */
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function toast(msg,type='info'){
+  const c=document.getElementById('toastContainer'); if(!c) return;
+  const cols={success:'var(--green)',danger:'var(--red)',warning:'var(--amber)',info:'var(--accent)'};
+  const el=document.createElement('div');
+  el.style.cssText=`background:var(--surface);border:1px solid var(--border);border-left:3px solid ${cols[type]||cols.info};border-radius:8px;padding:9px 14px;margin-bottom:7px;font-size:.83rem;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:320px;animation:tIn .2s ease;`;
+  el.textContent=msg; c.appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transition='opacity .3s';setTimeout(()=>el.remove(),300);},3200);
+}
+const _ts=document.createElement('style');
+_ts.textContent='@keyframes tIn{from{transform:translateX(20px);opacity:0}to{transform:none;opacity:1}}';
+document.head.appendChild(_ts);
+</script>
+{% endblock %}

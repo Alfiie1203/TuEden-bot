@@ -114,6 +114,7 @@ REGLAS PARA TÍTULOS DE ALTO IMPACTO:
 • Usa palabras de alto CTR: secreto, clave, definitivo, descubierto, alerta, real, probado.
 • Sé ultra-específico: evita títulos vagos o genéricos.
 • Orientado al lector del blog médico-psicológico: pacientes, familiares y profesionales.
+• MAYÚSCULAS: Aplica las reglas gramaticales del español. Solo mayúscula en la PRIMERA palabra del título y en nombres propios. NO uses Title Case (no pongas mayúscula en cada palabra). Ejemplo CORRECTO: 'Cómo la microbiota intestinal transforma tu salud mental'. Ejemplo INCORRECTO: 'Cómo la Microbiota Intestinal Transforma Tu Salud Mental'. Después de dos puntos (:) la siguiente palabra va en minúscula salvo que sea nombre propio.
 
 Lista de tópicos:
 {topics_json}

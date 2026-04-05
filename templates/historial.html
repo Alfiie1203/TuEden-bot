@@ -1,74 +1,196 @@
 {% extends "base.html" %}
-{% block title %}Historial de Generaciones · Blog Content Generator{% endblock %}
+{% block title %}Historial · Blog Content Generator{% endblock %}
+
+{% block head %}
+<style>
+/* ── Historial layout ───────────────────────────────────── */
+.hist-page { max-width: 860px; margin: 0 auto; padding: 0 12px 40px; }
+
+/* header */
+.hist-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  padding: 18px 0 14px;
+}
+.hist-header h5 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.hist-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* search / filter bar */
+.hist-filters {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+}
+.hist-filters .filter-group { display: flex; flex-direction: column; gap: 4px; }
+.hist-filters label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+.hist-filters input,
+.hist-filters select { background: var(--bg) !important; color: var(--text) !important; border-color: var(--border) !important; font-size: .875rem; border-radius: 7px; padding: 6px 10px; }
+.hist-filters input:focus,
+.hist-filters select:focus { border-color: var(--accent) !important; box-shadow: 0 0 0 2px rgba(110,168,254,.18) !important; outline: none; }
+.filter-search { flex: 1 1 200px; min-width: 160px; }
+.filter-select { flex: 0 0 140px; }
+.filter-btn    { flex: 0 0 auto; }
+
+/* day group */
+.day-group { margin-bottom: 14px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+
+.day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2); padding: 11px 16px;
+  cursor: pointer; user-select: none;
+  transition: background .15s;
+}
+.day-header:hover { background: rgba(110,168,254,.09); }
+.day-header-left { display: flex; align-items: center; gap: 10px; }
+.day-label { font-weight: 700; font-size: .95rem; }
+.day-count { font-size: .78rem; color: var(--muted); }
+.day-chevron { color: var(--muted); font-size: .85rem; transition: transform .2s; }
+.day-chevron.open { transform: rotate(180deg); }
+
+/* post row */
+.post-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 16px; border-top: 1px solid var(--border);
+  background: var(--surface);
+  transition: background .12s;
+}
+.post-row:hover { background: rgba(110,168,254,.04); }
+
+.post-type-icon {
+  font-size: 1.4rem; line-height: 1; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--surface2); display: flex; align-items: center; justify-content: center;
+}
+.post-body { flex: 1; min-width: 0; }
+.post-title { font-weight: 600; font-size: .9rem; line-height: 1.35; word-break: break-word; margin-bottom: 5px; }
+.post-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.post-time { font-size: .75rem; color: var(--muted); }
+.badge-type {
+  font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: rgba(110,168,254,.12); color: var(--accent); border: 1px solid rgba(110,168,254,.25);
+}
+.badge-kw {
+  font-size: .7rem; padding: 2px 7px; border-radius: 10px;
+  background: var(--surface2); color: var(--muted); border: 1px solid var(--border);
+  max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.badge-pub {
+  font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: rgba(109,222,136,.12); color: var(--green); border: 1px solid rgba(109,222,136,.25);
+}
+.badge-draft {
+  font-size: .7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid var(--border);
+}
+.post-action { flex-shrink: 0; align-self: center; }
+.btn-edit {
+  font-size: .78rem; padding: 5px 12px; border-radius: 7px;
+  background: rgba(110,168,254,.12); color: var(--accent); border: 1px solid rgba(110,168,254,.3);
+  text-decoration: none; display: inline-block; transition: background .15s;
+  white-space: nowrap;
+}
+.btn-edit:hover { background: rgba(110,168,254,.22); color: var(--accent); }
+
+/* count bar */
+.hist-count { font-size: .8rem; color: var(--muted); margin-bottom: 12px; padding-left: 2px; }
+
+/* empty / loading */
+.hist-empty { text-align: center; padding: 48px 16px; color: var(--muted); }
+.hist-empty .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+.hist-loading { text-align: center; padding: 48px; color: var(--muted); }
+
+/* session sub-group inside a day */
+.session-group { border-top: 1px solid var(--border); }
+.session-group:first-child { border-top: none; }
+.session-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px; background: rgba(110,168,254,.04);
+  cursor: pointer; gap: 10px;
+  transition: background .12s;
+}
+.session-header:hover { background: rgba(110,168,254,.08); }
+.session-header-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.session-topic {
+  font-size: .82rem; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;
+}
+.session-meta { font-size: .74rem; color: var(--muted); white-space: nowrap; }
+.session-chevron { color: var(--muted); font-size: .78rem; flex-shrink: 0; transition: transform .18s; }
+.session-chevron.open { transform: rotate(180deg); }
+
+@media (max-width: 576px) {
+  .session-header { padding: 7px 12px; }
+  .session-topic { max-width: 160px; font-size: .78rem; }
+}
+  .hist-filters { padding: 12px; gap: 8px; }
+  .filter-select { flex: 1 1 120px; }
+  .post-row { gap: 10px; padding: 12px; }
+  .post-type-icon { width: 30px; height: 30px; font-size: 1.1rem; }
+  .day-label { font-size: .88rem; }
+  .hist-header-actions .btn { font-size: .75rem; padding: 4px 8px; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="main-card p-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="section-title mb-0">📜 Historial de Generaciones</h5>
-    <div class="d-flex gap-2">
+<div class="hist-page">
+
+  <!-- Header -->
+  <div class="hist-header">
+    <h5>📜 Historial</h5>
+    <div class="hist-header-actions">
       {% if current_user and current_user.role == 'admin' %}
-      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarBorradores">
-        🗂️ Borrar borradores
-      </button>
-      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarHistorial">
-        🗑️ Borrar historial de log
-      </button>
+      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarBorradores">🗂️ Borradores</button>
+      <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalBorrarHistorial">🗑️ Log</button>
       {% endif %}
-      <a href="/" class="btn btn-sm btn-outline-secondary">← Volver al inicio</a>
+      <button class="btn btn-sm btn-outline-secondary" onclick="cargarHistorial()">↺ Refrescar</button>
+      <a href="/" class="btn btn-sm btn-outline-secondary">← Inicio</a>
     </div>
   </div>
 
   {% if current_user and current_user.role == 'admin' %}
-  <!-- Modal confirmar borrado de borradores -->
   <div class="modal fade" id="modalBorrarBorradores" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">🗂️ Borrar todos los borradores</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header"><h5 class="modal-title">🗂️ Borrar todos los borradores</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
-          <p>¿Estás seguro de que deseas eliminar <strong>todos los archivos de borrador</strong> de <code>drafts_output/</code>?</p>
-          <p class="text-danger small">Esta acción es irreversible. Se eliminarán todos los JSON de borradores guardados localmente.</p>
+          <p>¿Seguro que quieres eliminar <strong>todos los archivos de borrador</strong> de <code>drafts_output/</code>?</p>
+          <p class="text-danger small">Esta acción es irreversible.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" onclick="borrarBorradores()">Sí, eliminar todos</button>
+          <button type="button" class="btn btn-danger" onclick="borrarBorradores()">Sí, eliminar</button>
         </div>
       </div>
     </div>
   </div>
-  <!-- Modal confirmar borrado del log de historial -->
   <div class="modal fade" id="modalBorrarHistorial" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">🗑️ Borrar historial</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
+        <div class="modal-header"><h5 class="modal-title">🗑️ Borrar historial</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body">
-          <p>¿Estás seguro de que deseas borrar <strong>todo el historial</strong> de generaciones?</p>
-          <p class="text-danger small">Esta acción es irreversible. Los archivos de borrador en <code>drafts_output/</code> no se eliminarán.</p>
+          <p>¿Seguro que quieres borrar <strong>todo el historial</strong> de generaciones?</p>
+          <p class="text-danger small">Los archivos en <code>drafts_output/</code> no se eliminarán.</p>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-          <button type="button" class="btn btn-danger" onclick="borrarHistorial()">Sí, borrar todo</button>
+          <button type="button" class="btn btn-danger" onclick="borrarHistorial()">Sí, borrar</button>
         </div>
       </div>
     </div>
   </div>
   {% endif %}
-  <p class="text-muted small">Todas las sesiones de generación registradas localmente.</p>
 
   <!-- Filtros -->
-  <div class="row g-2 mb-3">
-    <div class="col-md-5">
-      <input id="searchInput" type="text" class="form-control form-control-sm"
-        placeholder="🔍 Buscar por título o keyword…" oninput="filtrar()">
+  <div class="hist-filters">
+    <div class="filter-group filter-search">
+      <label for="searchInput">Buscar</label>
+      <input id="searchInput" type="search" placeholder="Título, keyword, tipo…" oninput="filtrar()" autocomplete="off">
     </div>
-    <div class="col-md-3">
-      <select id="typeFilter" class="form-select form-select-sm" onchange="filtrar()">
-        <option value="">Todos los tipos</option>
+    <div class="filter-group filter-select">
+      <label for="typeFilter">Tipo</label>
+      <select id="typeFilter" onchange="filtrar()">
+        <option value="">Todos</option>
         <option value="comparativa">Comparativa</option>
         <option value="guia">Guía</option>
         <option value="resena_seo">Reseña SEO</option>
@@ -77,197 +199,241 @@
         <option value="howto">How-to</option>
       </select>
     </div>
-    <div class="col-md-2">
-      <select id="modeFilter" class="form-select form-select-sm" onchange="filtrar()">
-        <option value="">Todos los modos</option>
+    <div class="filter-group filter-select">
+      <label for="statusFilter">Estado</label>
+      <select id="statusFilter" onchange="filtrar()">
+        <option value="">Todos</option>
+        <option value="published">Publicados</option>
+        <option value="draft">Borradores</option>
+      </select>
+    </div>
+    <div class="filter-group filter-select">
+      <label for="modeFilter">Modo WP</label>
+      <select id="modeFilter" onchange="filtrar()">
+        <option value="">Todos</option>
         <option value="simulado">Simulado</option>
         <option value="real">Real</option>
       </select>
     </div>
-    <div class="col-md-2">
-      <select id="statusFilter" class="form-select form-select-sm" onchange="filtrar()">
-        <option value="">Todos los estados</option>
-        <option value="published">✅ Publicados</option>
-        <option value="draft">📝 Borradores</option>
-      </select>
-    </div>
-    <div class="col-md-2">
-      <button class="btn btn-sm btn-outline-secondary w-100" onclick="cargarHistorial()">🔃 Refrescar</button>
-    </div>
   </div>
 
-  <div id="historialCount" class="text-muted small mb-2"></div>
+  <div id="historialCount" class="hist-count"></div>
+  <div id="historialContent"><div class="hist-loading">Cargando…</div></div>
 
-  <!-- Contenido del historial -->
-  <div id="historialContent">
-    <div class="text-center text-muted py-5">Cargando historial…</div>
-  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const TYPE_ICONS  = {comparativa:"📊",guia:"📖",resena_seo:"🔍",opinion:"💬",listicle:"📋",howto:"🛠️"};
-const TYPE_LABELS = {comparativa:"Comparativa",guia:"Guía",resena_seo:"Reseña SEO",opinion:"Opinión",listicle:"Listicle",howto:"How-to"};
+const TYPE_ICONS  = {comparativa:'📊',guia:'📖',resena_seo:'🔍',opinion:'💬',listicle:'📋',howto:'🛠️'};
+const TYPE_LABELS = {comparativa:'Comparativa',guia:'Guía',resena_seo:'Reseña SEO',opinion:'Opinión',listicle:'Listicle',howto:'How-to'};
+
+// Nombres de día en español
+const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
 let _allEntries = [];
+// Track which day/session groups are open (default: all open)
+const _openDays     = new Set();
+const _openSessions = new Set();
+
+function formatDayLabel(dateStr) {
+  // dateStr: "YYYY-MM-DD"
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((today - dt) / 86400000);
+  const base = `${d} de ${MESES[m-1]} de ${y}`;
+  if (diff === 0) return `Hoy · ${base}`;
+  if (diff === 1) return `Ayer · ${base}`;
+  return `${DIAS[dt.getDay()].charAt(0).toUpperCase() + DIAS[dt.getDay()].slice(1)} · ${base}`;
+}
+
+function fuzzyMatch(entry, query) {
+  if (!query.trim()) return true;
+  const hay = [
+    entry.title || '', entry.focus_keyword || '',
+    TYPE_LABELS[entry.post_type] || entry.post_type || ''
+  ].join(' ').toLowerCase();
+  // Every word of the query must appear somewhere
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
 
 function cargarHistorial() {
-  document.getElementById('historialContent').innerHTML = '<div class="text-center text-muted py-4">Cargando…</div>';
-  fetch('/api/historial').then(r=>r.json()).then(data => {
+  document.getElementById('historialContent').innerHTML = '<div class="hist-loading">Cargando…</div>';
+  fetch('/api/historial').then(r => r.json()).then(data => {
     _allEntries = data;
+    // Open all day groups by default, sessions closed by default
+    _openDays.clear();
+    _openSessions.clear();
+    data.forEach(e => {
+      const day = (e.timestamp||'').substring(0,10);
+      if (day) _openDays.add(day);
+      // do NOT add session_id to _openSessions here (sessions closed by default)
+    });
     filtrar();
   }).catch(e => {
-    document.getElementById('historialContent').innerHTML = `<div class="alert alert-danger">Error: ${e}</div>`;
+    document.getElementById('historialContent').innerHTML = `<div class="alert alert-danger">Error al cargar: ${e}</div>`;
   });
 }
 
 function filtrar() {
-  const search  = document.getElementById('searchInput').value.toLowerCase();
+  const search  = document.getElementById('searchInput').value;
   const typeF   = document.getElementById('typeFilter').value;
   const modeF   = document.getElementById('modeFilter').value;
   const statusF = document.getElementById('statusFilter').value;
 
   const filtered = _allEntries.filter(e => {
-    if (search) {
-      const hay = ((e.title||'') + ' ' + (e.focus_keyword||'')).toLowerCase();
-      if (!hay.includes(search)) return false;
-    }
-    if (typeF && e.post_type !== typeF) return false;
-    if (modeF && e.wp_mode !== modeF) return false;
+    if (!e.draft_exists) return false;
+    if (!fuzzyMatch(e, search)) return false;
+    if (typeF   && e.post_type    !== typeF)   return false;
+    if (modeF   && e.wp_mode      !== modeF)   return false;
     if (statusF && e.draft_status !== statusF) return false;
     return true;
   });
 
   document.getElementById('historialCount').textContent =
-    `Mostrando ${filtered.length} entrada(s) de ${_allEntries.length} totales.`;
+    filtered.length === _allEntries.filter(e => e.draft_exists).length
+      ? `${filtered.length} publicaciones`
+      : `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''} de ${_allEntries.filter(e=>e.draft_exists).length} totales`;
 
-  if (filtered.length === 0) {
+  if (!filtered.length) {
     document.getElementById('historialContent').innerHTML =
-      '<div class="alert alert-info">No hay entradas que coincidan con los filtros.</div>';
+      `<div class="hist-empty"><div class="empty-icon">🔍</div><p>Sin resultados para esos filtros.</p></div>`;
     return;
   }
 
-  // Agrupar por sesión
-  const sessions = {};
+  // Group by day (YYYY-MM-DD), newest first
+  const byDay = {};
   filtered.forEach(e => {
-    const sid = e.session_id || '?';
-    if (!sessions[sid]) sessions[sid] = [];
-    sessions[sid].push(e);
+    const day = (e.timestamp||'').substring(0,10) || 'sin-fecha';
+    if (!byDay[day]) byDay[day] = {};
+    // Group within day by session_id
+    const sid = e.session_id || 'sin-sesion';
+    if (!byDay[day][sid]) byDay[day][sid] = [];
+    byDay[day][sid].push(e);
   });
+
+  const sortedDays = Object.keys(byDay).sort((a,b) => b.localeCompare(a));
 
   let html = '';
-  for (const [sid, entries] of Object.entries(sessions)) {
-    const ts      = (entries[0].timestamp||'').substring(0,16).replace('T',' ');
-    const wpMode  = entries[0].wp_mode || '?';
-    const modeIcon = wpMode === 'simulado' ? '🟡' : '✅';
-    const shortSid = sid.length > 8 ? sid.slice(-8) : sid;
+  sortedDays.forEach(day => {
+    const sessions = byDay[day];
+    const isOpen = _openDays.has(day);
+    const dayId = 'day_' + day.replace(/-/g,'');
+    // Flatten all posts in this day for summary counts
+    const allDayPosts = Object.values(sessions).flat();
+    const pubCount = allDayPosts.filter(p => p.draft_status === 'published').length;
+    const sessionCount = Object.keys(sessions).length;
 
-    // Solo mostrar entradas que tienen archivo local
-    const visibles = entries.filter(e => e.draft_exists);
-    if (!visibles.length) continue;
-
-    html += `<div class="card mb-3">
-      <div class="card-header d-flex justify-content-between align-items-center py-2" style="cursor:pointer"
-           onclick="toggleSession('sess_${shortSid}')">
-        <span>${modeIcon} <code>${ts}</code> — ${visibles.length} post(s) · sesión <code>${shortSid}</code></span>
-        <span id="chevron_${shortSid}">▼</span>
-      </div>
-      <div id="sess_${shortSid}" class="card-body p-0">`;
-
-    visibles.forEach(e => {
-      const pt    = e.post_type || '';
-      const icon  = TYPE_ICONS[pt] || '📄';
-      const label = TYPE_LABELS[pt] || pt;
-      const title = e.title || '(sin título)';
-      const kw    = e.focus_keyword || '';
-      const tokens = e.tokens_used || 0;
-      const df    = e.draft_file || '';
-      const exists = e.draft_exists;
-      const isPublished = e.draft_status === 'published';
-      const wpIdActual  = e.draft_wp_id || e.wp_post_id || null;
-
-      const statusBadge = isPublished
-        ? `<span class="badge" style="background:#198754;font-size:.75rem">✅ Publicado en WP${wpIdActual ? ' #'+wpIdActual : ''}</span>`
-        : `<span class="badge" style="background:#6c757d;font-size:.75rem">📝 Borrador</span>`;
-
-      html += `<div class="d-flex justify-content-between align-items-start p-3 border-bottom${isPublished ? ' ' : ''}" style="${isPublished ? 'border-left:3px solid #198754' : 'border-left:3px solid #6c757d'}">
-        <div>
-          <strong>${icon} ${label}</strong> — ${title}<br>
-          <span class="badge bg-secondary">${kw}</span>
-          ${statusBadge}
-          <span class="text-muted small ms-1">${tokens.toLocaleString()} tokens</span>
+    html += `<div class="day-group">
+      <div class="day-header" onclick="toggleDay('${dayId}','${day}')">
+        <div class="day-header-left">
+          <span class="day-label">${formatDayLabel(day)}</span>
+          <span class="day-count">${sessionCount} tópico${sessionCount!==1?'s':''} · ${allDayPosts.length} post${allDayPosts.length!==1?'s':''}${pubCount?' · '+pubCount+' publicado'+(pubCount!==1?'s':''):''}</span>
         </div>
-        <div class="ms-2 flex-shrink-0">`;
+        <span class="day-chevron ${isOpen?'open':''}" id="chev_${dayId}">▾</span>
+      </div>
+      <div id="${dayId}" style="display:${isOpen?'block':'none'}">`;
 
-      // Ocultar entradas sin archivo local
-      if (!exists) return;
+    // Sort sessions newest first (session_id is %Y%m%d_%H%M%S)
+    const sortedSessions = Object.entries(sessions).sort((a,b) => b[0].localeCompare(a[0]));
 
-      html += `<a href="/borrador?file=${encodeURIComponent(df)}" class="btn btn-sm btn-primary">📝 Ver / Editar</a>`;
+    sortedSessions.forEach(([sid, posts], si) => {
+      // Build topic label from focus field or keyword of first entry
+      const first = posts[0];
+      const topicLabel = (first.focus || '').trim() || first.focus_keyword || sid;
+      const sessionTime = (first.timestamp||'').substring(11,16);
+      const sesId = 'ses_' + sid.replace(/[^a-z0-9]/gi,'_');
+      const sesPubCount = posts.filter(p => p.draft_status === 'published').length;
+      const sesIsOpen = _openSessions.has(sid);
 
-      html += `</div></div>`;
+      html += `<div class="session-group">
+        <div class="session-header" onclick="toggleSession('${sesId}','${sid}')">
+          <div class="session-header-left">
+            <span class="session-meta">${sessionTime}</span>
+            <span class="session-topic" title="${topicLabel}">${topicLabel}</span>
+            <span class="session-meta">${posts.length} post${posts.length!==1?'s':''}${sesPubCount?' · '+sesPubCount+' ✓':''}</span>
+          </div>
+          <span class="session-chevron ${sesIsOpen?'open':''}" id="chev_${sesId}">▾</span>
+        </div>
+        <div id="${sesId}" style="display:${sesIsOpen?'block':'none'}">`;
+
+      // Sort posts within session by type order
+      posts.sort((a,b) => (a.timestamp||'').localeCompare(b.timestamp||''));
+      posts.forEach(e => {
+        const pt   = e.post_type || '';
+        const icon = TYPE_ICONS[pt]  || '📄';
+        const lbl  = TYPE_LABELS[pt] || pt;
+        const t    = e.title || '(sin título)';
+        const kw   = e.focus_keyword || '';
+        const df   = e.draft_file || '';
+        const isPub = e.draft_status === 'published';
+        const wpId  = e.draft_wp_id || e.wp_post_id || null;
+
+        html += `<div class="post-row">
+          <div class="post-type-icon">${icon}</div>
+          <div class="post-body">
+            <div class="post-title">${t}</div>
+            <div class="post-meta">
+              <span class="badge-type">${lbl}</span>
+              ${kw ? `<span class="badge-kw" title="${kw}">${kw}</span>` : ''}
+              ${isPub
+                ? `<span class="badge-pub">✓ Publicado${wpId?' #'+wpId:''}</span>`
+                : `<span class="badge-draft">Borrador</span>`}
+            </div>
+          </div>
+          <div class="post-action">
+            <a href="/borrador?file=${encodeURIComponent(df)}" class="btn-edit">Ver / Editar</a>
+          </div>
+        </div>`;
+      });
+
+      html += `</div></div>`;  // close session body + session-group
     });
 
-    html += `</div></div>`;
-  }
-
-  document.getElementById('historialContent').innerHTML = html || '<div class="text-muted">Sin entradas.</div>';
-}
-
-function toggleSession(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = el.style.display === 'none' ? '' : 'none';
-}
-
-function recuperarDesdeWP(wpId, postType, entry) {
-  if (!confirm('¿Descargar el post desde WordPress y guardarlo localmente?')) return;
-  fetch('/api/historial/recuperar', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({wp_post_id: wpId, post_type: postType, entry})
-  }).then(r=>r.json()).then(d => {
-    if (d.ok) {
-      showToast('Recuperado: ' + d.filename);
-      window.location.href = '/borrador?file=' + encodeURIComponent(d.filename);
-    } else {
-      showToast(d.error || 'Error al recuperar', 'danger');
-    }
+    html += `</div></div>`;  // close day body + day-group
   });
+
+  document.getElementById('historialContent').innerHTML = html;
 }
 
-// Cargar al inicio
+function toggleDay(dayId, day) {
+  const el  = document.getElementById(dayId);
+  const chev = document.getElementById('chev_' + dayId);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.classList.toggle('open', !isOpen);
+  if (isOpen) _openDays.delete(day); else _openDays.add(day);
+}
+
+function toggleSession(sesId, sid) {
+  const el   = document.getElementById(sesId);
+  const chev = document.getElementById('chev_' + sesId);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.classList.toggle('open', !isOpen);
+  if (isOpen) _openSessions.delete(sid); else _openSessions.add(sid);
+}
+
 cargarHistorial();
 
 function borrarHistorial() {
-  fetch('/api/historial', {method:'DELETE'})
-    .then(r => r.json())
-    .then(d => {
-      bootstrap.Modal.getInstance(document.getElementById('modalBorrarHistorial'))?.hide();
-      if (d.ok) {
-        _allEntries = [];
-        filtrar();
-        calcularStats([]);
-        showToast('Historial de log borrado correctamente.');
-      } else {
-        showToast(d.error || 'Error al borrar', 'danger');
-      }
-    })
-    .catch(e => showToast('Error: ' + e, 'danger'));
+  fetch('/api/historial', {method:'DELETE'}).then(r=>r.json()).then(d => {
+    bootstrap.Modal.getInstance(document.getElementById('modalBorrarHistorial'))?.hide();
+    if (d.ok) { _allEntries = []; filtrar(); showToast('Historial borrado.'); }
+    else showToast(d.error||'Error al borrar','danger');
+  }).catch(e => showToast('Error: '+e,'danger'));
 }
 
 function borrarBorradores() {
-  fetch('/api/borradores/todos', {method:'DELETE'})
-    .then(r => r.json())
-    .then(d => {
-      bootstrap.Modal.getInstance(document.getElementById('modalBorrarBorradores'))?.hide();
-      if (d.ok) {
-        showToast(`${d.eliminados} borrador(es) eliminado(s) correctamente.`);
-        cargarHistorial();
-      } else {
-        showToast(d.error || 'Error al eliminar', 'danger');
-      }
-    })
-    .catch(e => showToast('Error: ' + e, 'danger'));
+  fetch('/api/borradores/todos', {method:'DELETE'}).then(r=>r.json()).then(d => {
+    bootstrap.Modal.getInstance(document.getElementById('modalBorrarBorradores'))?.hide();
+    if (d.ok) { showToast(`${d.eliminados} borrador(es) eliminado(s).`); cargarHistorial(); }
+    else showToast(d.error||'Error al eliminar','danger');
+  }).catch(e => showToast('Error: '+e,'danger'));
 }
 </script>
 {% endblock %}

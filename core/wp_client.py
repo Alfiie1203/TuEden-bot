@@ -19,11 +19,31 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import re
+
 import requests
 from loguru import logger
 from requests.auth import HTTPBasicAuth
 
 from models.post_draft import PostDraft
+
+
+# ---------------------------------------------------------------------------
+# Utilidad de limpieza de contenido
+# ---------------------------------------------------------------------------
+
+def _clean_content_newlines(html: str) -> str:
+    """
+    Elimina secuencias literales '\\n' que no son saltos de línea reales,
+    sino texto spurio que a veces queda al parsear la respuesta de Gemini.
+    Los saltos de línea reales (carácter 0x0A) se preservan intactos.
+    """
+    # Reemplazar literal \n (dos caracteres: barra + n) que NO sea un salto real
+    # También limpiar \t y \r literales que pudieran quedar
+    cleaned = html.replace('\\n', '\n').replace('\\t', ' ').replace('\\r', '')
+    # Colapsar múltiples líneas vacías consecutivas a máximo 2
+    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+    return cleaned
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +198,7 @@ class _SimulatedWPClient:
             "created_at":       datetime.now().isoformat(),
             "post_type":        draft.post_type,
             "title":            draft.title,
-            "content":          draft.content,
+            "content":          _clean_content_newlines(draft.content),
             "meta_description": draft.meta_description,
             "focus_keyword":    draft.focus_keyword,
             "affiliate_url":    draft.affiliate_url or "",
@@ -248,6 +268,70 @@ class _RealWPClient:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+    def update_draft(self, wp_post_id: int, draft: PostDraft) -> int:
+        """
+        Actualiza un post existente en WordPress (PUT /wp/v2/posts/<id>).
+        Se usa cuando el borrador ya fue publicado y el usuario quiere re-enviar
+        el contenido editado sin crear un duplicado.
+        Devuelve el mismo wp_post_id.
+        """
+        endpoint = f"{self._api}/posts/{wp_post_id}"
+
+        content_with_images = self._inject_images(draft)
+        content_with_images = _clean_content_newlines(content_with_images)
+
+        payload = {
+            "title":      draft.title,
+            "content":    content_with_images,
+            "categories": getattr(draft, "categories", []) or [],
+            "tags":       getattr(draft, "tags", []) or [],
+            "meta": {
+                "_yoast_wpseo_metadesc": draft.meta_description,
+                "_yoast_wpseo_focuskw":  draft.focus_keyword,
+                "affiliate_url":         draft.affiliate_url or "",
+                "post_type_label":       str(draft.post_type),
+                "ai_generated":          "1",
+            },
+        }
+
+        try:
+            response = requests.post(
+                endpoint,
+                json    = payload,
+                auth    = self.auth,
+                headers = self.headers,
+                timeout = 30,
+            )
+        except requests.exceptions.ConnectionError as exc:
+            raise ConnectionError(
+                f"❌ No se puede conectar a WordPress ({self.base_url}). "
+                f"Verifica que el servidor esté online. Detalle: {exc}"
+            ) from exc
+        except requests.exceptions.Timeout:
+            raise TimeoutError(
+                f"⏱️ WordPress no respondió en 30 segundos ({self.base_url})."
+            )
+
+        if response.status_code == 401:
+            raise PermissionError(
+                "❌ Autenticación fallida en WordPress. Verifica credenciales en .env"
+            )
+        if not response.ok:
+            raise RuntimeError(
+                f"❌ WordPress devolvió HTTP {response.status_code}. "
+                f"Respuesta: {response.text[:300]}"
+            )
+
+        self._update_aioseo_meta(
+            wp_post_id,
+            draft.meta_description,
+            draft.focus_keyword,
+            getattr(draft, "seo_keywords", []) or [],
+        )
+
+        logger.success(f"[REAL] Post actualizado en WP → ID {wp_post_id}")
+        return wp_post_id
+
     def create_draft(self, draft: PostDraft) -> int:
         """
         Crea un post en WordPress con estado 'draft'.
@@ -258,6 +342,9 @@ class _RealWPClient:
 
         # ── Subir imágenes y reemplazar marcadores en el contenido ───────────
         content_with_images = self._inject_images(draft)
+
+        # ── Limpiar literal \n que pueda haber quedado en el HTML ────────────
+        content_with_images = _clean_content_newlines(content_with_images)
 
         payload = {
             "title":      draft.title,

@@ -27,6 +27,31 @@ from core.wp_client import WordPressClient
 from models.post_draft import PostDraft, PostType
 
 
+# ---------------------------------------------------------------------------
+# Validación de calidad del contenido generado
+# ---------------------------------------------------------------------------
+
+_MIN_WORDS     = 450   # mínimo de palabras en el cuerpo del artículo
+_MIN_H2        = 2     # mínimo de secciones H2
+
+def check_content_quality(content: str) -> tuple[bool, str]:
+    """
+    Devuelve (True, "") si el contenido supera los umbrales de calidad.
+    Devuelve (False, razón) si el contenido es deficiente.
+    """
+    # Contar palabras sin etiquetas HTML
+    text  = re.sub(r'<[^>]+>', ' ', content or '')
+    words = len(text.split())
+    if words < _MIN_WORDS:
+        return False, f"demasiado corto ({words} palabras, mínimo {_MIN_WORDS})"
+    if "[contenido truncado" in content:
+        return False, "JSON truncado detectado"
+    h2_count = content.lower().count('<h2')
+    if h2_count < _MIN_H2:
+        return False, f"estructura HTML pobre (solo {h2_count} subtítulo/s H2, mínimo {_MIN_H2})"
+    return True, ""
+
+
 # Orden y etiquetas según el modo de generación
 POST_TYPES_AMAZON: list[dict] = [
     {"key": "comparativa", "label": "Post A – Comparativa"},
@@ -211,6 +236,38 @@ class ContentOrchestrator:
                     reviewer      = reviewer,
                     voice_profile = voice_profile,
                 )
+
+                # ── Validar calidad del contenido; reintentar si es deficiente ──
+                for _quality_attempt in range(2):
+                    _ok, _reason = check_content_quality(raw.get("content", ""))
+                    if _ok:
+                        break
+                    logger.warning(
+                        f"[Orchestrator] Contenido de '{post_type}' deficiente "
+                        f"({_reason}) — reintentando (intento {_quality_attempt + 1}/2)…"
+                    )
+                    self.progress_cb(step, total, f"Contenido demasiado corto, regenerando {label}…")
+                    _retry_focus = (
+                        individual_focus
+                        + f'\nIMPORTANTE: el intento anterior generó un artículo {_reason}. '
+                        f'Esta vez escribe un artículo COMPLETO con mínimo 600 palabras, '
+                        f'al menos 4 secciones H2 y sin cortar el JSON.'
+                    )
+                    raw = self.gemini.generate_draft(
+                        post_type, topic, affiliate_url,
+                        prompt_map    = prompt_map,
+                        focus         = _retry_focus,
+                        reviewer      = reviewer,
+                        voice_profile = voice_profile,
+                    )
+                else:
+                    # Ambos reintentos fallaron — loguear pero continuar con lo que hay
+                    _ok2, _reason2 = check_content_quality(raw.get("content", ""))
+                    if not _ok2:
+                        logger.error(
+                            f"[Orchestrator] '{post_type}' sigue siendo deficiente tras 2 reintentos "
+                            f"({_reason2}). Se guarda tal como está."
+                        )
 
                 # Garantizar que meta_description siempre tiene contenido
                 if not raw.get("meta_description", "").strip():

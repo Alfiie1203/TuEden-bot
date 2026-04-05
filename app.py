@@ -871,6 +871,90 @@ def api_borrador_guardar(filename):
     return jsonify({"ok": True})
 
 
+@app.post("/api/borrador/<path:filename>/regenerar")
+@login_required
+def api_borrador_regenerar(filename):
+    """Regenera el contenido de un borrador llamando de nuevo a Gemini."""
+    global _token_manager
+    safe = _safe_draft_path(filename)
+    if safe is None or not safe.exists():
+        return jsonify({"error": "Borrador no encontrado"}), 404
+
+    draft_data = json.loads(safe.read_text(encoding="utf-8"))
+    mock_mode, _ = _get_modes()
+
+    # Normalizar post_type (puede venir como "PostType.OPINION" o "opinion")
+    raw_pt    = draft_data.get("post_type", "")
+    post_type = raw_pt.lower().replace("posttype.", "").replace(" ", "_")
+
+    title         = draft_data.get("title", "")
+    focus_keyword = draft_data.get("focus_keyword", "")
+    affiliate_url = draft_data.get("affiliate_url") or None
+
+    # Determinar prompt_map según modo (amazon si hay affiliate_url)
+    try:
+        from core.prompt_templates import PROMPT_MAP, PROMPT_MAP_LIBRE
+        prompt_map = PROMPT_MAP if affiliate_url else PROMPT_MAP_LIBRE
+    except Exception as e:
+        return jsonify({"error": f"Error cargando prompts: {e}"}), 500
+
+    if post_type not in prompt_map:
+        return jsonify({"error": f"Tipo de post '{post_type}' no reconocido para regenerar"}), 400
+
+    # Construir focus forzando el mismo título
+    focus = (
+        f'El título del artículo DEBE SER EXACTAMENTE: "{title}". '
+        f'Desarrolla el contenido para que encaje perfectamente con ese título. '
+        f'Escribe un artículo COMPLETO con mínimo 600 palabras y al menos 4 secciones H2.'
+    )
+    if focus_keyword:
+        focus += f' La focus_keyword es: "{focus_keyword}".'
+
+    try:
+        from core.gemini_client import GeminiClient
+        from core.orchestrator import check_content_quality
+        tm     = get_token_manager()
+        gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
+
+        # Hasta 3 intentos para obtener contenido de calidad
+        raw = None
+        last_reason = ""
+        for attempt in range(3):
+            raw = gemini.generate_draft(
+                post_type     = post_type,
+                topic         = title,
+                affiliate_url = affiliate_url,
+                prompt_map    = prompt_map,
+                focus         = focus if attempt == 0 else (
+                    focus + f' (intento {attempt + 1}/3: el anterior fue {last_reason})'
+                ),
+            )
+            ok, last_reason = check_content_quality(raw.get("content", ""))
+            if ok:
+                break
+
+        _token_manager = gemini.token_manager
+
+        # Actualizar solo el contenido y metadatos SEO; conservar imágenes, categorías, etc.
+        draft_data["content"]          = raw.get("content", draft_data["content"])
+        draft_data["title"]            = raw.get("title", title)
+        draft_data["meta_description"] = raw.get("meta_description", draft_data.get("meta_description", ""))
+        draft_data["focus_keyword"]    = raw.get("focus_keyword", focus_keyword)
+
+        safe.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return jsonify({
+            "ok":              True,
+            "title":           draft_data["title"],
+            "content":         draft_data["content"],
+            "meta_description": draft_data["meta_description"],
+            "focus_keyword":   draft_data["focus_keyword"],
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.post("/api/borrador/<path:filename>/eliminar")
 @login_required
 def api_borrador_eliminar(filename):
@@ -903,12 +987,15 @@ def api_borrador_publicar(filename):
         return jsonify({"error": "No encontrado"}), 404
     draft_data     = json.loads(safe.read_text(encoding="utf-8"))
     _, simulate_wp = _get_modes()
-    # Bloquear re-publicación si el borrador ya fue publicado en WP
-    if draft_data.get("wp_post_id") and not simulate_wp:
+    body           = request.get_json() or {}
+    force_update   = bool(body.get("force_update", False))
+    force_create   = bool(body.get("force_create", False))
+
+    # Bloquear re-publicación si ya fue publicado, salvo que el usuario lo fuerce
+    if draft_data.get("wp_post_id") and not simulate_wp and not force_update and not force_create:
         return jsonify({
             "error": f"⚠️ Este borrador ya fue publicado en WordPress (ID: {draft_data['wp_post_id']}). No se puede publicar dos veces."
         }), 409
-    body           = request.get_json() or {}
     images         = body.get("images",     draft_data.get("images", []))
     categories     = body.get("categories", draft_data.get("categories", []))
     tags           = body.get("tags",       draft_data.get("tags", []))
@@ -993,6 +1080,23 @@ def api_borrador_publicar(filename):
             # Insertar el badge AL FINAL del artículo
             post_draft.content = post_draft.content + "\n\n" + _badge_html
 
+        existing_wp_id = draft_data.get("wp_post_id")
+
+        # force_update → actualizar post existente en WP (sin crear duplicado)
+        if force_update and existing_wp_id and not simulate_wp:
+            wid = wp.update_draft(int(existing_wp_id), post_draft)
+            draft_data["status"] = "published"
+            safe.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            wp_url = os.getenv("WP_BASE_URL", "").rstrip("/")
+            return jsonify({
+                "ok":         True,
+                "wp_post_id": wid,
+                "updated":    True,
+                "edit_url":   f"{wp_url}/wp-admin/post.php?post={wid}&action=edit",
+            })
+
+        # force_create → ignorar wp_post_id anterior y crear un post nuevo en WP
+        # (útil cuando el post fue eliminado de WP y hay que volver a subirlo)
         wid = wp.create_draft(post_draft)
         if not simulate_wp:
             # Conservar el borrador actualizado con el ID de WP (no eliminar)
@@ -1461,6 +1565,521 @@ def api_admin_gemini_keys_delete(n):
 
 
 # ==================================================================================
+# CREADOR DE CONTENIDO PARA REDES SOCIALES
+# ==================================================================================
+SOCIAL_DIR = Path("social_drafts")
+SOCIAL_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _safe_social_path(filename: str) -> Path | None:
+    base = SOCIAL_DIR.resolve()
+    safe = (SOCIAL_DIR / Path(filename).name).resolve()
+    if not str(safe).startswith(str(base)):
+        return None
+    return safe
+
+
+@app.route("/social")
+@login_required
+def social_page():
+    return render_template("social.html")
+
+
+@app.get("/api/social/historial")
+@login_required
+def api_social_historial():
+    """Devuelve la lista de borradores de contenido social guardados."""
+    files = []
+    for f in sorted(SOCIAL_DIR.glob("social_*.json"), reverse=True):
+        try:
+            meta = json.loads(f.read_text(encoding="utf-8")).get("meta", {})
+            files.append({
+                "filename": f.name,
+                "topic":    meta.get("topic", f.stem),
+                "mode":     meta.get("mode", ""),
+                "created_at": meta.get("created_at", ""),
+            })
+        except Exception:
+            pass
+    return jsonify(files[:50])
+
+
+@app.get("/api/social/historial/<filename>")
+@login_required
+def api_social_borrador(filename):
+    """Devuelve un borrador social guardado."""
+    path = _safe_social_path(filename)
+    if not path or not path.exists():
+        return jsonify({"error": "No encontrado"}), 404
+    return jsonify(json.loads(path.read_text(encoding="utf-8")))
+
+
+@app.post("/api/social/generar")
+@login_required
+def api_social_generar():
+    """Genera contenido optimizado para TikTok, Instagram y Facebook usando Gemini."""
+    data = request.get_json(force=True)
+    mode      = data.get("mode", "scratch")   # "borrador" | "scratch"
+    topic     = (data.get("input") or "").strip()
+    platforms = data.get("platforms", ["tiktok", "instagram", "facebook"])
+
+    if not topic:
+        return jsonify({"error": "Se requiere un tema o borrador."}), 400
+    if len(topic) > 4000:
+        return jsonify({"error": "El texto de entrada es demasiado largo (máx 4000 caracteres)."}), 400
+
+    if mode == "borrador":
+        input_instruction = (
+            "Analiza este borrador de blog y extrae los puntos más valiosos "
+            "para adaptarlos a contenido viral en redes sociales:\n\nBORRADOR:\n" + topic
+        )
+    else:
+        input_instruction = (
+            "Crea contenido original para redes sociales buscando el ángulo "
+            "más comercial, práctico y viral:\n\nTEMA: " + topic
+        )
+
+    prompt = f"""Eres un experto en marketing digital, producción audiovisual y estrategia de contenido viral.
+
+{input_instruction}
+
+Genera el siguiente contenido en formato JSON estrictamente válido. SOLO responde con el JSON, sin texto extra ni bloques markdown.
+
+ESTRUCTURA REQUERIDA (completa todos los campos, sin omitir ninguno):
+{{
+  "tiktok": {{
+    "hooks": [
+      {{"tipo": "curiosidad", "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}},
+      {{"tipo": "fomo",       "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}},
+      {{"tipo": "beneficio",  "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}}
+    ],
+    "guion": [
+      {{
+        "escena": 1,
+        "segundos": "0-3",
+        "tipo": "gancho",
+        "toma": "Descripción técnica del plano: ángulo, encuadre, distancia a cámara",
+        "dialogo": "TEXTO EXACTO a decir en voz alta, sin paréntesis ni indicaciones, como si lo leyeras",
+        "texto_pantalla": "Frase corta que aparece como texto en pantalla (bold, contraste alto)",
+        "nota_edicion": "Corte rápido / zoom automático / sonido de impacto al inicio"
+      }},
+      {{
+        "escena": 2,
+        "segundos": "3-15",
+        "tipo": "retencion",
+        "toma": "Descripción técnica del plano",
+        "dialogo": "TEXTO EXACTO: presenta el problema o contexto. Genera tensión. Usa pausas dramáticas.",
+        "texto_pantalla": "Texto refuerzo en pantalla",
+        "nota_edicion": "Jump cuts cada 2-3 segundos. Música al 20%."
+      }},
+      {{
+        "escena": 3,
+        "segundos": "15-30",
+        "tipo": "valor_1",
+        "toma": "Descripción técnica del plano (puede ser b-roll, overhead, pantalla grabada)",
+        "dialogo": "TEXTO EXACTO: explica el primer punto de valor con ejemplo concreto",
+        "texto_pantalla": "PUNTO 1: [resumen en 5 palabras]",
+        "nota_edicion": "Texto aparece al inicio de la escena. Corte a b-roll si hay demo."
+      }},
+      {{
+        "escena": 4,
+        "segundos": "30-45",
+        "tipo": "valor_2",
+        "toma": "Descripción técnica del plano",
+        "dialogo": "TEXTO EXACTO: explica el segundo punto con dato o error común a evitar",
+        "texto_pantalla": "PUNTO 2: [resumen en 5 palabras]",
+        "nota_edicion": "Zoom sutil en la palabra clave. Subtítulos activados."
+      }},
+      {{
+        "escena": 5,
+        "segundos": "45-55",
+        "tipo": "resultado",
+        "toma": "Plano medio frontal, energía más alta, gestos expresivos",
+        "dialogo": "TEXTO EXACTO: resume el beneficio clave y conecta con la vida del espectador",
+        "texto_pantalla": "EL RESULTADO: [frase impactante]",
+        "nota_edicion": "Música sube ligeramente. Ritmo de edición más rápido."
+      }},
+      {{
+        "escena": 6,
+        "segundos": "55-60",
+        "tipo": "cta",
+        "toma": "Plano medio, señalar pantalla o apuntar hacia abajo con el dedo",
+        "dialogo": "TEXTO EXACTO del CTA: específico, que invite a guardar o comentar con una razón concreta",
+        "texto_pantalla": "GUARDA ESTO 👇 / COMENTA SI TE PASÓ",
+        "nota_edicion": "Pantalla congela 0.5s en último frame. Audio fade out."
+      }}
+    ],
+    "checklist": {{
+      "grabacion": [
+        {{"item": "...", "detalle": "Descripción específica de cómo ejecutar este paso"}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ],
+      "recursos": [
+        {{"item": "...", "tipo": "prop/iluminacion/audio/locacion"}},
+        {{"item": "...", "tipo": "..."}},
+        {{"item": "...", "tipo": "..."}}
+      ],
+      "edicion": [
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ]
+    }}
+  }},
+  "instagram": {{
+    "slides": [
+      {{"numero": 1, "tipo": "portada",    "titulo": "Titular magnético (máx 8 palabras)", "subtitulo": "Subtítulo complementario", "cuerpo": "", "estetica": "Paleta de colores + tipografía + elemento visual principal"}},
+      {{"numero": 2, "tipo": "problema",   "titulo": "El problema real", "subtitulo": "", "cuerpo": "2-3 oraciones que describan el problema con el que el lector se identifica", "estetica": "..."}},
+      {{"numero": 3, "tipo": "desarrollo", "titulo": "Paso / Consejo 1", "subtitulo": "", "cuerpo": "Explicación clara y accionable del primer punto. Una idea, un slide.", "estetica": "..."}},
+      {{"numero": 4, "tipo": "desarrollo", "titulo": "Paso / Consejo 2", "subtitulo": "", "cuerpo": "Segundo punto con ejemplo o dato concreto.", "estetica": "..."}},
+      {{"numero": 5, "tipo": "desarrollo", "titulo": "Paso / Consejo 3", "subtitulo": "", "cuerpo": "Tercer punto. Si aplica, incluye una mini-comparación o error a evitar.", "estetica": "..."}},
+      {{"numero": 6, "tipo": "desarrollo", "titulo": "Paso / Consejo 4", "subtitulo": "", "cuerpo": "Cuarto punto práctico y diferenciador.", "estetica": "..."}},
+      {{"numero": 7, "tipo": "resumen",    "titulo": "Quick Win ⚡", "subtitulo": "", "cuerpo": "Una sola acción que el lector puede ejecutar hoy mismo para ver resultados rápidos.", "estetica": "Fondo vibrante/diferenciado para que destaque del resto del carrusel"}},
+      {{"numero": 8, "tipo": "cta",        "titulo": "¿Te fue útil?", "subtitulo": "", "cuerpo": "Instrucción clara: GUARDA + COMPARTE + COMENTA. Incluye qué comentar exactamente.", "estetica": "Color de marca, CTA visual bold"}}
+    ],
+    "hashtags": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."],
+    "checklist": {{
+      "diseno": [
+        {{"item": "...", "detalle": "Indicación visual específica de diseño o Canva para este slide"}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ],
+      "recursos": [
+        {{"item": "...", "tipo": "imagen/icono/color/tipografia"}},
+        {{"item": "...", "tipo": "..."}},
+        {{"item": "...", "tipo": "..."}}
+      ],
+      "publicacion": [
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ]
+    }}
+  }},
+  "facebook": {{
+    "post": "Post completo listo para copiar-pegar (200-350 palabras). Tono cercano, personal, narrativo. Usa saltos de línea para facilitar la lectura. Incluye emojis estratégicos. NO incluyas la pregunta de engagement aquí.",
+    "pregunta_engagement": "Pregunta abierta específica al final para activar comentarios. Que sea fácil de responder.",
+    "checklist": {{
+      "contenido": [
+        {{"item": "...", "detalle": "Verificación específica del post texto"}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ],
+      "recursos": [
+        {{"item": "...", "tipo": "imagen/video/gif/enlace"}},
+        {{"item": "...", "tipo": "..."}}
+      ],
+      "publicacion": [
+        {{"item": "...", "detalle": "Mejor horario, configuración de privacidad, etiquetas"}},
+        {{"item": "...", "detalle": "..."}},
+        {{"item": "...", "detalle": "..."}}
+      ]
+    }}
+  }}
+}}
+
+REGLAS DE CALIDAD (obligatorias):
+1. TikTok guion: el campo "dialogo" de cada escena debe ser TEXTO LITERAL para leer en voz alta, no descripciones entre paréntesis.
+2. TikTok guion: las 6 escenas cubren el video completo de 60 segundos sin huecos.
+3. Instagram slides: 8 slides exactos en el orden dado (portada > problema > x4 desarrollo > resumen > cta).
+4. Facebook: el post NO termina con la pregunta (esa va en "pregunta_engagement" separada).
+5. Todos los checklists: items concretos y ejecutables hoy, no genéricos.
+6. Hashtags de Instagram: mezcla de 4 alto volumen (>500k) + 4 nicho específico (<100k) + 2 de marca/tendencia.
+7. Todo en español neutro profesional (sin regionalismos).
+8. JSON perfectamente válido: sin comas finales, sin saltos de línea dentro de strings (usar \\n si se necesita).
+"""
+
+    mock_mode, _ = _get_modes()
+
+    if mock_mode:
+        import time as _time
+        _time.sleep(0.8)
+        result = _social_mock_response(topic)
+    else:
+        try:
+            tm = get_token_manager()
+            if not tm or not tm.valid_keys_count:
+                return jsonify({"error": "No hay API keys de Gemini configuradas."}), 503
+
+            import google.generativeai as genai
+            from core.gemini_client import _apply_proxy_from_env, _install_dns_patch
+            _apply_proxy_from_env()
+            _install_dns_patch()
+
+            api_key = tm.get_active_key()
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel(
+                model_name="gemini-2.5-flash",
+                generation_config=genai.GenerationConfig(
+                    temperature=0.8,
+                    max_output_tokens=8192,
+                ),
+            )
+            response = model.generate_content(prompt)
+            raw = response.text.strip()
+            if raw.startswith("```"):
+                raw = re.sub(r"^```[a-z]*\n?", "", raw)
+                raw = re.sub(r"\n?```$", "", raw)
+            result = json.loads(raw)
+
+        except json.JSONDecodeError as e:
+            return jsonify({"error": f"Gemini devolvió JSON inválido: {e}"}), 500
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # Guardar siempre el resultado con metadatos
+    meta = {
+        "topic":      topic[:120],
+        "mode":       mode,
+        "mock":       mock_mode,
+        "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "platforms":  platforms,
+    }
+    result["meta"] = meta
+    slug = re.sub(r"[^a-z0-9]+", "_", topic[:40].lower()).strip("_")
+    ts   = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"social_{ts}_{slug}.json"
+    try:
+        (SOCIAL_DIR / filename).write_text(
+            json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass  # no bloquear si falla escritura
+
+    return jsonify({"ok": True, "data": result, "saved_as": filename})
+
+
+def _social_mock_response(topic: str) -> dict:
+    """Respuesta mock detallada para el creador de contenido social."""
+    t = topic[:60] if len(topic) > 60 else topic
+    ts = topic[:30] if len(topic) > 30 else topic  # slug corto
+    return {
+        "tiktok": {
+            "hooks": [
+                {
+                    "tipo": "curiosidad",
+                    "texto": f"Lo que nadie te dice sobre {ts}...",
+                    "descripcion_visual": "Zoom dramático de lejos a primer plano en 1 segundo. Expresión de sorpresa. Fondo liso o difuminado. Texto animado apareciendo letra a letra."
+                },
+                {
+                    "tipo": "fomo",
+                    "texto": f"El 90% hace {ts} mal. ¿Eres del 10%?",
+                    "descripcion_visual": "Corte rápido: plano del error (tachado rojo en pantalla) → plano del método correcto (check verde). Energía alta, hablar rápido."
+                },
+                {
+                    "tipo": "beneficio",
+                    "texto": f"En 60 segundos dominas {ts}. Empieza.",
+                    "descripcion_visual": "Temporizador en esquina superior. Plano medio frontal, cámara a nivel de ojos, ring light visible en pupilas. Señalar pantalla al decir 'empieza'."
+                }
+            ],
+            "guion": [
+                {
+                    "escena": 1,
+                    "segundos": "0-3",
+                    "tipo": "gancho",
+                    "toma": "Plano medio frontal. Cámara a nivel de ojos. Fondo liso o bokeh. Ring light activada. Grabación vertical 9:16.",
+                    "dialogo": f"Para. Lo que nadie te explica sobre {t} es esto.",
+                    "texto_pantalla": f"🚨 {ts.upper()}: EL ERROR #1",
+                    "nota_edicion": "Zoom automático de 0.9x a 1.1x en el primer segundo. Sonido de 'whoosh' o campana al inicio. Corte seco al siguiente clip."
+                },
+                {
+                    "escena": 2,
+                    "segundos": "3-15",
+                    "tipo": "retencion",
+                    "toma": "Plano medio frontal. Mismo encuadre. Empezar a hablar más rápido. Gestos con manos activos.",
+                    "dialogo": f"La mayoría se acerca a {t} sin saber esto: hay un paso que todo el mundo se salta. Y ese paso es exactamente el que hace la diferencia entre resultados reales y perder el tiempo. Te lo explico en 3 puntos.",
+                    "texto_pantalla": "3 puntos que cambian todo 👇",
+                    "nota_edicion": "Jump cut cada 2-3 segundos. Subtítulos automáticos activados al 100%. Música de fondo al 15%."
+                },
+                {
+                    "escena": 3,
+                    "segundos": "15-30",
+                    "tipo": "valor_1",
+                    "toma": "Plano medio o b-roll de manos mostrando el proceso / pantalla / objeto. Si es digital: grabación de pantalla con recuadro de webcam pequeño en esquina.",
+                    "dialogo": f"Punto uno. El fundamento. Con {t}, lo primero que necesitas entender es EL POR QUÉ, no el cómo. Cuando entiendes por qué funciona, todo lo demás tiene sentido.",
+                    "texto_pantalla": "PUNTO 1: Entiende el POR QUÉ primero",
+                    "nota_edicion": "Texto aparece en pantalla 0.5s después de que empieces a hablar. Corte a b-roll si estás mostrando algo. Resalta la palabra clave con color."
+                },
+                {
+                    "escena": 4,
+                    "segundos": "30-45",
+                    "tipo": "valor_2",
+                    "toma": "Plano medio frontal. Levantar dos dedos al decir 'punto dos'. Mantener contacto visual con cámara.",
+                    "dialogo": f"Punto dos. El error costoso. El 80% falla en {t} porque intenta hacer todo a la vez. La clave es enfocarse en una sola variable primero, medirla, y solo entonces sumar la siguiente.",
+                    "texto_pantalla": "PUNTO 2: Una variable a la vez ✅",
+                    "nota_edicion": "Zoom sutil en la palabra 'error'. Añadir ícono de X rojo cuando digas el error y ✅ verde cuando digas la solución."
+                },
+                {
+                    "escena": 5,
+                    "segundos": "45-55",
+                    "tipo": "resultado",
+                    "toma": "Plano medio frontal. Energía más alta. Sonreír. Inclinarse ligeramente hacia la cámara al dar el dato clave.",
+                    "dialogo": f"Y el resultado cuando aplicas esto correctamente: en lugar de frustrarte con {t}, empiezas a ver progreso en días, no en meses. Porque estás trabajando con el sistema, no contra él.",
+                    "texto_pantalla": "RESULTADO: Progreso en días 🚀",
+                    "nota_edicion": "Transición de entrada con fade rápido. Música puede subir ligeramente al 25%. Ritmo más dinámico."
+                },
+                {
+                    "escena": 6,
+                    "segundos": "55-60",
+                    "tipo": "cta",
+                    "toma": "Plano medio. Señalar hacia abajo con el dedo índice al decir 'guarda'. Mantener la energía alta hasta el último segundo.",
+                    "dialogo": f"Guarda este video ahora para cuando empieces. Y cuéntame en comentarios: ¿habías escuchado esto antes de {ts}?",
+                    "texto_pantalla": "💾 GUARDA ESTO · COMENTA ABAJO",
+                    "nota_edicion": "Último frame congela 0.5 segundos. Fade out de audio. Añadir sticker de 'guardar' o flecha apuntando abajo."
+                }
+            ],
+            "checklist": {
+                "grabacion": [
+                    {"item": "Encuadre y cámara", "detalle": "Grabar en vertical 1080x1920 (9:16). Cámara a nivel de ojos, no desde abajo. Cara centrada en el tercio superior del cuadro."},
+                    {"item": "Iluminación", "detalle": "Ring light frontal o ventana al lado. Sin sombras duras en el rostro. El fondo debe estar más oscuro que el primer plano."},
+                    {"item": "Audio", "detalle": "Usar micrófono de solapa o airpods. Grabar en habitación silenciosa. Hacer prueba de audio de 10 segundos antes de la toma definitiva."},
+                    {"item": "Energía y ritmo", "detalle": "Hablar un 20% más rápido de lo normal. Pausas cortas (menos de 0.5s). Gestos con manos visibles en cuadro para dinamismo."},
+                    {"item": "Múltiples tomas", "detalle": "Grabar el gancho (escena 1) al menos 5 veces y elegir la mejor. Las demás escenas con 2-3 tomas. Siempre dejar 1 segundo de silencio antes de hablar."}
+                ],
+                "recursos": [
+                    {"item": "Ring light o fuente de luz difusa", "tipo": "iluminacion"},
+                    {"item": "Trípode o soporte de teléfono", "tipo": "equipo"},
+                    {"item": f"Props relacionados con {ts} (si el contenido es físico)", "tipo": "prop"},
+                    {"item": "Fondo liso, pared clean o bookshelf ordenado", "tipo": "locacion"},
+                    {"item": "Música de fondo desde TikTok Sound Library (trending)", "tipo": "audio"}
+                ],
+                "edicion": [
+                    {"item": "Subtítulos automáticos", "detalle": "Activar en CapCut o TikTok. Fuente bold, color blanco con sombra negra, tamaño grande (al menos 16% del ancho)."},
+                    {"item": "Textos en pantalla", "detalle": "Añadir el texto de cada escena antes del diálogo correspondiente. Fuente bold, contraste alto. Duración: toda la escena."},
+                    {"item": "Música de fondo", "detalle": "Usar trending sound de la semana o lo-fi motivacional. Volumen: 15-20% (no debe competir con la voz)."},
+                    {"item": "Cortes y ritmo", "detalle": "Jump cut cada 2-3 segundos en las escenas 2-4. Eliminar silencios mayores a 0.3 segundos. Velocidad de reproducción: 1.05x en toda la edición."}
+                ]
+            }
+        },
+        "instagram": {
+            "slides": [
+                {
+                    "numero": 1,
+                    "tipo": "portada",
+                    "titulo": f"Todo lo que necesitas saber sobre {ts}",
+                    "subtitulo": "Y nadie te lo había explicado así",
+                    "cuerpo": "",
+                    "estetica": "Fondo degradado morado-azul oscuro. Tipografía Montserrat Bold blanca. Icono o emoji grande centrado sobre el título. Nombre de usuario en esquina inferior."
+                },
+                {
+                    "numero": 2,
+                    "tipo": "problema",
+                    "titulo": "El problema real",
+                    "subtitulo": "",
+                    "cuerpo": f"La mayoría de personas que trabajan con {t} cometen el mismo error: van directo a la acción sin entender el sistema. El resultado es frustración, tiempo perdido y la sensación de que 'esto no es para mí'.",
+                    "estetica": "Fondo oscuro (#1a1a2e). Texto blanco. Icono ⚠️ en ámbar visible en esquina superior. Línea divisoria de color bajo el título."
+                },
+                {
+                    "numero": 3,
+                    "tipo": "desarrollo",
+                    "titulo": "01 · Entiende el fundamento",
+                    "subtitulo": "",
+                    "cuerpo": f"Antes de cualquier técnica, necesitas entender POR QUÉ funciona {t}. El 'por qué' es tu mapa. Sin mapa, todas las rutas se ven iguales. Dedica 20 minutos a entender la lógica antes de ejecutar.",
+                    "estetica": "Número '01' grande como watermark de fondo (color muy claro). Contenido en tarjeta blanca superpuesta. Punto de color en el número = color del tema."
+                },
+                {
+                    "numero": 4,
+                    "tipo": "desarrollo",
+                    "titulo": "02 · El error más costoso",
+                    "subtitulo": "",
+                    "cuerpo": f"Intentar hacer todo a la vez con {t} es la trampa más común. Enfócate en UNA variable, mídela durante 7 días y solo entonces agrega la siguiente. La consistencia late a la intensidad.",
+                    "estetica": "Número '02'. Icono de ❌ rojo pequeño junto al error y ✅ verde junto a la solución. Layout limpio, espacio en blanco generoso."
+                },
+                {
+                    "numero": 5,
+                    "tipo": "desarrollo",
+                    "titulo": "03 · La técnica que funciona",
+                    "subtitulo": "",
+                    "cuerpo": f"Los mejores resultados con {t} vienen de ciclos cortos: aplica → mide → ajusta → repite. No de sesiones largas y esporádicas. 15 minutos diarios consistentes > 3 horas una vez a la semana.",
+                    "estetica": "Número '03'. Flecha circular de retroalimentación como elemento gráfico. Colores consistentes con slides anteriores."
+                },
+                {
+                    "numero": 6,
+                    "tipo": "desarrollo",
+                    "titulo": "04 · Cómo medir tu progreso",
+                    "subtitulo": "",
+                    "cuerpo": f"Sin métricas no hay progreso real. Define tu indicador de éxito con {t} ANTES de empezar. ¿Qué cambia cuando funciona? Anótalo. Revísalo cada semana. Ajusta lo que no mueve esa métrica.",
+                    "estetica": "Número '04'. Gráfica de barra ascendente simple como elemento decorativo. Fondo consistente."
+                },
+                {
+                    "numero": 7,
+                    "tipo": "resumen",
+                    "titulo": "⚡ Quick Win — Hazlo hoy",
+                    "subtitulo": "",
+                    "cuerpo": f"Aplica SOLO el punto 01 durante 7 días. Dedica 20 minutos a entender el fundamento de {t} sin ejecutar todavía. Los resultados llegan a quien construye sobre bases sólidas, no a quien corre sin dirección.",
+                    "estetica": "Fondo amarillo vibrante (#FFD700) o verde energético. Tipografía negra bold. Este slide debe verse completamente diferente al resto para detener el scroll."
+                },
+                {
+                    "numero": 8,
+                    "tipo": "cta",
+                    "titulo": "¿Te fue útil esto? 👇",
+                    "subtitulo": "",
+                    "cuerpo": "💾 GUARDA este carrusel (lo vas a necesitar después)\n📤 COMPÁRTELO con alguien que esté luchando con esto\n💬 COMENTA: ¿cuál de los 4 puntos te resonó más?",
+                    "estetica": "Fondo del color de marca. Tres iconos grandes para cada acción (guardar/compartir/comentar). Nombre de usuario visible. Foto de perfil en esquina."
+                }
+            ],
+            "hashtags": [
+                f"#{ts.replace(' ', '').lower()}",
+                "#aprendizaje",
+                "#crecimientopersonal",
+                "#productividad",
+                f"#{ts.replace(' ', '').lower()}tips",
+                "#contenidodevalor",
+                "#desarrollopersonal",
+                "#habitos",
+                "#mentoring",
+                "#viralenespanol"
+            ],
+            "checklist": {
+                "diseno": [
+                    {"item": "Paleta de colores consistente", "detalle": "Elegir 2-3 colores y mantenerlos en TODOS los slides. Usar Canva 'Brand Kit' para guardarlos. El slide 7 puede romper la paleta intencionalmente."},
+                    {"item": "Tipografía unificada", "detalle": "Título: Montserrat Bold o Poppins Bold (mínimo 40pt). Cuerpo: Open Sans Regular o Lato (mínimo 24pt). Máximo 2 familias tipográficas."},
+                    {"item": "Elementos numéricos en slides 3-6", "detalle": "Número grande (200pt+) como watermark de fondo en transparencia 15-20%. Ayuda a la navegación visual del carrusel."},
+                    {"item": "Portada llamativa (slide 1)", "detalle": "Debe detener el scroll. Probar con degradado vibrante, imagen de fondo con overlay, o ilustración. A/B test con 2 versiones si es posible."}
+                ],
+                "recursos": [
+                    {"item": "Plantilla base en Canva", "tipo": "diseno"},
+                    {"item": f"Imagen o ilustración relacionada con {ts}", "tipo": "imagen"},
+                    {"item": "Paleta de colores en HEX definida", "tipo": "color"},
+                    {"item": "Logo o @usuario para portada y CTA", "tipo": "marca"}
+                ],
+                "publicacion": [
+                    {"item": "Cargar slides en orden exacto", "detalle": "Verificar en vista previa antes de publicar. El slide 1 es portada, el 8 es CTA."},
+                    {"item": "Escribir pie de foto con gancho", "detalle": "Primera línea = gancho que obligue a leer más. No empieces con 'Hoy quiero hablarte de...'."},
+                    {"item": "Incluir hashtags en primer comentario", "detalle": "Publicar el post y en los primeros 60 segundos añadir los hashtags en un comentario para mantener el pie de foto limpio."}
+                ]
+            }
+        },
+        "facebook": {
+            "post": f"Hoy quiero ser honesto sobre algo que nadie dice abiertamente respecto a {t}.\n\nCuando empecé, pensé que era cuestión de seguir pasos. Que si hacía lo que decían los expertos, los resultados vendrían solos. Spoiler: no fue así.\n\nLo que descubrí después de mucho tiempo (y varios errores costosos) es que hay 4 principios que nadie te enseña porque nadie los redujo a algo concreto:\n\n✅ Principio 1: El fundamento lo es todo. Si no entiendes POR QUÉ algo funciona, no puedes adaptarlo cuando cambian las condiciones.\n\n✅ Principio 2: La consistencia supera a la intensidad. 15 minutos diarios durante 30 días producen más resultado que 8 horas un domingo.\n\n✅ Principio 3: El error más caro no es equivocarse, es no saber QUÉ medir. Sin métricas claras, cualquier esfuerzo es ruido.\n\n✅ Principio 4: Menos variables, más control. Enfócate en una sola cosa a la vez. Mídela. Ajusta. Después suma la siguiente.\n\nSi estás empezando con {t} hoy, mi consejo es: aplica solo el principio 1 esta semana. Antes de ejecutar cualquier cosa, entiende el sistema.",
+            "pregunta_engagement": f"¿Cuál de estos 4 principios te hubiera ayudado más cuando empezaste con {t}? ¿O hay algo que agregarías tú a la lista? 👇 Me interesa mucho leer tu respuesta.",
+            "checklist": {
+                "contenido": [
+                    {"item": "Revisar primera línea del post", "detalle": "La primera oración debe generar curiosidad o identificación inmediata. Evitar empezar con 'Hoy quiero...'. Probar con 'Lo que nadie dice sobre...' o una afirmación polarizante."},
+                    {"item": "Verificar longitud", "detalle": "Entre 200-350 palabras. Facebook muestra solo las primeras 3 líneas antes del 'Ver más'. Esas 3 líneas deben ser el gancho perfecto."},
+                    {"item": "Emojis estratégicos", "detalle": "Usar 1 emoji por párrafo como máximo. Antes de cada punto de la lista (✅, 🔑, ⚡). No abusar o perderá credibilidad."}
+                ],
+                "recursos": [
+                    {"item": f"Imagen cuadrada 1:1 o 4:5 relacionada con {ts}", "tipo": "imagen"},
+                    {"item": "Primera lámina del carrusel de Instagram (reutilizable)", "tipo": "imagen"},
+                    {"item": "Video corto de TikTok (cross-posting si aplica)", "tipo": "video"}
+                ],
+                "publicacion": [
+                    {"item": "Horario óptimo", "detalle": "Publicar entre 7-9am, 12-1pm o 7-9pm hora local. Martes, miércoles y jueves tienen mayor engagement promedio en Facebook."},
+                    {"item": "Responder comentarios en la primera hora", "detalle": "El algoritmo de Facebook prioriza posts con actividad en los primeros 60 minutos. Responder todos los comentarios aunque sea con un '¡Gracias! ¿Y tú qué harías?'"},
+                    {"item": "No añadir enlace externo en el texto", "detalle": "Facebook reduce el alcance de posts con URLs. Si necesitas compartir un enlace, ponlo en el primer comentario, no en el cuerpo del post."}
+                ]
+            }
+        }
+    }
+
+
+# ==================================================================================
 # EDITOR DE IMAGENES
 # ==================================================================================
 
@@ -1532,23 +2151,49 @@ def api_editor_guardar():
     if len(img_bytes) > 2 * 1024 * 1024:
         return jsonify({"error": "La imagen supera 2 MB"}), 400
 
-    # Abrir con Pillow y agregar marca de agua del servidor
+    # Abrir con Pillow y agregar marca de agua (logo) del servidor
     try:
-        img = Image.open(BytesIO(img_bytes)).convert("RGB")
+        img = Image.open(BytesIO(img_bytes)).convert("RGBA")
     except Exception:
         return jsonify({"error": "No se pudo procesar la imagen"}), 400
 
-    draw = ImageDraw.Draw(img)
-    wm_text = "tueden.com"
-    try:
-        font = ImageFont.truetype("arial.ttf", 16)
-    except Exception:
-        font = ImageFont.load_default()
-    bbox = draw.textbbox((0, 0), wm_text, font=font)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    x = img.width - tw - 12
-    y = img.height - th - 10
-    draw.text((x, y), wm_text, fill=(255, 255, 255, 90), font=font)
+    # Cargar logo watermark
+    wm_path = Path(__file__).parent / "static" / "pieDeFoto.png"
+    if wm_path.exists():
+        try:
+            from PIL import ImageDraw as ID2, ImageChops
+
+            wm_logo = Image.open(wm_path).convert("RGBA")
+            # Redimensionar logo a ~150px de ancho (horizontal)
+            wm_w = 150
+            wm_scale = wm_w / wm_logo.width
+            wm_h = int(wm_logo.height * wm_scale)
+            wm_logo = wm_logo.resize((wm_w, wm_h), Image.LANCZOS)
+
+            # Crear máscara: solo esquinas izquierdas redondeadas
+            mask = Image.new("L", (wm_w, wm_h), 0)
+            mask_draw = ID2.Draw(mask)
+            radius = int(min(wm_w, wm_h) * 0.25)
+            # Dibujar rectángulo con todas las esquinas redondeadas
+            mask_draw.rounded_rectangle([0, 0, wm_w - 1, wm_h - 1], radius=radius, fill=255)
+            # Rellenar esquinas derechas (tapar el redondeo)
+            mask_draw.rectangle([wm_w - radius, 0, wm_w - 1, radius], fill=255)
+            mask_draw.rectangle([wm_w - radius, wm_h - radius, wm_w - 1, wm_h - 1], fill=255)
+
+            # Combinar alfa original del logo con máscara (sin opacidad)
+            logo_alpha = wm_logo.getchannel("A")
+            final_alpha = ImageChops.multiply(logo_alpha, mask)
+            wm_logo.putalpha(final_alpha)
+
+            # Posicionar: borde derecho pegado al borde de la imagen, abajo
+            x = img.width - wm_w
+            y = img.height - wm_h - 10
+            img.paste(wm_logo, (x, y), wm_logo)
+        except Exception:
+            pass  # Si falla el logo, guardar sin marca de agua
+
+    # Convertir a RGB para JPEG
+    img = img.convert("RGB")
 
     # Comprimir a JPEG ≤ 2 MB
     quality = 90
@@ -1572,7 +2217,7 @@ def api_editor_guardar():
     if is_production:
         base_dir = Path("/var/www/html/wp-content/uploads") / year / month
     else:
-        base_dir = Path(r"C:\Users\Luis.RANGEL-GONZALEZ\OneDrive - Akkodis\Desktop\entornoTuEden\TU EDEN\sd")
+        base_dir = Path(r"C:\Users\Luis.RANGEL-GONZALEZ\OneDrive - Akkodis\Desktop\fotos\editadas")
 
     base_dir.mkdir(parents=True, exist_ok=True)
 

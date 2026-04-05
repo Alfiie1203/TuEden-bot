@@ -54,20 +54,20 @@
 <div class="container-fluid" style="max-width:860px">
 
   <!-- Header -->
-  <div class="d-flex align-items-center gap-3 mb-4">
-    <div style="font-size:2.2rem;line-height:1">🎙️</div>
-    <div>
-      <h1 class="h4 mb-0">Mi perfil de voz</h1>
-      <p class="text-muted mb-0" style="font-size:.88rem">
+  <div class="d-flex align-items-start flex-wrap gap-3 mb-4">
+    <div style="font-size:2.2rem;line-height:1;flex-shrink:0">🎙️</div>
+    <div style="flex:1;min-width:0">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <h1 class="h4 mb-0">Mi perfil de voz</h1>
+        {% if voice and voice.compiled %}
+          <span class="badge badge-active rounded-pill px-3 py-1">✅ Perfil activo</span>
+        {% else %}
+          <span class="badge badge-empty rounded-pill px-3 py-1">⚠️ Sin configurar</span>
+        {% endif %}
+      </div>
+      <p class="text-muted mb-0 mt-1" style="font-size:.88rem">
         Responde las preguntas para que la IA escriba los artículos con tu estilo y personalidad.
       </p>
-    </div>
-    <div class="ms-auto">
-      {% if voice and voice.compiled %}
-        <span class="badge badge-active rounded-pill px-3 py-2">✅ Perfil activo</span>
-      {% else %}
-        <span class="badge badge-empty rounded-pill px-3 py-2">⚠️ Sin configurar</span>
-      {% endif %}
     </div>
   </div>
 

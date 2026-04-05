@@ -87,8 +87,17 @@
 
   /* ── Responsive ── */
   @media (max-width:992px) {
-    .editor-wrap { flex-direction:column; height:auto; }
-    .editor-sidebar { width:100%; min-width:auto; max-height:300px; }
+    .editor-wrap { flex-direction:column; height:auto; gap:10px; }
+    .editor-sidebar { width:100%; min-width:auto; max-height:360px; overflow-y:auto; }
+    .editor-canvas-area { min-height:55vw; height:auto; }
+    .editor-toolbar { left:50%; transform:translateX(-50%); font-size:.72rem; }
+  }
+  @media (max-width:576px) {
+    .editor-sidebar { max-height:280px; }
+    .editor-canvas-area { min-height:70vw; }
+    .vignette-grid { grid-template-columns:repeat(2,1fr); }
+    .editor-toolbar .btn { font-size:.7rem; padding:3px 7px; }
+    .upload-zone { padding:24px 12px; }
   }
 </style>
 {% endblock %}
@@ -215,7 +224,7 @@
 
 // ── Constants ──
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
-const WATERMARK_TEXT = 'tueden.com';
+const WATERMARK_IMG_URL = '/static/pieDeFoto.png';
 
 const FONTS = [
   'Roboto','Open Sans','Lato','Montserrat','Poppins','Playfair Display',
@@ -710,21 +719,37 @@ function resetCanvas() {
 
 // ── Watermark ──
 function addWatermark() {
-  // We add watermark just before export, then remove
-  const wm = new fabric.Text(WATERMARK_TEXT, {
-    left: canvas.width - 15,
-    top: canvas.height - 10,
-    fontFamily: 'Roboto',
-    fontSize: 14,
-    fill: 'rgba(255,255,255,0.35)',
-    originX: 'right',
-    originY: 'bottom',
-    selectable: false,
-    evented: false,
-    _isWatermark: true,
+  return new Promise(resolve => {
+    fabric.Image.fromURL(WATERMARK_IMG_URL, wmImg => {
+      // Scale logo to ~80px wide
+      const wmWidth = 80;
+      const scale = wmWidth / wmImg.width;
+      wmImg.set({
+        scaleX: scale,
+        scaleY: scale,
+        left: canvas.width - 10,
+        top: canvas.height - 10,
+        originX: 'right',
+        originY: 'bottom',
+        opacity: 0.45,
+        selectable: false,
+        evented: false,
+        _isWatermark: true,
+      });
+      // Apply rounded left corners via clipPath
+      const w = wmImg.width;
+      const h = wmImg.height;
+      const r = Math.min(w, h) * 0.2; // 20% radius
+      const clipPath = new fabric.Path(
+        `M ${r} 0 L ${w} 0 L ${w} ${h} L ${r} ${h} Q 0 ${h} 0 ${h - r} L 0 ${r} Q 0 0 ${r} 0 Z`,
+        { originX: 'left', originY: 'top' }
+      );
+      wmImg.set('clipPath', clipPath);
+      canvas.add(wmImg);
+      canvas.renderAll();
+      resolve(wmImg);
+    }, { crossOrigin: 'anonymous' });
   });
-  canvas.add(wm);
-  return wm;
 }
 
 // ── Size estimation ──
@@ -757,10 +782,6 @@ async function saveImage() {
   // Sanitize filename
   const safeName = fileName.replace(/[^a-zA-Z0-9_\-]/g, '_');
 
-  // Add watermark temporarily
-  const wm = addWatermark();
-  canvas.renderAll();
-
   const quality = parseInt(document.getElementById('jpegQuality').value) / 100;
 
   // Try JPEG first, reduce quality if > 2MB
@@ -772,10 +793,6 @@ async function saveImage() {
     if (sizeBytes <= MAX_SIZE_BYTES) break;
     q -= 0.05;
   } while (q > 0.1);
-
-  // Remove watermark from canvas
-  canvas.remove(wm);
-  canvas.renderAll();
 
   // Check final size
   const finalSize = Math.round((dataUrl.length - 'data:image/jpeg;base64,'.length) * 3/4);

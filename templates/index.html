@@ -40,7 +40,7 @@
       </div>
 
       <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-6 col-md-4">
           <label class="form-label fw-semibold">Modo de generación</label>
           <select id="selMode" class="form-select">
             <option value="auto">🔍 Auto-detectar</option>
@@ -48,7 +48,7 @@
             <option value="libre">📝 Tópico libre</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-6 col-md-4">
           <label class="form-label fw-semibold">Revisado por</label>
           <select id="selReviewer" class="form-select" data-user-role="{{ current_user.role if current_user else '' }}"
             {% if current_user and current_user.role != 'admin' %}disabled{% endif %}>
@@ -58,7 +58,7 @@
             <option value="Editor">✍️ Editor</option>
           </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
           <label class="form-label fw-semibold">Modelo Gemini</label>
           <select id="selModel" class="form-select">
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>

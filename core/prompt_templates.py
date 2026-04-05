@@ -38,7 +38,7 @@ IMPORTANTE — REVISIÓN MÉDICA:
 Este artículo será revisado y validado por un médico antes de publicarse.
 Por ello debes:
 - Usar terminología clínica correcta y actualizada (DSM-5 / CIE-11 / evidencia EBM cuando aplique).
-- Citar o referir estudios, estadísticas o guías clínicas reconocidas (menciona fuente y año).
+- Citar o referir estudios, estadísticas o guías clínicas reconocidas (menciona fuente y año en texto plano, sin enlaces).
 - Evitar afirmaciones absolutas no respaldadas; usa "estudios sugieren", "la evidencia muestra".
 - Diferenciar claramente entre síntomas, factores de riesgo y diagnóstico.
 - Incluir una nota de advertencia al final: "Este artículo es de carácter informativo y no sustituye la consulta médica profesional."
@@ -126,25 +126,39 @@ Normas de formato:
   - Usa H2 para secciones principales y H3 para subsecciones.
   - Párrafos de 3-5 oraciones para favorecer la legibilidad.
   - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
-  - Incluye al menos 2 enlaces internos al blog usando <a href='/ruta-del-articulo/'>texto ancla</a> (URLs relativas que empiecen con /). Elige anclas descriptivas con palabras clave relacionadas.
+  - Enlaces internos: NO incluyas ningún enlace interno (<a href>) a otros artículos del blog. Tampoco insertes títulos ni nombres de otros artículos dentro del texto (ni en negrita, ni como texto plano, ni como ancla). El artículo debe ser autosuficiente y no referenciar otros posts. Si necesitas mencionar un concepto relacionado, explícalo brevemente en el propio artículo sin simular que enlazas a otro contenido.
 Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
   El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
   - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.
   - SUBTÍTULOS: al menos el 30% de los subtitulos H2 y H3 deben contener la focus_keyword o una variante muy próxima (singular/plural, sin acento/con acento).
-  - IMAGEN: el atributo alt del primer elemento <img> del artículo debe incluir la focus_keyword (ej: <img src='...' alt='focus keyword descripción'>).
   - DENSIDAD: incluye la focus_keyword entre 1 y 2 veces por cada 100 palabras. No la repitas de forma artificial; incorpórala donde fluya de forma natural.
-Normas de veracidad y fuentes (OBLIGATORIO):
+  - IMÁGENES: NO incluyas NINGÚN elemento <figure>, <img> ni bloque de imagen en el contenido. Las imágenes se inyectan externamente; si añades una el sistema queda roto.
+Normas de veracidad (OBLIGATORIO):
   - TODOS los datos, cifras y estadísticas deben ser REALES y verificables. NUNCA inventes datos.
-  - Cada vez que cites un dato estadístico o estudio, enlázalo con un hipervínculo HTML a la fuente:
-    <a href="URL_REAL" target="_blank" rel="noopener noreferrer">Nombre de la organización o autor (Año)</a>
-  - Fuentes ACEPTADAS: OMS/WHO, PubMed/NCBI, NIH, revistas peer-reviewed (The Lancet, NEJM, JAMA, Psicothema, etc.), organismos públicos oficiales (INE, Ministerio de Sanidad de España, CDC, OCDE, Eurostat), universidades reconocidas, y medios de referencia consolidados (El País, BBC, Reuters, El Mundo).
-  - Fuentes NO ACEPTADAS: blogs sin autoría verificable, Wikipedia como fuente primaria, foros, redes sociales, o cualquier sitio sin credibilidad académica o institucional.
-  - Si no tienes la URL exacta de un estudio, enlaza al sitio principal de la organización (ej: https://www.who.int) y describe con precisión la fuente (autor, año, título o tema del estudio).
+  - NO incluyas hipervínculos (<a href>) a fuentes externas ni enlaces a estudios, organismos o páginas web. Los enlaces externos suelen romperse y perjudican la experiencia del lector.
+  - Cuando menciones un dato o estudio, indica la fuente en texto plano entre paréntesis: (OMS, 2024) o (Universidad de Harvard, 2023). Sin enlaces.
+  - Si no puedes respaldar un dato con una fuente real y conocida, OMITE ese dato por completo. Es preferible no citarlo que inventarlo.
 Normas de salida:
   - Responde ÚNICAMENTE con un objeto JSON válido, sin texto extra ni bloques markdown.
   - Dentro del campo "content", NO uses comillas dobles sin escapar; usa comillas simples o \\".
   - El JSON debe estar completo y bien cerrado. No lo cortes a mitad.
   - PROHIBIDO: No menciones en ningún punto del artículo (ni en el título, ni en el cuerpo, ni en los metadatos) que el contenido fue creado, redactado o asistido por inteligencia artificial, modelos de lenguaje, ChatGPT, Gemini u otras herramientas de IA. El artículo debe presentarse únicamente como contenido editorial especializado.
+Reglas de mayúsculas en TÍTULOS (OBLIGATORIO):
+  - Aplica las reglas gramaticales del español: solo mayúscula en la PRIMERA palabra del título y en nombres propios.
+  - NO uses Title Case (no pongas mayúscula en cada palabra). Ejemplo CORRECTO: 'Cómo el colchón ideal transforma tu sueño para siempre'. Ejemplo INCORRECTO: 'Cómo el Colchón Ideal Transforma Tu Sueño Para Siempre'.
+  - Después de dos puntos (:) la siguiente palabra va en minúscula salvo que sea nombre propio.
+  - Los artículos (el, la, los, las, un, una), preposiciones (de, en, con, por, para) y conjunciones (y, o, ni, que) SIEMPRE van en minúscula salvo que sean la primera palabra.
+Estilo de SUBTÍTULOS H2 y H3 dentro del artículo (OBLIGATORIO):
+  - Los subtítulos NO deben sonar académicos, formales ni de manual universitario. Son titulares de blog: directos, con gancho y emoción.
+  - PROHIBIDOS subtítulos genéricos tipo: «Introducción», «Conclusión», «Requisitos previos», «Marco teórico», «Análisis a fondo», «Metodología», «Reflexión final», «Conceptos clave», «Contexto», «Discusión», «Características destacadas», «Ficha técnica».
+  - Cada subtítulo debe provocar curiosidad o anticipar un beneficio concreto para el lector.
+  - Usa preguntas retóricas, afirmaciones con gancho, números o promesas de valor.
+  - Ejemplos de lo que NO quiero → lo que SÍ quiero:
+    MAL: «Errores comunes y cómo evitarlos» → BIEN: «Las trampas en las que todos caen (y cómo esquivarlas)»
+    MAL: «Antes de empezar: requisitos y conceptos previos» → BIEN: «Lo que necesitas tener listo antes de lanzarte»
+    MAL: «Reflexión final» → BIEN: «El mensaje que no puedes dejar escapar»
+    MAL: «Características destacadas» → BIEN: «Lo que realmente marca la diferencia»
+    MAL: «Análisis a fondo» → BIEN: «Bajo la lupa: lo bueno y lo mejorable»
 {voice_block}{focus_block}{reviewer_block}"""
 # -----------------------------------------------------------------------------
 PROMPT_COMPARATIVA = BASE_CONTEXT + """
@@ -152,24 +166,24 @@ TAREA: Escribe un artículo comparativo en español sobre: "{topic}".
 
 Estructura requerida (en este orden exacto):
 1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 que plantee el dilema de la comparativa, por ejemplo: «La decisión que muchos posponen» o «[Opción A] vs [Opción B]: ¿cuál es la tuya?»]</h2> — Por qué importa elegir bien entre ambas opciones (contexto, problema del lector, gancho emocional). 2-3 párrafos.
-2. <h2>Comparativa rápida</h2> — Tabla HTML (<table class='comparison-table'>) con mínimo 7 criterios:
+2. <h2>Cara a cara: lo que necesitas saber de un vistazo</h2> — Tabla HTML (<table class='comparison-table'>) con mínimo 7 criterios:
    precio estimado, rendimiento, diseño/materiales, compatibilidad/ecosistema, consumo energético, garantía, relación calidad-precio.
    Usa <thead> con fondo oscuro y <tbody> con filas alternas.
-3. <h2>Análisis a fondo: [Opción A]</h2> — H3 por cada criterio crítico; explica puntos fuertes y débiles con datos concretos.
-4. <h2>Análisis a fondo: [Opción B]</h2> — Mismo nivel de profundidad que la sección anterior.
+3. <h2>[Opción A] bajo la lupa: lo bueno y lo mejorable</h2> — H3 por cada criterio crítico; explica puntos fuertes y débiles con datos concretos.
+4. <h2>[Opción B] bajo la lupa: lo bueno y lo mejorable</h2> — Mismo nivel de profundidad que la sección anterior.
 5. <h2>¿Cuál debes elegir?</h2> — 3 sub-secciones <h3> por perfil de usuario: presupuesto ajustado, usuario avanzado, usuario casual.
 6. CTA final prominente:
    <div class='cta-box'><a href='{affiliate_url}' target='_blank' rel='nofollow sponsored' class='cta-amazon'>🛒 Ver precio actualizado en Amazon</a></div>
 
 Requisitos de calidad:
 - Longitud: 900–1100 palabras.
-- Cada sección debe incluir al menos 1 dato numérico REAL con hipervínculo a la fuente original.
+- Cada sección debe incluir al menos 1 dato numérico REAL con la fuente indicada en texto plano entre paréntesis.
 - Usa listas <ul> o <ol> donde mejore la escaneabilidad.
 - La conclusión debe ser clara y accionable; no dejes al lector sin una recomendación.
 
 Devuelve SOLO este JSON (sin nada más):
 {{
-  "title": "Título comparativo SEO. Máx. 55 caracteres. Usa VS o Comparativa. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / revolucionario / imprescindible / poderoso / extraordinario / único / épico / radical / revelado; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / emocionante / brillante / espectacular / asombroso; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / verdadero / tus / nunca / siempre / ahora / gratis / descubre / aprende; (4) SENTIMIENTO positivo o de urgencia. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Cómo el Colchón Ideal Transforma Tu Sueño Para Siempre'. SIN puntos al final.",
+  "title": "Título comparativo SEO. Máx. 55 caracteres. Usa VS o Comparativa. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / revolucionario / imprescindible / poderoso / extraordinario / único / épico / radical / revelado; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / emocionante / brillante / espectacular / asombroso; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / ahora / gratis / descubre / aprende; (4) SENTIMIENTO positivo o de urgencia. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Cómo el colchón ideal transforma tu sueño para siempre'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta description con intención comparativa (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'X vs Y' o 'mejor X'",
   "content": "<h2>...</h2>...HTML completo del artículo..."
@@ -184,21 +198,21 @@ TAREA: Escribe una guía de beneficios y casos de uso en español sobre: "{topic
 
 Estructura requerida (en este orden exacto):
 1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 que abra con una pregunta retórica o el problema que resuelve el producto, por ejemplo: «¿Por qué [producto] está cambiando todo?» o «El problema que [producto] resuelve de verdad»]</h2> — Abre con una pregunta retórica o estadística impactante. Explica qué problema resuelve este producto/servicio. 2-3 párrafos.
-2. <h2>7 beneficios principales</h2> — Lista <ul> con emoji por ítem; cada punto en 1-2 oraciones. Sé específico y cuantificable cuando sea posible.
-3. <h2>Casos de uso reales</h2> — 3 escenarios concretos, cada uno con <h3> propio. Describe el contexto, el usuario y el resultado esperado.
+2. <h2>Las 7 razones que lo cambian todo</h2> — Lista <ul> con emoji por ítem; cada punto en 1-2 oraciones. Sé específico y cuantificable cuando sea posible.
+3. <h2>Así lo usan personas como tú</h2> — 3 escenarios concretos, cada uno con <h3> propio. Describe el contexto, el usuario y el resultado esperado.
 4. <h2>¿Para quién es ideal?</h2> — Tabla HTML con 2 columnas: "Perfil de usuario" y "Motivo de idoneidad". Mínimo 4 perfiles.
-5. <h2>Consejos para sacarle el máximo provecho</h2> — Lista numerada <ol> con 5 consejos prácticos y accionables.
+5. <h2>Trucos que marcan la diferencia desde el primer día</h2> — Lista numerada <ol> con 5 consejos prácticos y accionables.
 6. CTA:
    <div class='cta-box'><a href='{affiliate_url}' target='_blank' rel='nofollow sponsored' class='cta-amazon'>✅ Consíguelo ahora en Amazon</a></div>
 
 Requisitos de calidad:
 - Longitud: 800–1000 palabras.
 - Tono orientado a solucionar el problema del lector, no a vender.
-- Cuando cites beneficios con datos concretos (porcentajes, estudios), incluye hipervínculo a la fuente.
+- Cuando cites beneficios con datos concretos (porcentajes, estudios), indica la fuente en texto plano entre paréntesis.
 
 Devuelve SOLO este JSON:
 {{
-  "title": "Título de guía SEO. Máx. 55 caracteres. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / fascinante / maravilloso / emocionante / brillante / asombroso / espectacular; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026'. BUEN EJEMPLO: 'Los Secretos Increíbles del Colchón Perfecto: Cómo Elegir'. SIN puntos al final.",
+  "title": "Título de guía SEO. Máx. 55 caracteres. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / fascinante / maravilloso / emocionante / brillante / asombroso / espectacular; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026'. BUEN EJEMPLO: 'Los secretos increíbles del colchón perfecto: cómo elegir'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta con propuesta de valor clara (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'para qué sirve X' o 'beneficios de X'",
   "content": "<h2>...</h2>...HTML completo del artículo..."
@@ -213,14 +227,14 @@ TAREA: Escribe una reseña SEO completa y optimizada en español sobre: "{topic}
 
 Estructura requerida (en este orden exacto):
 1. <h2>¿Vale la pena?</h2> — Veredicto rápido en 2-3 oraciones al inicio (hook para el lector impaciente). Incluye puntuación: ⭐⭐⭐⭐ (X/5).
-2. <h2>Ficha técnica</h2> — Tabla HTML (<table>) con: modelo exacto, precio orientativo, dimensiones/peso, materiales, conectividad, garantía, compatibilidad.
-3. <h2>Características destacadas</h2> — Mínimo 3 H3 con descripción técnica y cómo impacta en la experiencia real de uso.
-4. <h2>Pros y contras</h2> — Dos listas <ul> una al lado de la otra (usa <div class='pros-contras'>):
+2. <h2>Los números que importan de verdad</h2> — Tabla HTML (<table>) con: modelo exacto, precio orientativo, dimensiones/peso, materiales, conectividad, garantía, compatibilidad.
+3. <h2>Lo que realmente marca la diferencia</h2> — Mínimo 3 H3 con descripción técnica y cómo impacta en la experiencia real de uso.
+4. <h2>Lo mejor y lo peor, sin filtros</h2> — Dos listas <ul> una al lado de la otra (usa <div class='pros-contras'>):
    <div class='pros'><h3>✅ Pros</h3><ul>...</ul></div>
    <div class='contras'><h3>❌ Contras</h3><ul>...</ul></div>
-5. <h2>Experiencia de uso</h2> — Relato en primera persona del plural ("al usarlo notamos…"). Menciona al menos 2 escenarios de uso diario.
-6. <h2>Comparación con alternativas</h2> — Menciona 1-2 competidores y por qué este producto sale ganando (o no) en cada punto.
-7. <h2>Veredicto final</h2> — Resumen ejecutivo con puntuación detallada por categoría (rendimiento, diseño, precio, soporte) y recomendación clara.
+5. <h2>Así es usarlo en el día a día</h2> — Relato en primera persona del plural ("al usarlo notamos…"). Menciona al menos 2 escenarios de uso diario.
+6. <h2>¿Hay algo mejor ahí fuera?</h2> — Menciona 1-2 competidores y por qué este producto sale ganando (o no) en cada punto.
+7. <h2>Nuestro veredicto: ¿merece la pena?</h2> — Resumen ejecutivo con puntuación detallada por categoría (rendimiento, diseño, precio, soporte) y recomendación clara.
 8. Mínimo 2 CTAs:
    - Primero tras la ficha: <a href='{affiliate_url}' target='_blank' rel='nofollow sponsored' class='cta-amazon'>💰 Ver precio en Amazon</a>
    - Último al final: <a href='{affiliate_url}' target='_blank' rel='nofollow sponsored' class='cta-amazon'>🛒 Comprar con el mejor precio</a>
@@ -228,11 +242,11 @@ Estructura requerida (en este orden exacto):
 Requisitos de calidad:
 - Longitud: 950–1150 palabras.
 - Optimiza para las intenciones: "mejor {topic}", "{topic} precio", "{topic} opiniones", "{topic} análisis".
-- Cualquier dato técnico, precio o especificación debe llevar hipervínculo a la fuente oficial o ficha del fabricante.
+- Cualquier dato técnico, precio o especificación debe indicar la fuente en texto plano entre paréntesis (sin enlace).
 - Añade schema JSON-LD de tipo Review al final del content (dentro de <script type='application/ld+json'>).
 Devuelve SOLO este JSON:
 {{
-  "title": "Título de reseña SEO. Máx. 55 caracteres. Incluye 'opinión' o 'análisis'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / imprescindible / extraordinario / revelado / único / poderoso / honest / radical / esencial; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / espectacular / emocionante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / descubre; (4) SENTIMIENTO positivo. MAL EJEMPLO: 'Silla Ergonomínca Flexi Pro: Opinión Completa 2026'. BUEN EJEMPLO: 'Guía Definitiva: La Mejor Silla Ergoómica de 2026'. SIN puntos al final.",
+  "title": "Título de reseña SEO. Máx. 55 caracteres. Incluye 'opinión' o 'análisis'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / imprescindible / extraordinario / revelado / único / poderoso / honest / radical / esencial; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / espectacular / emocionante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / descubre; (4) SENTIMIENTO positivo. MAL EJEMPLO: 'Silla Ergonomínca Flexi Pro: Opinión Completa 2026'. BUEN EJEMPLO: 'Guía definitiva: la mejor silla ergonómica de 2026'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta con veredicto resumido (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'X opiniones' o 'mejor X'",
   "content": "<h2>...</h2>...HTML completo del artículo incluyendo JSON-LD al final..."
@@ -259,22 +273,19 @@ Normas de formato:
   - Párrafos de 3-5 oraciones para favorecer la legibilidad.
   - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
   - NO incluyas CTAs ni referencias a Amazon; el contenido es puramente informativo/educativo.
-  - Incluye 1-2 enlaces internos SOLO si conoces con certeza el slug o ruta del artículo de destino. NUNCA inventes rutas; si no estás seguro, omite el enlace interno antes de fabricarlo.
+  - Enlaces internos: NO incluyas ningún enlace interno (<a href>) a otros artículos del blog. Tampoco insertes títulos ni nombres de otros artículos dentro del texto (ni en negrita, ni como texto plano, ni como ancla). El artículo debe ser autosuficiente y no referenciar otros posts. Si necesitas mencionar un concepto relacionado, explícalo brevemente en el propio artículo sin simular que enlazas a otro contenido.
 Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
   El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
   - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.
   - SUBTÍTULO DE APERTURA: el primer H2 del artículo NUNCA debe titularse «Introducción». Debe ser un titular descriptivo, atractivo y relacionado con el tema del post; puede incorporar la focus_keyword o una variante.
   - SUBTÍTULOS: al menos el 30% de los subtitulos H2 y H3 deben contener la focus_keyword o una variante muy próxima (singular/plural, sin acento/con acento).
-  - IMAGEN: el atributo alt del primer elemento <img> del artículo debe incluir la focus_keyword (ej: <img src='...' alt='focus keyword descripción'>).
   - DENSIDAD: incluye la focus_keyword entre 1 y 2 veces por cada 100 palabras. No la repitas de forma artificial; incorpórala donde fluya de forma natural.
-Normas de veracidad y fuentes (OBLIGATORIO):
+  - IMÁGENES: NO incluyas NINGÚN elemento <figure>, <img> ni bloque de imagen en el contenido. Las imágenes se inyectan externamente; si añades una el sistema queda roto.
+Normas de veracidad (OBLIGATORIO):
   - TODOS los datos, cifras y estadísticas deben ser REALES y verificables. NUNCA inventes datos ni porcentajes.
-  - Si no puedes respaldar un dato cuantitativo (porcentaje, número, estadística) con una URL real y fiable, OMITE ese dato por completo. Es preferible no citarlo que inventarlo.
-  - Cada vez que cites un dato estadístico o estudio, enlázalo con un hipervínculo HTML a la fuente:
-    <a href="URL_REAL" target="_blank" rel="noopener noreferrer">Nombre de la organización o autor (Año)</a>
-  - La URL debe ser la URL exacta del documento o página que contiene el dato. Si solo conoces el dominio principal de la organización (ej: https://www.who.int), úsalo ÚNICAMENTE si describes con precisión el título, año y autor del estudio; nunca construyas rutas de archivo inventadas.
-  - Fuentes ACEPTADAS: OMS/WHO, PubMed/NCBI, NIH, revistas peer-reviewed (The Lancet, NEJM, JAMA, Psicothema, etc.), organismos públicos oficiales (INE, Ministerio de Sanidad de España, CDC, OCDE, Eurostat), universidades reconocidas, y medios de referencia consolidados (El País, BBC, Reuters, El Mundo).
-  - Fuentes NO ACEPTADAS: blogs sin autoría verificable, Wikipedia como fuente primaria, foros, redes sociales, o cualquier sitio sin credibilidad académica o institucional.
+  - Si no puedes respaldar un dato cuantitativo (porcentaje, número, estadística) con una fuente real y conocida, OMITE ese dato por completo. Es preferible no citarlo que inventarlo.
+  - NO incluyas hipervínculos (<a href>) a fuentes externas ni enlaces a estudios, organismos o páginas web. Los enlaces externos suelen romperse y perjudican la experiencia del lector.
+  - Cuando menciones un dato o estudio, indica la fuente en texto plano entre paréntesis: (OMS, 2024) o (Universidad de Harvard, 2023). Sin enlaces.
 Normas de gramática y estilo (OBLIGATORIO):
   - Cuida la concordancia de género y número: «Los siete indicadores», no «las siete indicadores».
   - Usa los conectores correctos: «que te ayudarán» (con pronombre explícito en segunda persona singular), nunca omitas el nexo relativo.
@@ -288,6 +299,22 @@ Normas de salida:
   - Dentro del campo "content", NO uses comillas dobles sin escapar; usa comillas simples o \\".
   - El JSON debe estar completo y bien cerrado. No lo cortes a mitad.
   - PROHIBIDO: No menciones en ningún punto del artículo (ni en el título, ni en el cuerpo, ni en los metadatos) que el contenido fue creado, redactado o asistido por inteligencia artificial, modelos de lenguaje, ChatGPT, Gemini u otras herramientas de IA. El artículo debe presentarse únicamente como contenido editorial especializado.
+Reglas de mayúsculas en TÍTULOS (OBLIGATORIO):
+  - Aplica las reglas gramaticales del español: solo mayúscula en la PRIMERA palabra del título y en nombres propios.
+  - NO uses Title Case (no pongas mayúscula en cada palabra). Ejemplo CORRECTO: 'Cómo el colchón ideal transforma tu sueño para siempre'. Ejemplo INCORRECTO: 'Cómo el Colchón Ideal Transforma Tu Sueño Para Siempre'.
+  - Después de dos puntos (:) la siguiente palabra va en minúscula salvo que sea nombre propio.
+  - Los artículos (el, la, los, las, un, una), preposiciones (de, en, con, por, para) y conjunciones (y, o, ni, que) SIEMPRE van en minúscula salvo que sean la primera palabra.
+Estilo de SUBTÍTULOS H2 y H3 dentro del artículo (OBLIGATORIO):
+  - Los subtítulos NO deben sonar académicos, formales ni de manual universitario. Son titulares de blog: directos, con gancho y emoción.
+  - PROHIBIDOS subtítulos genéricos tipo: «Introducción», «Conclusión», «Requisitos previos», «Marco teórico», «Análisis a fondo», «Metodología», «Reflexión final», «Conceptos clave», «Contexto», «Discusión», «Características destacadas», «Ficha técnica».
+  - Cada subtítulo debe provocar curiosidad o anticipar un beneficio concreto para el lector.
+  - Usa preguntas retóricas, afirmaciones con gancho, números o promesas de valor.
+  - Ejemplos de lo que NO quiero → lo que SÍ quiero:
+    MAL: «Errores comunes y cómo evitarlos» → BIEN: «Las trampas en las que todos caen (y cómo esquivarlas)»
+    MAL: «Antes de empezar: requisitos y conceptos previos» → BIEN: «Lo que necesitas tener listo antes de lanzarte»
+    MAL: «Reflexión final» → BIEN: «El mensaje que no puedes dejar escapar»
+    MAL: «Características destacadas» → BIEN: «Lo que realmente marca la diferencia»
+    MAL: «Análisis a fondo» → BIEN: «Bajo la lupa: lo bueno y lo mejorable»
 {voice_block}{focus_block}{reviewer_block}"""
 
 # -----------------------------------------------------------------------------
@@ -304,16 +331,16 @@ Estructura requerida (en este orden exacto):
    de forma directa y provocadora. 2-3 párrafos. Termina con la tesis central del artículo
    expresada en una oración memorable.
 2. <h2>Por qué esto importa más de lo que creemos</h2> — Contextualiza el tema con datos,
-   cifras o estudios recientes. Mínimo 1 estadística citada con fuente. 2-3 párrafos.
-3. <h2>El argumento central</h2> — 3 sub-secciones <h3>, cada una con:
+   cifras o estudios recientes. Mínimo 1 estadística citada con fuente en texto plano (sin enlace). 2-3 párrafos.
+3. <h2>Las razones que no puedes ignorar</h2> — 3 sub-secciones <h3>, cada una con:
    - Un argumento concreto que soporte la tesis.
    - Evidencia, ejemplo real o analogía que lo respalde.
    - 1-2 párrafos por argumento.
-4. <h2>La otra cara: objeciones habituales</h2> — Presenta 2-3 contraargumentos comunes
+4. <h2>Sí, pero… lo que dicen los escépticos</h2> — Presenta 2-3 contraargumentos comunes
    usando <blockquote> para cada objeción, seguido de una refutación sólida.
 5. <h2>Qué debería cambiar (y quién debe hacerlo)</h2> — Propuestas concretas y accionables.
    Lista <ul> con mínimo 4 puntos. Cada punto: acción + responsable + impacto esperado.
-6. <h2>Reflexión final</h2> — Cierra con una conclusión que reafirme la tesis, conecte
+6. <h2>El mensaje que nos llevamos de todo esto</h2> — Cierra con una conclusión que reafirme la tesis, conecte
    emocionalmente con el lector y termine con una pregunta abierta que invite a comentar
    o compartir el artículo.
 
@@ -321,13 +348,13 @@ Requisitos de calidad:
 - Longitud: 900–1100 palabras.
 - Tono: directo, apasionado pero argumentado; voz de experto que no teme tomar partido.
 - Usa la primera persona del plural ("debemos", "nos enfrentamos") para conectar con el lector.
-- Cada estadística o dato citado debe ser REAL e ir acompañado de hipervínculo a la fuente (OMS, estudios científicos, organismos oficiales o medios de referencia).
+- Cada estadística o dato citado debe ser REAL e indicar la fuente en texto plano entre paréntesis (OMS, estudios científicos, organismos oficiales o medios de referencia). Sin enlaces.
 - Optimiza para: "{topic} opinión", "por qué {topic}", "{topic} reflexión", "{topic} análisis".
 - El artículo debe provocar que el lector quiera compartirlo o comentarlo.
 
 Devuelve SOLO este JSON:
 {{
-  "title": "Título de opinión. Máx. 55 caracteres. Directo y provocador. REGLAS OBLIGATORIAS DE PUNTUACIóN: (1) PALABRA POTENTEelige UNA SOLA: secreto / urgente / alerta / revelado / radical / transformador / poderoso / extraordinario / crítico / único / esencial / explosivo; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / emocionante / fascinante / asombroso / preocupante / impactante / alarmante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / real / tus / nunca / siempre / ahora; (4) SENTIMIENTO de urgencia o negación fuerte (puede ser negativo para generar impacto). MAL EJEMPLO: 'Los Riesgos Potenciales del Microondas en el Hogar'. BUEN EJEMPLO: 'Por Qué Nunca Deberás Ignorar Esta Alerta de Salud'. SIN puntos al final.",
+  "title": "Título de opinión. Máx. 55 caracteres. Directo y provocador. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / urgente / alerta / revelado / radical / transformador / poderoso / extraordinario / crítico / único / esencial / explosivo; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / emocionante / fascinante / asombroso / preocupante / impactante / alarmante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / clave / claves / tus / nunca / siempre / ahora; (4) SENTIMIENTO de urgencia o negación fuerte (puede ser negativo para generar impacto). MAL EJEMPLO: 'Los Riesgos Potenciales del Microondas en el Hogar'. BUEN EJEMPLO: 'Por qué nunca deberás ignorar esta alerta de salud'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta que expresa la postura del artículo (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo '{topic} opinión' o 'por qué {topic}'",
   "content": "<h2>...</h2>...HTML completo del artículo..."
@@ -350,20 +377,20 @@ Estructura requerida (en este orden exacto):
 2. <h2>Los N [elementos] de {topic}</h2> (usa número concreto entre 7 y 10) — Cada ítem con:
    - <h3>N. Nombre del elemento</h3>
    - Párrafo de 60-100 palabras explicando el punto con contexto, mecanismo y ejemplo real.
-   - (Cuando aplique) <blockquote>Cita de experto o estadística relevante con fuente</blockquote>
-3. <h2>¿Cómo aplicar este conocimiento?</h2> — Lista <ol> con 4-5 pasos concretos para que el lector implemente lo aprendido.
+   - (Cuando aplique) <blockquote>Cita de experto o estadística relevante con fuente en texto plano</blockquote>
+3. <h2>¿Y ahora qué hago con todo esto?</h2> — Lista <ol> con 4-5 pasos concretos para que el lector implemente lo aprendido.
 4. <h2>[Titular de cierre llamativo — NUNCA uses «Conclusión»; usa una pregunta retórica, una afirmación rotunda o una llamada a la acción, p. ej.: «¿Estás listo para cambiar tu relación con [tema]?» o «El primer paso está en tus manos»]</h2> — Recapitulación de los 3 puntos más importantes + llamada a la reflexión o siguiente acción del lector.
 
 Requisitos de calidad:
 - Longitud: 950–1150 palabras.
 - Cada punto del listado debe aportar información única; evita repeticiones o puntos genéricos.
-- Usa datos cuantitativos REALES (porcentajes, estudios, fechas); cada uno con hipervínculo a la fuente.
-- Los <blockquote> con citas de expertos deben indicar autor, cargo y fuente con enlace.
+- Usa datos cuantitativos REALES (porcentajes, estudios, fechas); indica la fuente en texto plano entre paréntesis.
+- Los <blockquote> con citas de expertos deben indicar autor, cargo y fuente en texto plano (sin enlace).
 - Optimiza para: "mejores {topic}", "top {topic}", "los más importantes {topic}".
 
 Devuelve SOLO este JSON:
 {{
-  "title": "Título listicle SEO. Máx. 55 caracteres. DEBE incluir un número (7, 8, 10…). REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto(s) / exclusivo(s) / definitivo(s) / garantizado(s) / imprescindible(s) / transformador(es) / poderoso(s) / extraordinario(s) / revelado(s) / único(s) / radical(es); (2) PALABRA EMOCIONALelige UNA SOLA: increíble(s) / sorprendente(s) / fascinante(s) / maravilloso(s) / asombroso(s) / brillante(s) / espectacular(es) / emocionante(s); (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / real / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Los 7 Secretos Increíbles que Transformarán Tu Salud Hoy'. SIN puntos al final.",
+  "title": "Título listicle SEO. Máx. 55 caracteres. DEBE incluir un número (7, 8, 10…). REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto(s) / exclusivo(s) / definitivo(s) / garantizado(s) / imprescindible(s) / transformador(es) / poderoso(s) / extraordinario(s) / revelado(s) / único(s) / radical(es); (2) PALABRA EMOCIONALelige UNA SOLA: increíble(s) / sorprendente(s) / fascinante(s) / maravilloso(s) / asombroso(s) / brillante(s) / espectacular(es) / emocionante(s); (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / ahora / descubre / aprende; (4) SENTIMIENTO positivo. MAL EJEMPLO: '7 Beneficios Probados de la Psilocibina 2026' (0 palabras de las listas). BUEN EJEMPLO: 'Los 7 secretos increíbles que transformarán tu salud hoy'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta con número y promesa de valor (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'mejores X' o 'top X'",
   "content": "<h2>...</h2>...HTML completo del artículo..."
@@ -380,26 +407,26 @@ Las guías how-to de alta calidad posicionan en featured snippets y búsquedas d
 
 Estructura requerida (en este orden exacto):
 1. <h2>[Titular descriptivo de apertura — NO uses «Introducción»; redacta un H2 motivador que anticipe el resultado de la guía, por ejemplo: «Todo lo que necesitas para [objetivo]» o «Por qué dominar [tema] cambia las reglas del juego»]</h2> — Qué logrará el lector, en cuánto tiempo y qué necesita previamente. Usa tono motivador. 2 párrafos.
-2. <h2>Antes de empezar: requisitos y conceptos previos</h2> — Lista <ul> con lo que el lector necesita saber o tener. Explica brevemente cada ítem.
-3. <h2>Guía paso a paso</h2> — Mínimo 5 pasos, cada uno con:
+2. <h2>Lo que necesitas tener listo (y por qué importa)</h2> — Lista <ul> con lo que el lector necesita saber o tener. Explica brevemente cada ítem.
+3. <h2>Manos a la obra: así se hace paso a paso</h2> — Mínimo 5 pasos, cada uno con:
    - <h3>Paso N: [título descriptivo del paso]</h3>
    - Explicación clara (60-100 palabras) con instrucción precisa, no ambigua.
    - Ejemplo o caso concreto de aplicación.
    - <blockquote>💡 Consejo profesional: ...</blockquote> o <em>⚠️ Atención: ...</em> según corresponda.
-4. <h2>Errores comunes y cómo evitarlos</h2> — Lista <ul> con 4-5 errores frecuentes; para cada uno: descripción del error + solución práctica.
-5. <h2>Preguntas frecuentes (FAQ)</h2> — Mínimo 3 preguntas reales que busca el usuario + respuesta directa de 2-3 oraciones. Usa <h3> para cada pregunta.
-6. <h2>Próximos pasos</h2> — Qué hacer después de completar la guía; recurso adicional o acción recomendada.
+4. <h2>Las trampas en las que todos caen (y cómo esquivarlas)</h2> — Lista <ul> con 4-5 errores frecuentes; para cada uno: descripción del error + solución práctica.
+5. <h2>Todo lo que siempre quisiste preguntar</h2> — Mínimo 3 preguntas reales que busca el usuario + respuesta directa de 2-3 oraciones. Usa <h3> para cada pregunta.
+6. <h2>¿Y ahora qué? Tu siguiente movimiento</h2> — Qué hacer después de completar la guía; recurso adicional o acción recomendada.
 
 Requisitos de calidad:
 - Longitud: 950–1150 palabras.
 - Instrucciones en imperativo ("realiza", "verifica", "evita"…) para máxima claridad.
-- Cuando cites estudios, estadísticas o recomendaciones de organismos, incluye hipervínculo a la fuente.
+- Cuando cites estudios, estadísticas o recomendaciones de organismos, indica la fuente en texto plano entre paréntesis (sin enlace).
 - El FAQ está estructurado para posicionar en "People Also Ask" de Google.
 - Optimiza para: "cómo {topic}", "guía {topic}", "paso a paso {topic}", "tutorial {topic}".
 
 Devuelve SOLO este JSON:
 {{
-  "title": "Título how-to SEO. Máx. 55 caracteres. DEBE empezar con 'Cómo' o 'Guía'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: definitivamente / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / fácilmente / rápidamente / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / emocionante; (3) PALABRA COMÚN'Cómo' al inicio YA cuenta como palabra común; añade también una de: mejor / más / nuevo / hoy / fácil / rápido / tus / real / nunca / siempre / ahora / descubre; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: 'Cómo Mejorar la Calidad de Tu Sueño en Casa'. BUEN EJEMPLO: 'Cómo Transformar Tu Sueño con Este Método Increíble'. SIN puntos al final.",
+  "title": "Título how-to SEO. Máx. 55 caracteres. DEBE empezar con 'Cómo' o 'Guía'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: definitivamente / garantizado / transformador / imprescindible / poderoso / extraordinario / revelado / único / esencial / fácilmente / rápidamente / radical; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / emocionante; (3) PALABRA COMÚN'Cómo' al inicio YA cuenta como palabra común; añade también una de: mejor / más / nuevo / hoy / clave / claves / tus / nunca / siempre / ahora / descubre; (4) SENTIMIENTO positivo o motivador. MAL EJEMPLO: 'Cómo Mejorar la Calidad de Tu Sueño en Casa'. BUEN EJEMPLO: 'Cómo transformar tu sueño con este método increíble'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta con promesa de aprendizaje (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'cómo X' o 'guía X'",
   "content": "<h2>...</h2>...HTML completo del artículo..."

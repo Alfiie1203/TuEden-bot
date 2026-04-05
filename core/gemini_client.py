@@ -829,6 +829,8 @@ def _repair_truncated_json(text: str) -> dict | None:
         raw_content = content_match.group(1)
         # Quitar trailing comillas/llaves incompletas y limpiar
         raw_content = re.sub(r'["\s}]+$', '', raw_content).strip()
+        # Desescapar secuencias JSON que quedaron literales al extraer con regex
+        raw_content = raw_content.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"')
         # Asegurarse de que el HTML quede cerrado básicamente
         if raw_content and not raw_content.endswith(">"):
             raw_content += "... <em>[contenido truncado — regenerar si es necesario]</em>"

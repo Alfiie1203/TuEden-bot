@@ -1,0 +1,322 @@
+{
+  "tiktok": {
+    "hooks": [
+      {
+        "tipo": "curiosidad",
+        "texto": "¿IA matando la creatividad de tus hijos?",
+        "descripcion_visual": "Plano medio, cara de preocupación simulada, mirada directa a cámara."
+      },
+      {
+        "tipo": "fomo",
+        "texto": "No dejes que la IA apague su chispa.",
+        "descripcion_visual": "Plano cerrado del ojo, ceja ligeramente levantada, expresión seria y luego un gesto de 'no'."
+      },
+      {
+        "tipo": "beneficio",
+        "texto": "Activa su genio creativo natural.",
+        "descripcion_visual": "Plano medio, sonrisa genuina, pulgar hacia arriba, luz natural."
+      }
+    ],
+    "guion": [
+      {
+        "escena": 1,
+        "segundos": "0-3",
+        "tipo": "gancho",
+        "toma": "Plano cerrado de una niña (hija) con tablet, expresión aburrida. Corte rápido a plano del padre/madre mirando a cámara.",
+        "dialogo": "Mi hija estaba perdiendo su chispa creativa.",
+        "texto_pantalla": "¡La IA le robaba la creatividad!",
+        "nota_edicion": "Corte rápido al inicio. Sonido de 'glitch' o 'loading' al fondo."
+      },
+      {
+        "escena": 2,
+        "segundos": "3-15",
+        "tipo": "retencion",
+        "toma": "Plano medio del padre/madre hablando a cámara con tono preocupado. Luego, b-roll de la hija intentando dibujar o escribir y borrando frustrada, con IA generativa en pantalla como contraste.",
+        "dialogo": "Noté que la inteligencia artificial le daba todo 'demasiado fácil'. Ya no se esforzaba, no experimentaba. Su cuaderno estaba vacío. ¿Te suena? Era un problema serio.",
+        "texto_pantalla": "IA: ¿Facilitador o destructor?",
+        "nota_edicion": "Jump cuts cada 2-3 segundos. Música dramática de fondo al 20%."
+      },
+      {
+        "escena": 3,
+        "segundos": "15-30",
+        "tipo": "valor_1",
+        "toma": "B-roll: la hija en un bosque, tocando hojas, observando insectos, respirando aire puro. Plano detalle de sus manos interactuando con la naturaleza. Voz en off del padre/madre.",
+        "dialogo": "Así que decidí llevarla a la naturaleza. Sin pantallas, solo ella y el mundo real. Quería que reconectara con sus sentidos, que volviera a 'ver' la belleza y la complejidad.",
+        "texto_pantalla": "PUNTO 1: DESCONEXIÓN TOTAL",
+        "nota_edicion": "Texto aparece al inicio de la escena. Música inspiradora sube ligeramente. Transición suave a b-roll."
+      },
+      {
+        "escena": 4,
+        "segundos": "30-45",
+        "tipo": "valor_2",
+        "toma": "Plano medio de la hija dibujando en un cuaderno sentada en un tronco, o recolectando elementos naturales. Luego, plano detalle de sus dibujos inspirados en lo que vio. Voz en off.",
+        "dialogo": "Empezó a observar texturas, colores, patrones. Cada hoja, cada piedra, se convirtió en una fuente de inspiración. Su cuaderno, que antes estaba en blanco, ahora se llenaba de vida. La naturaleza tiene esos detalles que ninguna IA puede replicar.",
+        "texto_pantalla": "PUNTO 2: INSPIRACIÓN NATURAL",
+        "nota_edicion": "Zoom sutil en la palabra 'inspiración'. Subtítulos activados. Sonidos ambientales de la naturaleza."
+      },
+      {
+        "escena": 5,
+        "segundos": "45-55",
+        "tipo": "resultado",
+        "toma": "Plano medio frontal de la hija sonriendo, mostrando un dibujo terminado con orgullo. Luego, plano del padre/madre sonriendo a cámara, con un fondo natural.",
+        "dialogo": "Su creatividad explotó de nuevo. Volvió a ser ella misma, llena de ideas originales. La IA es una herramienta, sí, pero la verdadera chispa viene de adentro, alimentada por el mundo real.",
+        "texto_pantalla": "EL RESULTADO: CREATIVIDAD RENOVADA",
+        "nota_edicion": "Música sube ligeramente y se vuelve más alegre. Ritmo de edición más rápido, con una sensación de logro."
+      },
+      {
+        "escena": 6,
+        "segundos": "55-60",
+        "tipo": "cta",
+        "toma": "Plano medio del padre/madre, señalando hacia abajo con el dedo.",
+        "dialogo": "Si sientes que la IA está afectando tu creatividad o la de tus hijos, prueba esto. ¡Guarda este video!",
+        "texto_pantalla": "GUARDA ESTO 👇 / COMENTA SI TE PASÓ",
+        "nota_edicion": "Pantalla congela 0.5s en último frame. Audio fade out rápido."
+      }
+    ],
+    "checklist": {
+      "grabacion": [
+        {
+          "item": "Grabación de la hija usando tablet",
+          "detalle": "Captura tomas de la hija aburrida o frustrada con una tablet en mano, con expresiones de apatía."
+        },
+        {
+          "item": "B-roll en la naturaleza",
+          "detalle": "Graba tomas variadas de la hija interactuando con la naturaleza: tocando hojas, observando flores, dibujando en un cuaderno, caminando por senderos."
+        },
+        {
+          "item": "Tomas de reacción del padre/madre",
+          "detalle": "Graba al padre/madre con expresiones de preocupación al inicio y de satisfacción al final, mirando directamente a cámara."
+        },
+        {
+          "item": "Detalles de dibujos y cuaderno",
+          "detalle": "Realiza planos detalle de los dibujos de la hija y de cómo llena su cuaderno, mostrando progreso."
+        },
+        {
+          "item": "Iluminación natural",
+          "detalle": "Asegura que todas las tomas en exteriores estén bien iluminadas con luz natural, evitando sombras duras."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Tablet o laptop",
+          "tipo": "prop"
+        },
+        {
+          "item": "Cuaderno de dibujo y lápices de colores",
+          "tipo": "prop"
+        },
+        {
+          "item": "Micrófono lavalier",
+          "tipo": "audio"
+        },
+        {
+          "item": "Bosque o parque natural",
+          "tipo": "locacion"
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Edición de sonido",
+          "detalle": "Añade sonidos de 'glitch' o 'loading' al inicio, y sonidos ambientales de la naturaleza (pájaros, viento) en las escenas exteriores."
+        },
+        {
+          "item": "Música dinámica",
+          "detalle": "Usa música dramática al inicio, luego una transición a música inspiradora y alegre para las escenas en la naturaleza y el resultado."
+        },
+        {
+          "item": "Textos en pantalla",
+          "detalle": "Asegura que los textos en pantalla sean legibles (fuente grande, contraste alto) y aparezcan en el momento adecuado para reforzar el mensaje."
+        },
+        {
+          "item": "Subtítulos automáticos",
+          "detalle": "Activa la función de subtítulos automáticos de TikTok o añade subtítulos manualmente para mejorar la accesibilidad."
+        }
+      ]
+    }
+  },
+  "instagram": {
+    "slides": [
+      {
+        "numero": 1,
+        "tipo": "portada",
+        "titulo": "Desbloquea la Creatividad: Fuera Pantallas, Dentro Naturaleza",
+        "subtitulo": "Cómo la IA puede apagar la chispa creativa (y cómo encenderla de nuevo)",
+        "cuerpo": "",
+        "estetica": "Fondo degradado azul cielo a verde bosque. Título en fuente sans-serif bold blanca. Subtítulo más pequeño. Ícono de cerebro con hojas brotando."
+      },
+      {
+        "numero": 2,
+        "tipo": "problema",
+        "titulo": "El Peligro Silencioso de la IA en la Creatividad",
+        "subtitulo": "",
+        "cuerpo": "La inteligencia artificial nos da soluciones instantáneas, pero ¿a qué costo? Para los niños, esto puede significar menos esfuerzo, menos experimentación y una desconexión de su propia capacidad de generar ideas originales. Se acostumbran a que la máquina haga el trabajo creativo.",
+        "estetica": "Fondo gris oscuro, texto blanco. Ícono de robot pensando con un signo de interrogación."
+      },
+      {
+        "numero": 3,
+        "tipo": "desarrollo",
+        "titulo": "Paso 1: Desconexión Digital Obligatoria",
+        "subtitulo": "",
+        "cuerpo": "El primer paso es simple pero crucial: dejar todos los dispositivos electrónicos en casa. Sin celular, tablet o laptop. El objetivo es eliminar cualquier distracción que impida la inmersión total en el entorno.",
+        "estetica": "Fondo verde claro, texto oscuro. Ícono de un celular tachado."
+      },
+      {
+        "numero": 4,
+        "tipo": "desarrollo",
+        "titulo": "Paso 2: Observación Activa y Detallada",
+        "subtitulo": "",
+        "cuerpo": "Anima a tus hijos (o a ti mismo) a mirar, tocar, oler y escuchar. Pídele que describa las formas de las hojas, los colores de una flor, el sonido del viento. Esto entrena la mente para notar detalles que la IA ignora.",
+        "estetica": "Fondo azul celeste, texto negro. Ilustración de un ojo observando una hoja."
+      },
+      {
+        "numero": 5,
+        "tipo": "desarrollo",
+        "titulo": "Paso 3: Herramientas Analógicas: Lápiz y Papel",
+        "subtitulo": "",
+        "cuerpo": "Lleva un cuaderno de dibujo y lápices. Invítale a plasmar lo que ve, siente o imagina. No tiene que ser perfecto. El acto de dibujar a mano activa áreas del cerebro diferentes a las de la creación digital, fomentando la paciencia y la resolución de problemas manual.",
+        "estetica": "Fondo beige, texto marrón. Dibujo de un cuaderno abierto con lápices."
+      },
+      {
+        "numero": 6,
+        "tipo": "desarrollo",
+        "titulo": "Paso 4: El Poder del 'No Saber' y Experimentar",
+        "subtitulo": "",
+        "cuerpo": "Permite que se equivoque, que combine colores 'mal', que pruebe texturas. La IA siempre busca la perfección; la naturaleza, la diversidad. Este espacio de libertad sin la presión de un resultado 'correcto' es donde la originalidad florece realmente.",
+        "estetica": "Fondo naranja suave, texto gris oscuro. Ícono de un signo de interrogación con un foco de luz."
+      },
+      {
+        "numero": 7,
+        "tipo": "resumen",
+        "titulo": "Quick Win ⚡",
+        "subtitulo": "",
+        "cuerpo": "Dedica al menos una hora semanal al aire libre sin dispositivos. Observa un árbol, dibuja una flor, o simplemente siéntate y escucha. ¡Verás cómo tu mente empieza a generar nuevas ideas!",
+        "estetica": "Fondo vibrante amarillo brillante. Texto en negro bold. Ícono de un rayo."
+      },
+      {
+        "numero": 8,
+        "tipo": "cta",
+        "titulo": "¿Te fue útil?",
+        "subtitulo": "",
+        "cuerpo": "Guarda este carrusel para recordarlo. Comparte con alguien que lo necesite. Comenta 'NATURALEZA' si crees que la IA está afectando la creatividad.",
+        "estetica": "Fondo azul profundo, texto blanco. Botones visuales de 'Guardar', 'Compartir', 'Comentar'."
+      }
+    ],
+    "hashtags": [
+      "#Creatividad",
+      "#InteligenciaArtificial",
+      "#CrianzaConsciente",
+      "#Naturaleza",
+      "#EducacionCreativa",
+      "#DesarrolloInfantil",
+      "#CreatividadNatural",
+      "#FamiliaCreativa",
+      "#FueraPantallas",
+      "#ReconectaConLaNaturaleza"
+    ],
+    "checklist": {
+      "diseno": [
+        {
+          "item": "Consistencia de fuentes",
+          "detalle": "Usar solo dos tipos de fuentes: una para títulos (bold) y otra para el cuerpo de texto en todos los slides."
+        },
+        {
+          "item": "Paleta de colores armónica",
+          "detalle": "Mantener una paleta de colores coherente con tonos tierra y azules/verdes que evoquen naturaleza, variando el color de fondo en cada slide pero manteniendo la cohesión."
+        },
+        {
+          "item": "Iconografía relevante",
+          "detalle": "Utilizar íconos sencillos y claros que refuercen el mensaje de cada slide sin sobrecargar el diseño."
+        },
+        {
+          "item": "Espacio en blanco",
+          "detalle": "Asegurar suficiente espacio en blanco alrededor del texto y los elementos visuales para una lectura fácil y limpia."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Imágenes de naturaleza (fondo/ilustraciones)",
+          "tipo": "imagen"
+        },
+        {
+          "item": "Íconos de cerebro, robot, celular tachado, ojo, cuaderno, foco, rayo",
+          "tipo": "icono"
+        },
+        {
+          "item": "Paleta de colores (ej. #F0F8FF, #E6E6FA, #B0E0E6, #8FBC8F, #6B8E23, #4682B4)",
+          "tipo": "color"
+        },
+        {
+          "item": "Fuente Sans-serif (ej. Montserrat, Lato) para títulos y cuerpo",
+          "tipo": "tipografia"
+        }
+      ],
+      "publicacion": [
+        {
+          "item": "Revisión de texto",
+          "detalle": "Verificar ortografía y gramática en todos los slides antes de exportar."
+        },
+        {
+          "item": "Exportar como carrusel",
+          "detalle": "Exportar cada slide como una imagen JPG o PNG individual en el orden correcto para la publicación en carrusel."
+        },
+        {
+          "item": "Etiquetar cuentas relevantes",
+          "detalle": "Si aplica, etiquetar a cuentas de educación, naturaleza o crianza positiva en la descripción o en la imagen."
+        }
+      ]
+    }
+  },
+  "facebook": {
+    "post": "Hoy quiero compartirles una preocupación que se convirtió en una hermosa solución para mi hija y, quizás, para muchos de ustedes. Últimamente, había notado un cambio en ella. Esa chispa, esa energía de crear y experimentar que siempre la caracterizó, parecía estar disminuyendo. 🤔\n\nPasaba horas con su tablet, pidiéndole a la IA que le diera ideas para sus dibujos o sus historias. Al principio, lo vi como una herramienta moderna, pero pronto me di cuenta de que le estaba quitando algo fundamental: el placer del proceso, la lucha creativa, el 'no saber' qué dibujar y descubrirlo por sí misma. Su cuaderno, antes lleno de garabatos y mundos imaginarios, ahora estaba casi vacío.\n\nFue entonces cuando tuve una idea: ¿Y si la solución no estaba en más tecnología, sino en menos? Decidí que era hora de una desconexión total. La llevé a un bosque cercano, sin tablet, sin celular, solo con un cuaderno de dibujo y lápices. Al principio, estaba un poco reacia, acostumbrada a su mundo digital. Pero no tardó en cambiar.\n\nEmpezó a observar. Vimos la textura de la corteza de los árboles, los pequeños insectos que se escondían bajo las piedras, los diferentes tonos de verde en las hojas. La invité a tocar, a oler, a escuchar. Y poco a poco, su mente empezó a abrirse. Su cuaderno se llenó de bocetos de hojas, de setas, de patrones que encontraba en la naturaleza. ¡No eran perfectos, pero eran suyos!\n\nVerla dibujar con esa concentración, con esa alegría de descubrimiento, fue mágico. La naturaleza le ofreció una fuente inagotable de inspiración que ninguna IA podría replicar. Le permitió reconectar con su propia capacidad de crear, de imaginar sin algoritmos de por medio. 🌱\n\nNo se trata de demonizar la IA, que es una herramienta poderosa. Pero debemos recordar que la verdadera creatividad nace de la curiosidad humana, de la observación del mundo real y del placer de la experimentación. Si sientes que la chispa creativa se está apagando, ya sea en tus hijos o en ti mismo, te invito a probar esto. A veces, la mejor 'tecnología' es simplemente la naturaleza.",
+    "pregunta_engagement": "¿Cuál fue la última vez que sentiste una chispa creativa lejos de una pantalla?",
+    "checklist": {
+      "contenido": [
+        {
+          "item": "Longitud del post",
+          "detalle": "Verificar que el post tenga entre 200 y 350 palabras para una lectura óptima."
+        },
+        {
+          "item": "Tono personal y empático",
+          "detalle": "Asegurar que el post transmita una experiencia personal y que invite a la reflexión, conectando emocionalmente con la audiencia."
+        },
+        {
+          "item": "Uso estratégico de emojis",
+          "detalle": "Incluir emojis relevantes (🤔, 🌱) para romper el texto y añadir expresividad sin sobrecargar."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Video corto o foto de la hija en la naturaleza",
+          "tipo": "video"
+        },
+        {
+          "item": "Foto de los dibujos de la hija o un plano detalle del cuaderno",
+          "tipo": "imagen"
+        }
+      ],
+      "publicacion": [
+        {
+          "item": "Horario óptimo de publicación",
+          "detalle": "Publicar el post en un horario donde la audiencia esté más activa (ej. 10 AM - 2 PM o 7 PM - 9 PM)."
+        },
+        {
+          "item": "Configuración de privacidad",
+          "detalle": "Asegurar que el post sea público para maximizar el alcance."
+        },
+        {
+          "item": "Responder a comentarios",
+          "detalle": "Monitorear y responder a los comentarios generados por la pregunta de engagement para fomentar la interacción."
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "Mi hija se esta quedando sin creatividad por culpa de la IA asi que la lleve a la naturaleza para que reconecte con su c",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-04T13:26:18Z",
+    "platforms": [
+      "tiktok"
+    ]
+  }
+}
