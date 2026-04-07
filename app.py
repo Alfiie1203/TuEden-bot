@@ -3461,6 +3461,7 @@ def api_editor_guardar():
                 },
                 data=img_final,
                 timeout=45,
+                verify=False,
             )
             response.raise_for_status()
             media = response.json() if response.content else {}
