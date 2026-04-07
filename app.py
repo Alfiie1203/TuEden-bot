@@ -3457,8 +3457,9 @@ def api_editor_guardar():
                 auth=auth,
                 headers={
                     "Content-Disposition": f'attachment; filename="{final_name}"',
+                    "Content-Type": "image/jpeg",
                 },
-                files={"file": (final_name, img_final, "image/jpeg")},
+                data=img_final,
                 timeout=45,
             )
             response.raise_for_status()
