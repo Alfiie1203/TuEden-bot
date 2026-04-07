@@ -95,10 +95,10 @@ def _build_prompt(topics: list[str]) -> str:
     return f"""\
 Eres un experto en SEO y estrategia de contenidos médico-psicológicos en español.
 
-La fecha de hoy es {today_str}. Esto es MUY IMPORTANTE: estamos en el año {current_year}.
+La fecha de hoy es {today_str}. Usa el año {current_year} solo como contexto temporal, no como obligación de redacción.
 
 Para cada tópico de la lista, sugiere EXACTAMENTE 3 artículos de blog con los títulos \
-más indexables y atractivos posibles para Google en {current_year}.
+más indexables y atractivos posibles para Google hoy.
 
 Los 3 tipos de artículo son SIEMPRE estos (en este orden):
 1. EVERGREEN — Artículo atemporal de fondo (reflexión, análisis, columna de opinión) \
@@ -110,10 +110,11 @@ búsquedas de tipo "cómo…". El título DEBE empezar por "Cómo" o "Guía para
 
 REGLAS PARA TÍTULOS DE ALTO IMPACTO:
 • Máximo 65 caracteres por título.
-• Si incluyes un año en el título, usa preferentemente {current_year}. Puedes citar años anteriores solo si el dato es real y relevante.
+• El año en el título es OPCIONAL. Úsalo solo cuando aporte actualidad real o mejore claramente la intención de búsqueda. Si lo incluyes, usa preferentemente {current_year}. Puedes citar años anteriores solo si el dato es real y relevante.
 • Usa palabras de alto CTR: secreto, clave, definitivo, descubierto, alerta, real, probado.
 • Sé ultra-específico: evita títulos vagos o genéricos.
 • Orientado al lector del blog médico-psicológico: pacientes, familiares y profesionales.
+• RELIGIÓN PROHIBIDA: no propongas títulos sobre religión, fe, espiritualidad, iglesias, doctrinas o prácticas religiosas.
 • MAYÚSCULAS: Aplica las reglas gramaticales del español. Solo mayúscula en la PRIMERA palabra del título y en nombres propios. NO uses Title Case (no pongas mayúscula en cada palabra). Ejemplo CORRECTO: 'Cómo la microbiota intestinal transforma tu salud mental'. Ejemplo INCORRECTO: 'Cómo la Microbiota Intestinal Transforma Tu Salud Mental'. Después de dos puntos (:) la siguiente palabra va en minúscula salvo que sea nombre propio.
 
 Lista de tópicos:

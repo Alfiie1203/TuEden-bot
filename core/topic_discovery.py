@@ -91,6 +91,7 @@ aspecto físico y autoestima. Mezcla tendencias actuales, ciencia dermatológica
 • Evita títulos vagos o genéricos; cada título debe ser ultra específico.
 • Escribe en español natural de España.
 • NO incluyas numeración ni puntos al inicio de cada título.
+• RELIGIÓN PROHIBIDA: no propongas temas sobre religión, espiritualidad, iglesias, doctrinas, fe o prácticas religiosas.
 
 Responde ÚNICAMENTE con el siguiente objeto JSON válido:
 

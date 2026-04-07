@@ -1,0 +1,17 @@
+[
+  {
+    "id": "mama",
+    "nombre": "Mama",
+    "perfil": "30 años, psicologa"
+  },
+  {
+    "id": "papa",
+    "nombre": "Papa",
+    "perfil": "30 años, ingeniero de sistemas"
+  },
+  {
+    "id": "hija",
+    "nombre": "Hija",
+    "perfil": "8 años"
+  }
+]

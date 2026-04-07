@@ -1,0 +1,255 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Resultado Express",
+        "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+        "gancho_texto": "Cómo logré que mi hija de 8 años dejara el iPad en solo un día con esta escapada simple.",
+        "promesa_valor": "Consigue que tu hijo se desconecte de la tecnología y conecte con la naturaleza.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Narradora, facilitadora de la experiencia, observadora del cambio en su hija."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Protagonista del cambio, muestra curiosidad, alegría y conexión con la naturaleza."
+          }
+        ],
+        "instruccion_visual_inicio": "Mamá e hija (8) caminan de la mano hacia la entrada del jardín botánico, sonriendo, la hija mira con curiosidad.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "El gancho impactante: ¿Cómo es posible dejar el iPad en un día?",
+            "micro_transicion": "Corte rápido a hija con iPad."
+          },
+          {
+            "paso": 2,
+            "segundos": "15-18",
+            "mensaje": "La solución simple: Un cambio de escenario que lo transformó todo.",
+            "micro_transicion": "Primer plano de hija asombrada por los tulipanes."
+          },
+          {
+            "paso": 3,
+            "segundos": "30-33",
+            "mensaje": "La conexión real: Ver a tu hijo redescubrir la alegría natural.",
+            "micro_transicion": "Hija interactuando con la naturaleza, pura curiosidad."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar la atención con el gancho y la imagen del problema.",
+            "personaje": "Mama",
+            "visual": "Mamá e hija caminan de la mano hacia la entrada del jardín botánico, sonriendo, la hija mira con curiosidad. Luego, un corte rápido a la hija absorta en el iPad.",
+            "dialogo": "(Voz en off, Mama, tono cercano y un poco preocupado) Mi hija vivía pegada al iPad...",
+            "texto_pantalla": "Cómo logré que mi hija de 8 años dejara el iPad en solo un día con esta escapada simple.",
+            "transicion": "Corte rápido."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Mostrar el problema recurrente y la decisión de buscar una alternativa.",
+            "personaje": "Mama",
+            "visual": "Serie de tomas rápidas: Hija absorta en el iPad (sofá, mesa). Mama mira preocupada, luego busca algo en el móvil (jardín botánico en pantalla).",
+            "dialogo": "(Voz en off, Mama) ...como muchos niños hoy. Quería que desconectara, que viera más allá de la pantalla. Así que decidí un plan simple.",
+            "texto_pantalla": "El problema: Demasiada pantalla. / La solución: Un día en la naturaleza.",
+            "transicion": "Wipe o fade a la entrada del jardín."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Mostrar la llegada y la primera inmersión en la naturaleza, el asombro inicial.",
+            "personaje": "Mama",
+            "visual": "Mamá e hija entran al jardín. Primer plano de hija viendo un campo de tulipanes, ojos grandes. Mama sonríe, señala. Hija corre emocionada hacia las flores.",
+            "dialogo": "(Voz en off, Mama) Llegamos al jardín botánico. Ver su cara al descubrir los tulipanes fue mágico. ¡Era un mundo nuevo para ella!",
+            "texto_pantalla": "El poder de la primera impresión.",
+            "transicion": "Corte a toma de hija agachándose a oler una flor."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Mostrar a la hija interactuando activamente con el entorno, la desconexión total.",
+            "personaje": "Mama",
+            "visual": "Hija huele un tulipán, lo toca suavemente. Corre entre los senderos. Se agacha a observar un insecto pequeño. Mamá la observa a distancia, sonriendo con satisfacción.",
+            "dialogo": "(Voz en off, Mama) No hubo iPad, no hubo quejas. Solo pura curiosidad y asombro. Preguntaba, exploraba, ¡se sentía libre! Se olvidó por completo de la tecnología.",
+            "texto_pantalla": "Conexión real, desconexión total.",
+            "transicion": "Corte a toma de hija sentada en un banco, mirando a su alrededor."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Mostrar el resultado final, la reflexión de la madre y el CTA.",
+            "personaje": "Mama",
+            "visual": "Hija agotada pero feliz, sentada en un banco, dibujando en un cuaderno (no iPad). Mama se sienta a su lado, la abraza. Ambas miran el paisaje juntas, sonriendo. Mama mira a cámara.",
+            "dialogo": "(Voz en off, Mama) Al final del día, estaba cansada pero su mente estaba llena de colores y nuevas experiencias. El iPad no se mencionó. No subestimes el poder de un día así. (Mama a cámara) ¡Pruébalo!",
+            "texto_pantalla": "Resultados en un día. / ¡Tu hijo también puede!",
+            "transicion": "Fade a negro."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Jardín botánico (entrada, senderos con tulipanes, bancos).",
+          "tono": "Inspirador, cálido, auténtico, con un toque de alivio y alegría.",
+          "ritmo_edicion": "Rápido al inicio (problema), luego más pausado y contemplativo en el jardín, con cortes ágiles para mantener el dinamismo.",
+          "vestuario": "Ropa cómoda y colorida, adecuada para un paseo al aire libre. Mama: estilo casual chic. Hija: ropa alegre y práctica.",
+          "props": "iPad (para la escena del problema), cuaderno de dibujo y lápices (para el final), mochila pequeña, botella de agua.",
+          "musica_sfx": "Música instrumental suave y optimista, sonidos ambientales del jardín (pájaros, viento, risas infantiles).",
+          "tomas_clave": [
+            "Mamá e hija entrando al jardín, miradas de curiosidad y emoción.",
+            "Primer plano de la hija absorta en el iPad, luego levantando la vista con un suspiro.",
+            "Toma amplia de la hija corriendo libremente entre los campos de tulipanes.",
+            "Primer plano de la hija oliendo o tocando una flor, sus ojos brillando de asombro.",
+            "Mamá e hija abrazadas en un banco, mirando el paisaje, reflejando paz y conexión."
+          ]
+        },
+        "cta_engagement": "¿Has intentado algo similar para desconectar a tus hijos? Cuéntame tu experiencia en los comentarios o si estás pensando en probarlo, ¿qué jardín o parque visitarías?"
+      },
+      {
+        "tipo_de_angulo": "POV",
+        "plantilla_base": "POV: Te das cuenta de que [Situación irónica o graciosa].",
+        "gancho_texto": "POV: Te das cuenta de que la sonrisa de tu hija al ver un tulipán vale más que cualquier 'like' digital.",
+        "promesa_valor": "Redescubre la alegría simple y la conexión auténtica a través de la perspectiva de tu hijo.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Guía y observadora, narradora principal."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Protagonista de la experiencia, catalizadora de la reflexión."
+          }
+        ],
+        "instruccion_visual_inicio": "Cámara subjetiva (POV de la hija de 8 años) enfocando un tulipán muy de cerca, luego se levanta y mira a su mamá sonriendo ampliamente.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-1",
+            "mensaje": "Pantallas vs. Tulipanes",
+            "micro_transicion": "Zoom rápido al tulipán."
+          },
+          {
+            "paso": 2,
+            "segundos": "1-2",
+            "mensaje": "Su asombro: el mejor 'scroll'",
+            "micro_transicion": "Corte a la sonrisa de la hija."
+          },
+          {
+            "paso": 3,
+            "segundos": "2-3",
+            "mensaje": "Conexión real, likes virtuales",
+            "micro_transicion": "Transición a la mirada de la mamá."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar atención con el POV de la hija y la emoción genuina del descubrimiento.",
+            "personaje": "Hija",
+            "visual": "Cámara subjetiva (POV de la hija de 8 años) enfocando un tulipán muy de cerca, colores vibrantes. Luego se levanta y mira a su mamá sonriendo ampliamente.",
+            "dialogo": "(Hija, voz infantil, emocionada) ¡Mira, mamá! ¡Es tan bonito!",
+            "texto_pantalla": "POV: Su sonrisa vale más que cualquier 'like'.",
+            "transicion": "Corte rápido a vista de Mama."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Introducir el contraste entre lo digital y lo natural, desde la perspectiva de la madre.",
+            "personaje": "Mama",
+            "visual": "Mama sonríe a la hija. Luego, plano medio de Mama, mirando a la hija (fuera de campo) con expresión reflexiva. Pequeños clips de la hija tocando suavemente pétalos de tulipanes, oliendo flores.",
+            "dialogo": "(Mama, voz en off, suave y reflexiva) Como psicóloga, sé el valor de desconectar. Pero como madre, lo siento. Verla aquí, explorando sin pantallas, es... mágico.",
+            "texto_pantalla": "¿Desconexión digital? Sí, por favor.",
+            "transicion": "Fundido a cámara lenta de la hija caminando."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Mostrar a la hija completamente inmersa y a la madre observando su desarrollo y asombro.",
+            "personaje": "Mama",
+            "visual": "Hija corretea entre los macizos de tulipanes, señalando diferentes colores y formas. Mama la sigue a poca distancia, grabándola con el móvil discretamente, pero principalmente observándola con una sonrisa. Se agacha para señalarle algo.",
+            "dialogo": "(Hija) ¡Este es como el sol! ¡Y este es de princesa! (Mama, en voz baja a cámara) Cada color, cada textura es un nuevo descubrimiento para ella. Sin filtros, sin algoritmos.",
+            "texto_pantalla": "Cada tulipán, un nuevo algoritmo.",
+            "transicion": "Corte a primer plano de las manos de la hija examinando una hoja."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Profundizar en la reflexión de la madre sobre la importancia de estas experiencias para el desarrollo infantil.",
+            "personaje": "Mama",
+            "visual": "Mama se sienta en un banco, hija juega cerca pero fuera de foco. Mama mira a cámara, habla con sinceridad y calma. Luego, un plano general del jardín con la hija al fondo.",
+            "dialogo": "(Mama, a cámara, directa) Nuestros hijos viven en un mundo saturado de estímulos digitales. Darles estos espacios es regalarles la capacidad de asombro. De construir su propia narrativa, lejos de la de un influencer.",
+            "texto_pantalla": "Espacios reales, mentes auténticas.",
+            "transicion": "Transición suave a la hija riendo."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Cerrar con la emoción, el mensaje principal y la llamada a la acción.",
+            "personaje": "Mama",
+            "visual": "Hija se acerca a Mama, le da la mano y la arrastra hacia otro macizo de flores. Ambas sonríen. Plano final de la hija mirando un tulipán con los ojos muy abiertos y una sonrisa pura.",
+            "dialogo": "(Mama, voz en off, cálida) Al final, no se trata de prohibir, sino de equilibrar. De recordarles que la magia está ahí fuera, esperando a ser descubierta. Y que su risa genuina... es el mejor contenido.",
+            "texto_pantalla": "Su risa genuina: el mejor contenido.",
+            "transicion": "Fundido a negro."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Jardín botánico (sección de tulipanes).",
+          "tono": "Reflexivo, tierno, inspirador y auténtico.",
+          "ritmo_edicion": "Inicialmente rápido y envolvente, luego más pausado y contemplativo.",
+          "vestuario": "Ropa cómoda, casual, de colores primaverales (no estridentes).",
+          "props": "Tulipanes (naturales del jardín).",
+          "musica_sfx": "Música instrumental suave y emotiva de fondo. Sonidos ambiente del jardín (pájaros, viento suave).",
+          "tomas_clave": [
+            "POV de la hija enfocado en un tulipán.",
+            "Primer plano de la sonrisa genuina de la hija.",
+            "Mama observando a la hija con cariño y reflexión.",
+            "Hija interactuando libremente con el entorno natural.",
+            "Plano general del jardín botánico con la familia disfrutando."
+          ]
+        },
+        "cta_engagement": "Cuéntame, ¿qué espacio le das a tus hijos para desconectar y asombrarse?"
+      }
+    ]
+  },
+  "meta": {
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T23:13:16Z",
+    "platforms": [
+      "tiktok"
+    ],
+    "selected_characters": [
+      "mama",
+      "hija"
+    ],
+    "source_post": null,
+    "selected_hooks": [
+      {
+        "tipo_de_angulo": "Resultado Express",
+        "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+        "gancho_texto": "Cómo logré que mi hija de 8 años dejara el iPad en solo un día con esta escapada simple.",
+        "promesa_valor": "Consigue que tu hijo se desconecte de la tecnología y conecte con la naturaleza.",
+        "instruccion_visual_inicio": "Mamá e hija (8) caminan de la mano hacia la entrada del jardín botánico, sonriendo, la hija mira con curiosidad."
+      },
+      {
+        "tipo_de_angulo": "POV",
+        "plantilla_base": "POV: Te das cuenta de que [Situación irónica o graciosa].",
+        "gancho_texto": "POV: Te das cuenta de que la sonrisa de tu hija al ver un tulipán vale más que cualquier 'like' digital.",
+        "promesa_valor": "Redescubre la alegría simple y la conexión auténtica a través de la perspectiva de tu hijo.",
+        "instruccion_visual_inicio": "Cámara subjetiva (POV de la hija de 8 años) enfocando un tulipán muy de cerca, luego se levanta y mira a su mamá sonriendo ampliamente."
+      }
+    ]
+  }
+}

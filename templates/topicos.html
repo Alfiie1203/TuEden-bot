@@ -20,6 +20,10 @@
   .topic-item.checked { background: rgba(110,168,254,.14); }
   .topic-item label { cursor: pointer; color: var(--text); }
   .topic-item.checked label { color: var(--accent); font-weight: 500; }
+  .suggestion-row-disabled { opacity: .5; }
+  .suggestion-row-disabled input { text-decoration: line-through; }
+  .suggestion-card-removed { border-style: dashed; opacity: .72; }
+  .saved-state-note { font-size: .8rem; color: var(--muted); }
 </style>
 {% endblock %}
 
@@ -36,7 +40,10 @@
   <div class="d-flex gap-2 mb-4">
     <button class="btn btn-primary" onclick="cargarTopicos(false)">🔍 Cargar tópicos del día</button>
     <button class="btn btn-outline-secondary" onclick="cargarTopicos(true)">🔄 Refrescar (nueva consulta)</button>
+    <button id="btnGuardarEstado" class="btn btn-outline-success" onclick="guardarEstadoTopicos()" disabled>💾 Guardar selección del día</button>
+    <button id="btnRecuperarEstado" class="btn btn-outline-info" onclick="recuperarEstadoTopicos()">↩️ Recuperar guardado</button>
   </div>
+  <div id="savedStateMsg" class="saved-state-note mb-3"></div>
 
   <!-- Panel de tópicos -->
   <div id="topicsPanel" style="display:none">
@@ -54,12 +61,6 @@
       <p class="text-muted small">5 productos que encajan con los temas del día — perfectos para artículos de afiliado.</p>
       <div class="row g-3" id="amazonGrid"></div>
     </div>
-
-    <hr>
-    <!-- Tópico libre -->
-    <h6 class="section-title">✏️ O escribe un tópico libre</h6>
-    <input id="freeTopic" type="text" class="form-control mb-3"
-      placeholder="Ej: el impacto del insomnio en el rendimiento académico de los adolescentes">
 
     <hr>
     <!-- Opciones de generación -->
@@ -101,7 +102,7 @@
   <!-- Panel de sugerencias / edición de títulos -->
   <div id="suggestionsPanel" class="mt-4" style="display:none">
     <h6 class="section-title">✏️ Revisa y edita los títulos sugeridos</h6>
-    <p class="text-muted small">Puedes modificar cualquier título. Los posts se crearán con los títulos que veas aquí.</p>
+    <p class="text-muted small">Puedes modificar, omitir títulos concretos o eliminar el tópico completo antes de generar. Solo se crearán los títulos activos que veas aquí.</p>
     <div id="suggestionsContent"></div>
     <div class="mt-3">
       <button id="btnGenerar" class="btn btn-primary btn-lg" onclick="iniciarGeneracion()">
@@ -133,10 +134,14 @@
 <script>
 const TYPE_ICONS  = {opinion:"💬",listicle:"📋",howto:"🛠️"};
 const TYPE_LABELS = {opinion:"Artículo de Opinión",listicle:"Listicle / Top N",howto:"Guía Paso a Paso"};
+const TYPE_FIELDS = {opinion:'evergreen', listicle:'listicle', howto:'howto'};
+const TYPE_ORDER  = ['opinion', 'listicle', 'howto'];
 
 let _selectedTopics = new Set();
 let _editedTitles   = {};   // {"tópico:tipo": "título editado"}
 let _suggestions    = [];
+let _disabledPosts  = new Set();
+let _topicsData     = null;
 
 function cargarTopicos(force) {
   const btn = document.querySelector(force ? 'button[onclick="cargarTopicos(true)"]' : 'button[onclick="cargarTopicos(false)"]');
@@ -147,12 +152,56 @@ function cargarTopicos(force) {
     .then(d => {
       if (btn) { btn.disabled = false; btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día'; }
       if (!d.ok) { showToast(d.error || 'Error al cargar tópicos', 'danger'); return; }
-      mostrarTopicos(d.data, d.from_cache);
+      _selectedTopics = new Set();
+      _editedTitles = {};
+      _suggestions = [];
+      _disabledPosts = new Set();
+      document.getElementById('suggestionsPanel').style.display = 'none';
+      document.getElementById('suggestionsContent').innerHTML = '';
+      mostrarTopicos(d.data, d.from_cache, {preserveSelection:false});
+      notifyFilteredOut(d.filtered_out || []);
+      setSavedStateMessage('Puedes guardar esta selección y retomarla más tarde sin perder títulos editados.');
     })
     .catch(e => { if(btn){btn.disabled=false;} showToast('Error: ' + e, 'danger'); });
 }
 
-function mostrarTopicos(data, fromCache) {
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function notifyFilteredOut(items) {
+  if (Array.isArray(items) && items.length) {
+    showToast(`Se omitieron ${items.length} tema(s) con referencias religiosas.`, 'warning');
+  }
+}
+
+function setSavedStateMessage(message, tone='muted') {
+  const el = document.getElementById('savedStateMsg');
+  const colors = {muted:'var(--muted)', success:'var(--green)', warning:'var(--amber)'};
+  el.textContent = message || '';
+  el.style.color = colors[tone] || colors.muted;
+}
+
+function updateStateButtons() {
+  const canSave = !!_topicsData;
+  document.getElementById('btnGuardarEstado').disabled = !canSave;
+}
+
+function restoreTopicSelections() {
+  document.querySelectorAll('#topicsGrid input.form-check-input').forEach(input => {
+    const checked = _selectedTopics.has(input.value);
+    input.checked = checked;
+    input.closest('.topic-item')?.classList.toggle('checked', checked);
+  });
+  actualizarConteo();
+}
+
+function mostrarTopicos(data, fromCache, options = {}) {
+  _topicsData = data;
   document.getElementById('topicsPanel').style.display = '';
   const fecha = data.fecha || '';
   document.getElementById('topicsBadge').innerHTML = fromCache
@@ -192,7 +241,12 @@ function mostrarTopicos(data, fromCache) {
     html += `</div></div></div>`;
   });
   document.getElementById('topicsGrid').innerHTML = html;
-  actualizarConteo();
+  if (options.preserveSelection) {
+    restoreTopicSelections();
+  } else {
+    actualizarConteo();
+  }
+  updateStateButtons();
 
   // Mostrar sugerencias Amazon si vienen en la respuesta
   const amazonPanel = document.getElementById('amazonPanel');
@@ -230,8 +284,7 @@ function toggleTopic(topic, checked, el) {
 }
 
 function actualizarConteo() {
-  const free = document.getElementById('freeTopic').value.trim();
-  const n = _selectedTopics.size + (free ? 1 : 0);
+  const n = _selectedTopics.size;
   const countEl = document.getElementById('selectedCount');
   const btnSug  = document.getElementById('btnSugerir');
   if (n > 0) {
@@ -245,9 +298,6 @@ function actualizarConteo() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const ft = document.getElementById('freeTopic');
-  if (ft) ft.addEventListener('input', actualizarConteo);
-
   // Auto-set reviewer based on logged-in user's role
   const sel = document.getElementById('selReviewer');
   if (sel) {
@@ -256,13 +306,12 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (role === 'psicologa') sel.value = 'Psicólogo';
     // admin/editor: leave blank (no default)
   }
+
+  checkSavedStateAvailability();
 });
 
 function getSelectedTopics() {
-  const list = Array.from(_selectedTopics);
-  const free = (document.getElementById('freeTopic')||{}).value?.trim();
-  if (free) list.push(free);
-  return list;
+  return Array.from(_selectedTopics);
 }
 
 function sugerirTitulos() {
@@ -276,57 +325,127 @@ function sugerirTitulos() {
     .then(d => {
       btn.disabled = false; btn.textContent = '🔎 Sugerir títulos (1 request a Gemini)';
       if (!d.ok) { showToast(d.error || 'Error', 'danger'); return; }
+      notifyFilteredOut(d.filtered_out || []);
       _suggestions = d.suggestions;
+      _disabledPosts = new Set();
       mostrarSugerencias(d.suggestions);
     })
     .catch(e => { btn.disabled = false; btn.textContent = '🔎 Sugerir títulos'; showToast('Error: '+e,'danger'); });
 }
 
-function mostrarSugerencias(suggs) {
+function isTopicRemoved(topic) {
+  return TYPE_ORDER.every(pt => _disabledPosts.has(`${topic}:${pt}`));
+}
+
+function togglePost(key) {
+  if (_disabledPosts.has(key)) _disabledPosts.delete(key);
+  else _disabledPosts.add(key);
+  mostrarSugerencias(_suggestions, {preserveEdited:true});
+}
+
+function toggleTopicGroup(topic) {
+  const keys = TYPE_ORDER.map(pt => `${topic}:${pt}`);
+  const removeAll = !keys.every(key => _disabledPosts.has(key));
+  keys.forEach(key => {
+    if (removeAll) _disabledPosts.add(key);
+    else _disabledPosts.delete(key);
+  });
+  mostrarSugerencias(_suggestions, {preserveEdited:true});
+}
+
+function updateGenerateButtonLabel() {
+  const plan = getGenerationSelection();
+  const btn = document.getElementById('btnGenerar');
+  btn.disabled = plan.activePosts === 0;
+  btn.textContent = plan.activePosts > 0
+    ? `✨ Generar ${plan.activePosts} post${plan.activePosts !== 1 ? 's' : ''} (${plan.topics.length} tópico${plan.topics.length !== 1 ? 's' : ''})`
+    : '✨ Generar posts';
+}
+
+function mostrarSugerencias(suggs, options = {}) {
   const panel = document.getElementById('suggestionsPanel');
   panel.style.display = '';
-  _editedTitles = {};
+  if (!options.preserveEdited) {
+    _editedTitles = {};
+  }
+  _suggestions = suggs;
 
   let html = '';
-  const typeMap = {opinion:'evergreen', listicle:'listicle', howto:'howto'};
 
   suggs.forEach(sg => {
     const short = sg.topico.length > 70 ? sg.topico.substring(0,70) + '…' : sg.topico;
-    html += `<div class="card mb-3">
-      <div class="card-header py-2"><strong>📂 ${short}</strong></div>
+    const removedTopic = isTopicRemoved(sg.topico);
+    html += `<div class="card mb-3 ${removedTopic ? 'suggestion-card-removed' : ''}">
+      <div class="card-header py-2 d-flex justify-content-between align-items-center gap-2">
+        <strong>📂 ${escapeHtml(short)}</strong>
+        <button type="button" class="btn btn-sm ${removedTopic ? 'btn-outline-success' : 'btn-outline-danger'}" onclick="toggleTopicGroup(${JSON.stringify(sg.topico)})">
+          ${removedTopic ? '↩️ Recuperar tópico' : '🗑️ Eliminar tópico'}
+        </button>
+      </div>
       <div class="card-body">`;
-    [{pt:'opinion',field:'evergreen'},{pt:'listicle',field:'listicle'},{pt:'howto',field:'howto'}].forEach(({pt,field}) => {
+    TYPE_ORDER.forEach(pt => {
+      const field = TYPE_FIELDS[pt];
       const key = `${sg.topico}:${pt}`;
       const val = sg[field] || '';
-      _editedTitles[key] = val;
-      html += `<div class="row g-2 mb-2 align-items-center">
+      if (!(key in _editedTitles)) {
+        _editedTitles[key] = val;
+      }
+      const disabled = _disabledPosts.has(key);
+      html += `<div class="row g-2 mb-2 align-items-center ${disabled ? 'suggestion-row-disabled' : ''}">
         <div class="col-md-3"><strong style="font-size:.85rem">${TYPE_ICONS[pt]||''} ${TYPE_LABELS[pt]||pt}</strong></div>
-        <div class="col-md-9">
-          <input type="text" class="form-control form-control-sm" value="${val.replace(/"/g,'&quot;')}"
-            data-key="${key}" oninput="_editedTitles[this.dataset.key]=this.value">
+        <div class="col-md-7">
+          <input type="text" class="form-control form-control-sm" value="${escapeHtml(_editedTitles[key])}"
+            data-key="${escapeHtml(key)}" oninput="_editedTitles[this.dataset.key]=this.value" ${disabled ? 'disabled' : ''}>
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-sm ${disabled ? 'btn-outline-success' : 'btn-outline-danger'} w-100" onclick="togglePost(${JSON.stringify(key)})">
+            ${disabled ? '↩️ Usar' : '🗑️ Omitir'}
+          </button>
         </div>
       </div>`;
     });
+    if (removedTopic) {
+      html += `<div class="small mt-2" style="color:var(--muted)">Este tópico no se generará mientras todos sus títulos sigan omitidos.</div>`;
+    }
     html += `</div></div>`;
   });
 
-  const n = _suggestions.length * 3;
-  document.getElementById('btnGenerar').textContent = `✨ Generar ${n} posts (${_suggestions.length} tópico${_suggestions.length>1?'s':''})`;
   document.getElementById('suggestionsContent').innerHTML = html;
+  updateGenerateButtonLabel();
   panel.scrollIntoView({behavior:'smooth'});
 }
 
+function getGenerationSelection() {
+  const topics = [];
+  const generationPlan = {};
+  let activePosts = 0;
+
+  _suggestions.forEach(sg => {
+    const activeTypes = TYPE_ORDER.filter(pt => !_disabledPosts.has(`${sg.topico}:${pt}`));
+    if (!activeTypes.length) return;
+    topics.push(sg.topico);
+    generationPlan[sg.topico] = {post_types: activeTypes};
+    activePosts += activeTypes.length;
+  });
+
+  return {topics, generationPlan, activePosts};
+}
+
 function iniciarGeneracion() {
-  const topics = getSelectedTopics();
-  if (!topics.length) { showToast('Sin tópicos seleccionados','warning'); return; }
+  const plan = getGenerationSelection();
+  if (!plan.topics.length || plan.activePosts === 0) {
+    showToast('No hay títulos activos para generar.','warning');
+    return;
+  }
 
   document.getElementById('btnGenerar').disabled = true;
   document.getElementById('progressSection').style.display = '';
   document.getElementById('resultsSection').style.display  = 'none';
 
   const payload = {
-    topics,
+    topics: plan.topics,
     edited_titles: _editedTitles,
+    generation_plan: plan.generationPlan,
     reviewer:      document.getElementById('selReviewer').value,
     gemini_model:  document.getElementById('selModel').value,
     focus_global:  (document.getElementById('focusGlobal')||{}).value||'',
@@ -336,9 +455,108 @@ function iniciarGeneracion() {
     .then(r=>r.json())
     .then(d => {
       if (d.error) { showToast(d.error,'danger'); document.getElementById('btnGenerar').disabled=false; return; }
-      listenTopicProgress(d.task_id, topics.length);
+      notifyFilteredOut(d.filtered_out || []);
+      listenTopicProgress(d.task_id, plan.topics.length);
     })
     .catch(e => { showToast('Error: '+e,'danger'); document.getElementById('btnGenerar').disabled=false; });
+}
+
+async function guardarEstadoTopicos() {
+  if (!_topicsData) {
+    showToast('Primero carga los tópicos del día.', 'warning');
+    return;
+  }
+
+  const payload = {
+    topics_data: _topicsData,
+    selected_topics: Array.from(_selectedTopics),
+    free_topic: '',
+    suggestions: _suggestions,
+    edited_titles: _editedTitles,
+    disabled_posts: Array.from(_disabledPosts),
+    reviewer: document.getElementById('selReviewer').value,
+    gemini_model: document.getElementById('selModel').value,
+    focus_global: (document.getElementById('focusGlobal') || {}).value || '',
+  };
+
+  const btn = document.getElementById('btnGuardarEstado');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+  try {
+    const response = await fetch('/api/topicos/estado', {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'No se pudo guardar el estado');
+    }
+    notifyFilteredOut(data.filtered_out || []);
+    setSavedStateMessage(`Guardado del día actualizado (${data.saved_at}).`, 'success');
+    showToast('✅ Selección del día guardada.');
+  } catch (error) {
+    showToast(error.message || 'Error al guardar el estado', 'danger');
+  } finally {
+    btn.textContent = '💾 Guardar selección del día';
+    updateStateButtons();
+  }
+}
+
+function hydrateSavedState(state) {
+  _topicsData = state.topics_data || null;
+  _selectedTopics = new Set(state.selected_topics || []);
+  _editedTitles = state.edited_titles || {};
+  _suggestions = state.suggestions || [];
+  _disabledPosts = new Set(state.disabled_posts || []);
+
+  document.getElementById('selReviewer').value = state.reviewer || document.getElementById('selReviewer').value;
+  document.getElementById('selModel').value = state.gemini_model || document.getElementById('selModel').value;
+  document.getElementById('focusGlobal').value = state.focus_global || '';
+
+  if (_topicsData) {
+    mostrarTopicos(_topicsData, true, {preserveSelection:true});
+  }
+  if (_suggestions.length) {
+    mostrarSugerencias(_suggestions, {preserveEdited:true});
+  } else {
+    document.getElementById('suggestionsPanel').style.display = 'none';
+    document.getElementById('suggestionsContent').innerHTML = '';
+  }
+
+  setSavedStateMessage(`Guardado recuperado (${state.saved_at || state.fecha || 'hoy'}).`, 'success');
+  updateStateButtons();
+}
+
+async function recuperarEstadoTopicos() {
+  try {
+    const response = await fetch('/api/topicos/estado');
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'No se pudo recuperar el guardado');
+    }
+    if (!data.state) {
+      setSavedStateMessage('No hay un guardado del día disponible todavía.', 'warning');
+      showToast('No hay un guardado del día disponible.', 'warning');
+      return;
+    }
+    hydrateSavedState(data.state);
+    showToast('✅ Estado del día recuperado.');
+  } catch (error) {
+    showToast(error.message || 'Error al recuperar el guardado', 'danger');
+  }
+}
+
+async function checkSavedStateAvailability() {
+  try {
+    const response = await fetch('/api/topicos/estado');
+    const data = await response.json();
+    if (response.ok && data.ok && data.state) {
+      setSavedStateMessage(`Hay un guardado disponible de hoy (${data.state.saved_at || 'sin hora'}).`);
+    }
+  } catch (_) {
+    // silencioso: solo comprobación de conveniencia
+  }
 }
 
 function listenTopicProgress(taskId, totalTopics) {
@@ -369,6 +587,7 @@ function listenTopicProgress(taskId, totalTopics) {
       bar.style.width = '100%';
       bar.classList.remove('progress-bar-animated');
       mostrarResultados(d.results || allResults);
+      updateGenerateButtonLabel();
     } else if (d.type === 'error') {
       es.close();
       showToast(d.message, 'danger');

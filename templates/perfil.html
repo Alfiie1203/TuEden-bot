@@ -99,7 +99,20 @@
       <textarea class="form-control" id="fExamples" rows="2" placeholder="Para explicar algo complicado, suelo compararlo con...">{{ voice.examples or '' }}</textarea>
     </div>
 
-    <!-- Sección 3 — Ejemplo de escritura -->
+    <!-- Sección 3 — Identidad y referencias -->
+    <div class="voice-section">
+      <h6>🧾 Identidad y Referencias del Autor</h6>
+
+      <p class="question-label">¿Qué datos personales o relacionales nunca debe contradecir la IA?</p>
+      <p class="question-hint">Ejemplo: tengo una hija, no varios hijos; soy psicóloga; no hablo desde la religión; evita inventar etapas o roles que no he dicho.</p>
+      <textarea class="form-control mb-3" id="fFacts" rows="3" placeholder="Datos verificables que la IA debe respetar siempre...">{{ voice.facts or '' }}</textarea>
+
+      <p class="question-label">¿Cómo puede referirse a ti cuando haga falta mencionarte?</p>
+      <p class="question-hint">Escribe una lista o varias fórmulas válidas. Ejemplo: psicóloga, madre de una hija, autora, profesional de la salud mental.</p>
+      <textarea class="form-control" id="fAuthorReferences" rows="3" placeholder="Formas permitidas de referirse al autor...">{{ voice.author_references or '' }}</textarea>
+    </div>
+
+    <!-- Sección 4 — Ejemplo de escritura -->
     <div class="voice-section">
       <h6>✍️ Ejemplo de Escritura</h6>
 
@@ -112,7 +125,7 @@
         placeholder="Aquí un ejemplo de cómo escribo...&#10;&#10;Puedes pegar el texto de un artículo tuyo, un hilo de Twitter, una entrada de Instagram o cualquier texto que consideres representativo de tu estilo.">{{ voice.sample or '' }}</textarea>
     </div>
 
-    <!-- Sección 4 — Perfil compilado -->
+    <!-- Sección 5 — Perfil compilado -->
     <div class="voice-section">
       <h6>🤖 Perfil de Voz para la IA</h6>
 
@@ -149,6 +162,8 @@ document.getElementById('btnBuild').addEventListener('click', () => {
   const tone       = document.getElementById('fTone').value.trim();
   const vocabulary = document.getElementById('fVocabulary').value.trim();
   const examples   = document.getElementById('fExamples').value.trim();
+  const facts      = document.getElementById('fFacts').value.trim();
+  const authorRefs = document.getElementById('fAuthorReferences').value.trim();
   const sample     = document.getElementById('fSample').value.trim();
 
   let parts = [];
@@ -164,6 +179,14 @@ document.getElementById('btnBuild').addEventListener('click', () => {
 
   if (examples)
     parts.push(`Recursos explicativos: ${examples}`);
+
+  if (facts)
+    parts.push(`Datos personales verificables: ${facts}`);
+
+  if (authorRefs)
+    parts.push(
+      `Formas permitidas de referirse al autor: ${authorRefs}\nUsa solo alguna de estas fórmulas cuando realmente haga falta mencionar a la persona que escribe. No inventes otras.`
+    );
 
   if (sample)
     parts.push(
@@ -187,6 +210,8 @@ document.getElementById('voiceForm').addEventListener('submit', async (e) => {
     tone:       document.getElementById('fTone').value.trim(),
     vocabulary: document.getElementById('fVocabulary').value.trim(),
     examples:   document.getElementById('fExamples').value.trim(),
+    facts:      document.getElementById('fFacts').value.trim(),
+    author_references: document.getElementById('fAuthorReferences').value.trim(),
     sample:     document.getElementById('fSample').value.trim(),
     compiled:   document.getElementById('compiledPreview').value.trim(),
   };

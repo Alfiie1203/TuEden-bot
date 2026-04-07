@@ -6,10 +6,103 @@
     "wp_username": "Luis",
     "wp_app_password": "OBZL HwZS lMwa gNI3 DVcg 1wuC",
     "topic_categories": null,
-    "theme": "dark"
+    "theme": "dark",
+    "topics_workspace": {
+      "fecha": "2026-04-07",
+      "saved_at": "2026-04-07T17:48:06",
+      "topics_data": {
+        "bienestar_emocional": [
+          "Adiós al estrés crónico: 3 técnicas de mindfulness para recuperar la calma en minutos.",
+          "El secreto para una mente tranquila: Meditación guiada para principiantes.",
+          "Resiliencia emocional: Cómo el 73% de las personas supera la adversidad.",
+          "Inteligencia emocional: La clave para relaciones más profundas y significativas.",
+          "Desconexión digital real: Transforma tu bienestar en solo 7 días.",
+          "Burnout laboral: Señales de alarma y el plan definitivo para prevenirlo.",
+          "Cultivar la gratitud: El hábito que cambiará tu perspectiva vital.",
+          "Vencer la ansiedad: Estrategias prácticas para recuperar el control de tu vida.",
+          "El arte de soltar: Libérate de lo que no te suma y vive más ligero.",
+          "Bienestar holístico: Conecta mente, cuerpo y espíritu para una vida plena."
+        ],
+        "estetica_autocuidado": [
+          "El secreto de una piel radiante: Tu rutina de autocuidado en 5 pasos clave.",
+          "Anti-envejecimiento 2026: Descubre los 3 ingredientes que realmente funcionan.",
+          "Cosmética natural: El 73% de los productos convencionales son tóxicos.",
+          "Acné adulto: La solución definitiva para una piel sin imperfecciones.",
+          "Autocuidado real: Más allá de la belleza, un ritual para tu bienestar.",
+          "Dermatología preventiva: Los hábitos que tu piel te agradecerá a largo plazo.",
+          "Piel sensible: La guía experta para calmarla y protegerla eficazmente.",
+          "El impacto de la autoestima: Cómo tu aspecto físico afecta tu mente.",
+          "Masaje facial: Transforma tu rostro y relaja tu mente en solo 10 minutos.",
+          "Tendencias de belleza 2026: Ingredientes innovadores para una piel sana."
+        ],
+        "familia_educacion": [
+          "Crianza positiva: El secreto para educar hijos felices y resilientes hoy.",
+          "Adolescentes y pantallas: Cómo el 73% de los padres lidia con el desafío digital.",
+          "Educación emocional: La clave para que tus hijos gestionen sus sentimientos.",
+          "Conciliación real: Estrategias definitivas para padres que trabajan desde casa.",
+          "Salud de los hijos: Alerta sobre el aumento de alergias alimentarias. ¿Qué saber?",
+          "Comunicación familiar: Descubre los 5 errores que rompen la conexión.",
+          "Desarrollo infantil: El juego libre como herramienta esencial para su futuro.",
+          "Paternidad consciente: Transforma tu relación con tus hijos en solo 3 semanas.",
+          "Bullying escolar: Cómo detectarlo a tiempo y proteger a tus pequeños.",
+          "La importancia de los límites: Guía práctica para una disciplina efectiva y cariñosa."
+        ],
+        "fecha": "2026-04-07",
+        "medicina_no_relacionados": [
+          "Crisis climática y salud: El 73% de las alergias respiratorias se disparan. ¿Qué hacer?",
+          "La inflación dispara las enfermedades crónicas: El impacto oculto en tu corazón.",
+          "El teletrabajo prolongado: Descubre cómo afecta a tu columna y visión. Prevención clave.",
+          "Ciberseguridad y salud mental: El estrés por filtraciones de datos dispara la ansiedad.",
+          "La escasez de agua global: Impacto directo en la salud renal. Alerta sanitaria."
+        ],
+        "medicina_relacionados": [
+          "Alerta médica 2026: La resistencia antibiótica, una amenaza real y silenciosa.",
+          "Descubierto: El avance definitivo en terapias génicas contra enfermedades raras.",
+          "IA en diagnóstico precoz: Cómo detecta el cáncer años antes. La clave.",
+          "Vacuna universal contra la gripe: ¿Un sueño hecho realidad para 2026?",
+          "El secreto para frenar el Alzheimer: Un nuevo fármaco promete resultados históricos."
+        ],
+        "no_relacionados": [],
+        "psicologia_no_relacionados": [
+          "El auge de los \"influencers virtuales\": ¿Cómo afecta tu autoestima y autoimagen real?",
+          "La incertidumbre económica global: Claves para gestionar la ansiedad financiera hoy.",
+          "El fenómeno de las \"fake news\": El impacto psicológico de la desinformación masiva.",
+          "Deporte de élite: La presión olímpica y el secreto para blindar la mente de los atletas.",
+          "La burbuja de las redes sociales: El 73% de los usuarios se siente más solo."
+        ],
+        "psicologia_relacionados": [
+          "El secreto de la felicidad digital: Desconectando para reconectar con tu mente.",
+          "Neurociencia revela: La clave para superar la ansiedad social en la era virtual.",
+          "Terapia con realidad virtual: Cómo transforma el tratamiento del trauma en solo 3 semanas.",
+          "El 73% de los jóvenes sufre \"fatiga de IA\": Impacto real en su salud mental.",
+          "Descubierto: El patrón cerebral detrás de la procrastinación crónica. La solución definitiva."
+        ],
+        "relacionados": [],
+        "salud_nutricion": [
+          "El secreto de una microbiota feliz: Alimentos que transforman tu salud en 3 semanas.",
+          "Ayuno intermitente: La guía definitiva para principiantes y sus 5 errores comunes.",
+          "Desmontando mitos: El 73% de lo que crees sobre las dietas es falso.",
+          "Superalimentos del futuro: Descubre los 5 imprescindibles para 2026.",
+          "Azúcar oculto: Cómo te enferma sin que lo sepas. La clave para detectarlo.",
+          "Inflamación crónica: La dieta antiinflamatoria que cambiará tu vida real.",
+          "Suplementos nutricionales: ¿Cuáles funcionan de verdad? La ciencia detrás.",
+          "Comida y cerebro: Alimentos que potencian tu memoria y concentración.",
+          "El plato perfecto: Diseña tu menú semanal para una energía imparable.",
+          "La verdad sobre los probióticos: El secreto para un intestino sano y fuerte."
+        ]
+      },
+      "selected_topics": [],
+      "free_topic": "",
+      "suggestions": [],
+      "edited_titles": {},
+      "disabled_posts": [],
+      "reviewer": "",
+      "gemini_model": "gemini-2.5-flash",
+      "focus_global": ""
+    }
   },
   "alejandra": {
-    "password_hash": "scrypt:32768:8:1$Fgy33J1Ew0qqhQmx$6af9bd2448ff6bdfca9a75e5408fd9b5b238ffe472b484a963ba874a1f8ff50a874a48811620696e04c3e8b5a1711f8b527fd10c2309f217015fa08583dfed8b",
+    "password_hash": "scrypt:32768:8:1$Z6mRBlgPYOVL7Rbc$2ee89e5e3f4e56aca6e9fd6ca41ba2b2dd28dcf18fb178845ecb2aa024cf6c375cf17d7195a188eb649c8c5c0d89c0e689fb1c793fb9415d6ddb46ad2f5157fe",
     "role": "psicologa",
     "display_name": "Alejandra",
     "wp_username": "alejandra",
@@ -18,19 +111,74 @@
       "psicologia_relacionados",
       "psicologia_no_relacionados"
     ],
-    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #8b5cf6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">&#x1F9E0;</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\"><a href=\"https://www.linkedin.com/in/mar%C3%ADa-alejandra-mazuera-6b2aa822b/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#111827;text-decoration:none\">Ps. María Alejandra Mazuera Arboleda ↗</a></p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">Psicóloga &middot; Tarjeta profesional nº <strong>195641</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La información contenida en este artículo ha sido contrastada y aprobada por una profesional de la salud mental colegiada. Su contenido tiene carácter exclusivamente informativo y no reemplaza la orientación psicológica ni el diagnóstico clínico individualizado.</p>\n  </div>\n</div>",
+    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #8b5cf6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">&#x1F9E0;</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\"><a href=\"https://www.linkedin.com/in/mar%C3%ADa-alejandra-mazuera-6b2aa822b/\" target=\"_blank\" rel=\"noopener noreferrer\" style=\"color:#111827;text-decoration:none\">Ps. María Alejandra Mazuera Arboleda ↗</a></p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">Psicóloga &middot; Tarjeta profesional  del Colegio Colombiano de Psicólogos nº <strong>195641</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La información contenida en este artículo ha sido contrastada y aprobada por una profesional de la salud mental. Su contenido tiene carácter exclusivamente informativo y no reemplaza la orientación psicológica ni el diagnóstico clínico individualizado.</p>\n  </div>\n</div>",
     "voice_profile": {
-      "vocabulary": "Prefiero evitar cualquier juicio de valor moral, me gusta utilizar frases que refuercen de manera positiva los aciertos que alguien puede realizar, como por ejemplo: está bien no planear grandes cambios en este momento, a veces es necesario escucharse y ser paciente, pero mantener claridad sobre las metas a las que se quiere llegar, y comprender los requisitos que se deben conseguir para que sea un camino más amigable.",
-      "compiled": "Estilo de escritura: Mi estilo es profesional de las ciencias sociales, por lo que tiene un lenguaje culto, pero sin tecnicismos propios de otras ramas profesionales. Apela siempre a las emociones del lector, y brinda un enfoque empático, libre de juicios. Busca que sea accesible para todos, pero sin dejar de lado el carácter profesional, por lo que amplía las explicaciones con ejemplos sencillos, cotidianos, claros y emocionales.\n\nTono: Con un tono positivo y acertivo, para que todo lo escrito sea un motor de cambio y bienestar. Refleja también, mi pasión por lo que estoy escribiendo, para compartir mi convicción en que todos podemos acceder a un mayor bienestar y salud. En temas delicados y controversiales, mi tono se torna crítico, sustentado siempre en argumentos sólidos, y aportando herramientas para transformar esas realidades adversas de las que se esté escribiendo, como por ejemplo no golpear a los niños como método de educación, o no entender el sobrepeso infantil como una expresión de libertad de desarrollo de la personalidad.\n\nVocabulario y expresiones habituales: Prefiero evitar cualquier juicio de valor moral, me gusta utilizar frases que refuercen de manera positiva los aciertos que alguien puede realizar, como por ejemplo: está bien no planear grandes cambios en este momento, a veces es necesario escucharse y ser paciente, pero mantener claridad sobre las metas a las que se quiere llegar, y comprender los requisitos que se deben conseguir para que sea un camino más amigable.\n\nRecursos explicativos: Suelo utilizar muchos ejemplos de mi vida personal, en mis diferentes facetas, como madre, como profesional, pareja y mujer joven.\n\nAdemás, me gusta utilizar ejemplos de la cotidianidad con los que las personas se puedan sentir identificadas con facilidad y que apelen a la comprensión empática. Por ejemplo, en el caso de querer explicar lo que puede entender un hijo cuando el mensaje es, te golpeo porque te amo, porque tengo autoridad y derecho a hacerlo para corregirte, esto en la vida psicológica puede quedar registrado como, debo aceptar golpes (físicos o psicológicos) de las personas que me aman, que luego podrían ser una pareja sentimental, o de quienes tienen autoridad sobre mi, como los jefes, y así generamos un impacto negativo en el respeto que nuestros hijos pueden establecer sobre si mismos en un futuro.\n\nEjemplo de cómo escribe el autor (úsalo como referencia de voz y estilo):\n\"\"\"\nLa atención, la memoria y consecuente ejecución de tareas incluso en los casos más básicos, son habilidades que requieren de cierto nivel de neurodesarrollo, pero esto no basta,  pues todo aprendizaje requiere un proceso paulatino, con esfuerzo, constancia, ajustes y demás retos hasta constituirse como parte de los saberes y habilidades con las que contamos. \nEs por esto, que debemos ser pacientes y comprensivos con nuestros hijos cuando cominzan su aprendizaje de seguir nuestras instrucciones y realizarlas de manera eficiente. Pero ... ¿Cómo podemos ayudarles, sin gritar ni repetir mil veces los mismo? \nVolvamos a lo que necesitan desarrollar: \n1. Atención: Para mejorarlo, es importante ayudarles a centrar la mirada en la nuestra, poniendonos a su altura y pidiéndoles que nos miren. Además, es necesario que el entorno se encuentre lo más libre de estímulos distractores posible (música, tv encendida...)\n2. Memoria: Pedirle que repita las instrucciones es una herramienta clave para asegurar la memoria a corto plazo.\n3, Ejecución de las tareas: Este paso a la acción necesita de la inmediatez, por lo que una herramienta muy útil es utilizar un ancla kinestésica, es decir, una acción que se realice durante el momento en el que se vyaa a realizar. Por ejemplo, levantar una mano de manera sostenida hasta que se finalice o se llegue al lugar en que se hará la acción, y cerrar la acción con otro gesto como aplaudir.\n\"\"\"",
       "examples": "Suelo utilizar muchos ejemplos de mi vida personal, en mis diferentes facetas, como madre, como profesional, pareja y mujer joven.\n\nAdemás, me gusta utilizar ejemplos de la cotidianidad con los que las personas se puedan sentir identificadas con facilidad y que apelen a la comprensión empática. Por ejemplo, en el caso de querer explicar lo que puede entender un hijo cuando el mensaje es, te golpeo porque te amo, porque tengo autoridad y derecho a hacerlo para corregirte, esto en la vida psicológica puede quedar registrado como, debo aceptar golpes (físicos o psicológicos) de las personas que me aman, que luego podrían ser una pareja sentimental, o de quienes tienen autoridad sobre mi, como los jefes, y así generamos un impacto negativo en el respeto que nuestros hijos pueden establecer sobre si mismos en un futuro.",
       "sample": "La atención, la memoria y consecuente ejecución de tareas incluso en los casos más básicos, son habilidades que requieren de cierto nivel de neurodesarrollo, pero esto no basta,  pues todo aprendizaje requiere un proceso paulatino, con esfuerzo, constancia, ajustes y demás retos hasta constituirse como parte de los saberes y habilidades con las que contamos. \nEs por esto, que debemos ser pacientes y comprensivos con nuestros hijos cuando cominzan su aprendizaje de seguir nuestras instrucciones y realizarlas de manera eficiente. Pero ... ¿Cómo podemos ayudarles, sin gritar ni repetir mil veces los mismo? \nVolvamos a lo que necesitan desarrollar: \n1. Atención: Para mejorarlo, es importante ayudarles a centrar la mirada en la nuestra, poniendonos a su altura y pidiéndoles que nos miren. Además, es necesario que el entorno se encuentre lo más libre de estímulos distractores posible (música, tv encendida...)\n2. Memoria: Pedirle que repita las instrucciones es una herramienta clave para asegurar la memoria a corto plazo.\n3, Ejecución de las tareas: Este paso a la acción necesita de la inmediatez, por lo que una herramienta muy útil es utilizar un ancla kinestésica, es decir, una acción que se realice durante el momento en el que se vyaa a realizar. Por ejemplo, levantar una mano de manera sostenida hasta que se finalice o se llegue al lugar en que se hará la acción, y cerrar la acción con otro gesto como aplaudir.",
+      "vocabulary": "Prefiero evitar cualquier juicio de valor moral, me gusta utilizar frases que refuercen de manera positiva los aciertos que alguien puede realizar, como por ejemplo: está bien no planear grandes cambios en este momento, a veces es necesario escucharse y ser paciente, pero mantener claridad sobre las metas a las que se quiere llegar, y comprender los requisitos que se deben conseguir para que sea un camino más amigable.",
+      "author_references": "Psicóloga, madre de una hija, autora, profesional de la salud mental.",
+      "compiled": "Estilo de escritura: Mi estilo es profesional de las ciencias sociales, por lo que tiene un lenguaje culto, pero sin tecnicismos propios de otras ramas profesionales. Apela siempre a las emociones del lector, y brinda un enfoque empático, libre de juicios. Busca que sea accesible para todos, pero sin dejar de lado el carácter profesional, por lo que amplía las explicaciones con ejemplos sencillos, cotidianos, claros y emocionales.\n\nTono: Con un tono positivo y acertivo, para que todo lo escrito sea un motor de cambio y bienestar. Refleja también, mi pasión por lo que estoy escribiendo, para compartir mi convicción en que todos podemos acceder a un mayor bienestar y salud. En temas delicados y controversiales, mi tono se torna crítico, sustentado siempre en argumentos sólidos, y aportando herramientas para transformar esas realidades adversas de las que se esté escribiendo, como por ejemplo no golpear a los niños como método de educación, o no entender el sobrepeso infantil como una expresión de libertad de desarrollo de la personalidad.\n\nVocabulario y expresiones habituales: Prefiero evitar cualquier juicio de valor moral, me gusta utilizar frases que refuercen de manera positiva los aciertos que alguien puede realizar, como por ejemplo: está bien no planear grandes cambios en este momento, a veces es necesario escucharse y ser paciente, pero mantener claridad sobre las metas a las que se quiere llegar, y comprender los requisitos que se deben conseguir para que sea un camino más amigable.\n\nRecursos explicativos: Suelo utilizar muchos ejemplos de mi vida personal, en mis diferentes facetas, como madre, como profesional, pareja y mujer joven.\n\nAdemás, me gusta utilizar ejemplos de la cotidianidad con los que las personas se puedan sentir identificadas con facilidad y que apelen a la comprensión empática. Por ejemplo, en el caso de querer explicar lo que puede entender un hijo cuando el mensaje es, te golpeo porque te amo, porque tengo autoridad y derecho a hacerlo para corregirte, esto en la vida psicológica puede quedar registrado como, debo aceptar golpes (físicos o psicológicos) de las personas que me aman, que luego podrían ser una pareja sentimental, o de quienes tienen autoridad sobre mi, como los jefes, y así generamos un impacto negativo en el respeto que nuestros hijos pueden establecer sobre si mismos en un futuro.\n\nDatos personales verificables: Tengo una hija, no varios hijos; soy psicóloga; no hablo desde la religión; evita inventar etapas o roles que no he dicho.\n\nFormas permitidas de referirse al autor: Psicóloga, madre de una hija, autora, profesional de la salud mental.\nUsa solo alguna de estas fórmulas cuando realmente haga falta mencionar a la persona que escribe. No inventes otras.\n\nEjemplo de cómo escribe el autor (úsalo como referencia de voz y estilo):\n\"\"\"\nLa atención, la memoria y consecuente ejecución de tareas incluso en los casos más básicos, son habilidades que requieren de cierto nivel de neurodesarrollo, pero esto no basta,  pues todo aprendizaje requiere un proceso paulatino, con esfuerzo, constancia, ajustes y demás retos hasta constituirse como parte de los saberes y habilidades con las que contamos. \nEs por esto, que debemos ser pacientes y comprensivos con nuestros hijos cuando cominzan su aprendizaje de seguir nuestras instrucciones y realizarlas de manera eficiente. Pero ... ¿Cómo podemos ayudarles, sin gritar ni repetir mil veces los mismo? \nVolvamos a lo que necesitan desarrollar: \n1. Atención: Para mejorarlo, es importante ayudarles a centrar la mirada en la nuestra, poniendonos a su altura y pidiéndoles que nos miren. Además, es necesario que el entorno se encuentre lo más libre de estímulos distractores posible (música, tv encendida...)\n2. Memoria: Pedirle que repita las instrucciones es una herramienta clave para asegurar la memoria a corto plazo.\n3, Ejecución de las tareas: Este paso a la acción necesita de la inmediatez, por lo que una herramienta muy útil es utilizar un ancla kinestésica, es decir, una acción que se realice durante el momento en el que se vyaa a realizar. Por ejemplo, levantar una mano de manera sostenida hasta que se finalice o se llegue al lugar en que se hará la acción, y cerrar la acción con otro gesto como aplaudir.\n\"\"\"",
+      "style": "Mi estilo es profesional de las ciencias sociales, por lo que tiene un lenguaje culto, pero sin tecnicismos propios de otras ramas profesionales. Apela siempre a las emociones del lector, y brinda un enfoque empático, libre de juicios. Busca que sea accesible para todos, pero sin dejar de lado el carácter profesional, por lo que amplía las explicaciones con ejemplos sencillos, cotidianos, claros y emocionales.",
       "tone": "Con un tono positivo y acertivo, para que todo lo escrito sea un motor de cambio y bienestar. Refleja también, mi pasión por lo que estoy escribiendo, para compartir mi convicción en que todos podemos acceder a un mayor bienestar y salud. En temas delicados y controversiales, mi tono se torna crítico, sustentado siempre en argumentos sólidos, y aportando herramientas para transformar esas realidades adversas de las que se esté escribiendo, como por ejemplo no golpear a los niños como método de educación, o no entender el sobrepeso infantil como una expresión de libertad de desarrollo de la personalidad.",
-      "style": "Mi estilo es profesional de las ciencias sociales, por lo que tiene un lenguaje culto, pero sin tecnicismos propios de otras ramas profesionales. Apela siempre a las emociones del lector, y brinda un enfoque empático, libre de juicios. Busca que sea accesible para todos, pero sin dejar de lado el carácter profesional, por lo que amplía las explicaciones con ejemplos sencillos, cotidianos, claros y emocionales."
+      "facts": "Tengo una hija, no varios hijos; soy psicóloga; no hablo desde la religión; evita inventar etapas o roles que no he dicho."
     },
-    "theme": "dark"
+    "theme": "dark",
+    "topics_workspace": {
+      "fecha": "2026-04-07",
+      "saved_at": "2026-04-07T17:50:48",
+      "topics_data": {
+        "bienestar_emocional": [
+          "Adiós al estrés crónico: 3 técnicas de mindfulness para recuperar la calma en minutos.",
+          "El secreto para una mente tranquila: Meditación guiada para principiantes.",
+          "Resiliencia emocional: Cómo el 73% de las personas supera la adversidad.",
+          "Inteligencia emocional: La clave para relaciones más profundas y significativas.",
+          "Desconexión digital real: Transforma tu bienestar en solo 7 días.",
+          "Burnout laboral: Señales de alarma y el plan definitivo para prevenirlo.",
+          "Cultivar la gratitud: El hábito que cambiará tu perspectiva vital.",
+          "Vencer la ansiedad: Estrategias prácticas para recuperar el control de tu vida.",
+          "El arte de soltar: Libérate de lo que no te suma y vive más ligero.",
+          "Bienestar holístico: Conecta mente, cuerpo y espíritu para una vida plena."
+        ],
+        "familia_educacion": [
+          "Crianza positiva: El secreto para educar hijos felices y resilientes hoy.",
+          "Adolescentes y pantallas: Cómo el 73% de los padres lidia con el desafío digital.",
+          "Educación emocional: La clave para que tus hijos gestionen sus sentimientos.",
+          "Conciliación real: Estrategias definitivas para padres que trabajan desde casa.",
+          "Salud de los hijos: Alerta sobre el aumento de alergias alimentarias. ¿Qué saber?",
+          "Comunicación familiar: Descubre los 5 errores que rompen la conexión.",
+          "Desarrollo infantil: El juego libre como herramienta esencial para su futuro.",
+          "Paternidad consciente: Transforma tu relación con tus hijos en solo 3 semanas.",
+          "Bullying escolar: Cómo detectarlo a tiempo y proteger a tus pequeños.",
+          "La importancia de los límites: Guía práctica para una disciplina efectiva y cariñosa."
+        ],
+        "fecha": "2026-04-07",
+        "psicologia_no_relacionados": [
+          "El auge de los \"influencers virtuales\": ¿Cómo afecta tu autoestima y autoimagen real?",
+          "La incertidumbre económica global: Claves para gestionar la ansiedad financiera hoy.",
+          "El fenómeno de las \"fake news\": El impacto psicológico de la desinformación masiva.",
+          "Deporte de élite: La presión olímpica y el secreto para blindar la mente de los atletas.",
+          "La burbuja de las redes sociales: El 73% de los usuarios se siente más solo."
+        ],
+        "psicologia_relacionados": [
+          "El secreto de la felicidad digital: Desconectando para reconectar con tu mente.",
+          "Neurociencia revela: La clave para superar la ansiedad social en la era virtual.",
+          "Terapia con realidad virtual: Cómo transforma el tratamiento del trauma en solo 3 semanas.",
+          "El 73% de los jóvenes sufre \"fatiga de IA\": Impacto real en su salud mental.",
+          "Descubierto: El patrón cerebral detrás de la procrastinación crónica. La solución definitiva."
+        ]
+      },
+      "selected_topics": [],
+      "free_topic": "",
+      "suggestions": [],
+      "edited_titles": {},
+      "disabled_posts": [],
+      "reviewer": "Psicólogo",
+      "gemini_model": "gemini-2.5-flash",
+      "focus_global": ""
+    }
   },
   "angela": {
-    "password_hash": "scrypt:32768:8:1$8PUEjO1IQRDb0AoO$c3252bf8924e04d52f63b39ff8025ee5787956f36b325a92fbe536ed4905a5605d6ffe93061b9a677ce195d83c7a40e5c8d3c93f21a636980782541620529c37",
+    "password_hash": "scrypt:32768:8:1$0nqmYIKNbnnd8OQz$fdf0b9aee275b301b80d5215360ed5d2deddff719d6b73f69092a81d6b23c066568e607208b154dc829020f1a96c327576a86a2e4d6af357e5d20372fa778d49",
     "role": "medico",
     "display_name": "Angela",
     "wp_username": "angela",
@@ -38,6 +186,6 @@
     "topic_categories": [
       "medicina_no_relacionados"
     ],
-    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #3b82f6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">&#x1FA7A;</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\">Dra. Angela Maria Arboleda Vargas</p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">Medico Cirujana &middot; Tarjeta profesional nº <strong>282878863</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La información contenida en este artículo ha sido contrastada y aprobada por una profesional médica colegiada. Su contenido tiene carácter exclusivamente informativo y no reemplaza el diagnóstico, tratamiento ni la consulta médica individualizada.</p>\n  </div>\n</div>"
+    "professional_badge": "<div class=\"professional-review-badge\" style=\"border:1px solid #d1d5db;border-left:4px solid #3b82f6;border-radius:8px;padding:20px 20px 18px;margin-top:40px;background:#f8fafc;display:flex;gap:16px;align-items:flex-start;font-family:inherit\">\n  <div style=\"font-size:2.4rem;flex-shrink:0;line-height:1.1\">&#x1FA7A;</div>\n  <div>\n    <p style=\"margin:0 0 6px;font-size:0.75rem;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;font-weight:600\">Revisado y validado por</p>\n    <p style=\"margin:0 0 3px;font-size:1rem;font-weight:700;color:#111827\">Dra. Angela Maria Arboleda Vargas</p>\n    <p style=\"margin:0 0 14px;font-size:0.875rem;color:#4b5563\">Medico Cirujana &middot; Tarjeta profesional nº <strong>282878863</strong></p>\n    <p style=\"margin:0;font-size:0.8rem;color:#6b7280;line-height:1.5;font-style:italic\">La información contenida en este artículo ha sido contrastada y aprobada por una profesional médica. Su contenido tiene carácter exclusivamente informativo y no reemplaza el diagnóstico, tratamiento ni la consulta médica individualizada.</p>\n  </div>\n</div>"
   }
 }

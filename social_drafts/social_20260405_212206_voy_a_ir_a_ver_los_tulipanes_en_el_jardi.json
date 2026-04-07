@@ -1,0 +1,189 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Ahorro",
+        "gancho_texto": "¡No necesitas ser un experto! Desconecta a tus hijos fácil.",
+        "instruccion_visual_inicio": "Rápido zoom-in a un niño sonriendo genuinamente con los tulipanes, música upbeat. Texto superpuesto grande: 'MÉTODO FÁCIL'.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Paso 1: Olvídate de planificar. La naturaleza hace el 90% del trabajo.",
+            "micro_transicion": "Corte rápido a un niño señalando un tulipán con curiosidad."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Paso 2: Activa el 'modo explorador' con un entorno seguro y vibrante.",
+            "micro_transicion": "Cámara sigue al niño mientras camina, luego un paneo rápido a la extensión de tulipanes."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Paso 3: Observa la magia. Menos pantallas, más sonrisas auténticas sin esfuerzo extra.",
+            "micro_transicion": "Primer plano de varios niños interactuando espontáneamente, risas."
+          }
+        ],
+        "cta_engagement": "¿Qué actividad 'fácil' te ha funcionado para desconectar a tus peques y generar sonrisas? Cuéntame tu truco."
+      },
+      {
+        "tipo_de_angulo": "Curiosidad Negativa",
+        "gancho_texto": "Estás cometiendo este error grave con las pantallas de tus hijos.",
+        "instruccion_visual_inicio": "Plano cerrado de un niño mirando una pantalla con ojos vidriosos y reflejo de luz azul. Sonido sutil de 'alarma' o zumbido molesto.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "El problema: ¿Sabías que el exceso de pantallas anula la creatividad innata?",
+            "micro_transicion": "Pantalla se oscurece y se revela un plano de un niño intentando dibujar con frustración."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "La alerta: Tus hijos podrían estar perdiendo la capacidad de maravillarse con lo real.",
+            "micro_transicion": "Corte rápido a un niño caminando cabizbajo en un parque vacío, música tensa."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "La solución: Un jardín botánico reactiva su asombro natural y curiosidad.",
+            "micro_transicion": "Niño levanta la vista, ve un tulipán, ojos se abren con asombro, música esperanzadora."
+          }
+        ],
+        "cta_engagement": "¿Has notado algún cambio preocupante en la interacción de tus hijos con el mundo real por las pantallas? Comparte tu experiencia."
+      },
+      {
+        "tipo_de_angulo": "Realismo Crudo",
+        "gancho_texto": "La verdad incómoda: desconectar a tus hijos no es bonito al principio.",
+        "instruccion_visual_inicio": "Plano inicial de un niño visiblemente aburrido o quejándose, cruzado de brazos, mirando al suelo en el jardín. Sin música, solo el sonido ambiente.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Primeros 15 min: 'Me aburro, ¿cuándo volvemos a casa?' Expectativas vs. Realidad.",
+            "micro_transicion": "Corte a un reloj que avanza rápidamente, mostrando el paso del tiempo."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "El punto de inflexión: La curiosidad es más fuerte que la frustración inicial.",
+            "micro_transicion": "Niño mira de reojo un tulipán, luego lo toca con un dedo, un brillo en sus ojos."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "El resultado crudo: Conexión real, sonrisas auténticas y barro en las manos.",
+            "micro_transicion": "Montaje rápido de manos tocando flores, corriendo, riendo, sin poses forzadas."
+          }
+        ],
+        "cta_engagement": "¿Cuál fue la reacción más 'realista' de tu hijo la primera vez que intentaste desconectarlo de la tecnología en un lugar así? ¿Cómo lo manejaste?"
+      },
+      {
+        "tipo_de_angulo": "Visual-First",
+        "gancho_texto": "Mira la magia. Niños reales, felicidad real.",
+        "instruccion_visual_inicio": "Un plano cinematográfico a cámara lenta de un niño corriendo libremente entre los tulipanes, la luz del sol creando destellos. Música épica y alegre.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Esto no es una IA. Es la felicidad genuina de conectar con la naturaleza.",
+            "micro_transicion": "Corte rápido a un primer plano de la expresión de alegría del niño."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "El secreto: Un espacio abierto lleno de color y vida, sin pantallas.",
+            "micro_transicion": "Paneo amplio mostrando la extensión de los tulipanes y la libertad del espacio."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "El impacto: Menos estrés, más creatividad, ¡pura vitamina N (Naturaleza)!",
+            "micro_transicion": "Montaje dinámico de varios niños explorando, riendo, oliendo flores, con texto superpuesto de beneficios."
+          }
+        ],
+        "cta_engagement": "Si pudieras capturar un momento de 'magia' como este con tus hijos en la naturaleza, ¿dónde te gustaría que fuera? Comparte tu visión."
+      },
+      {
+        "tipo_de_angulo": "Ahorro",
+        "gancho_texto": "No esperes a arrepentirte. Esto es clave para el futuro de tus hijos.",
+        "instruccion_visual_inicio": "Plano rápido y emotivo de un niño tocando suavemente un tulipán, luego un efecto de 'envejecimiento' rápido de la imagen, como si pasara el tiempo.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "El tiempo pasa. ¿Estás invirtiendo en recuerdos o en distracciones?",
+            "micro_transicion": "Corte a una mano adulta sosteniendo una foto antigua de un niño en la naturaleza."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Ahorra problemas futuros: la conexión con la naturaleza reduce la ansiedad y mejora la concentración.",
+            "micro_transicion": "Gráfico simple y rápido mostrando 'Ansiedad ▼' y 'Concentración ▲', superpuesto a imágenes de niños en el jardín."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "El mayor ahorro: construir una base sólida para su bienestar emocional y físico.",
+            "micro_transicion": "Montaje inspirador de niños creciendo en diferentes etapas, siempre interactuando con elementos naturales."
+          }
+        ],
+        "cta_engagement": "Pensando en el futuro de tus hijos, ¿qué habilidad o recuerdo (más allá de lo digital) quieres que valoren más? Me interesa tu perspectiva."
+      }
+    ],
+    "checklist": {
+      "preproduccion": [
+        {
+          "item": "Permiso Jardín Botánico",
+          "detalle": "Confirmar horarios, zonas permitidas para niños, y si hay restricciones para grabar (micrófono, trípode, etc.)."
+        },
+        {
+          "item": "Ropa y calzado",
+          "detalle": "Elegir ropa cómoda y colorida para los niños que contraste con los tulipanes; calzado apto para caminar y quizás ensuciarse."
+        },
+        {
+          "item": "Guion visual/sonoro",
+          "detalle": "Esquema de planos clave (corriendo, tocando, riendo) y momentos sonoros (risas, sonidos de la naturaleza, música de fondo)."
+        }
+      ],
+      "grabacion": [
+        {
+          "item": "Priorizar luz natural",
+          "detalle": "Grabar en 'hora dorada' si es posible para maximizar la calidad visual y el ambiente cálido de los tulipanes."
+        },
+        {
+          "item": "Captura de audio ambiente",
+          "detalle": "Usar micrófono externo si es posible para capturar risas, el viento, insectos, y así mejorar la inmersión."
+        },
+        {
+          "item": "Perspectivas variadas",
+          "detalle": "Alternar planos de detalle (tulipanes, manos), planos medios (niños interactuando) y planos amplios (campo de tulipanes)."
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Ritmo acelerado (micro-transiciones)",
+          "detalle": "Cortes cada 2-3 segundos, usando transiciones rápidas (jump cuts, swipes) para mantener el dinamismo y la atención."
+        },
+        {
+          "item": "Texto en pantalla estratégico",
+          "detalle": "Usar subtítulos claros y concisos, y texto superpuesto grande para los ganchos y mensajes clave."
+        },
+        {
+          "item": "Música y efectos de sonido",
+          "detalle": "Elegir música de TikTok trending que complemente el tono, y añadir SFX (risas, sonidos de la naturaleza, alarmas) para reforzar el mensaje."
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "voy a ir a ver los tulipanes en el jardin botanico y quiero hacer contenido sobre la importancia de buscar espacio de re",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T21:22:06Z",
+    "platforms": [
+      "tiktok"
+    ]
+  }
+}

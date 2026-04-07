@@ -27,8 +27,9 @@ import queue
 import re
 import threading
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import wraps
+from html import unescape
 from pathlib import Path
 
 import requests as req_lib
@@ -118,6 +119,241 @@ def _safe_draft_path(filename: str) -> Path | None:
     if not str(safe).startswith(str(base)):
         return None
     return safe
+
+
+def _strip_html_tags(value: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", value or "")
+    text = unescape(text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+_RELIGION_TOPIC_PATTERN = re.compile(
+    r"\b("
+    r"religi(?:on|ones|oso|osa|osos|osas)|iglesia|iglesias|dios|jesucristo|jesus|cristo|"
+    r"biblia|catolic(?:o|a|os|as)|cristian(?:o|a|os|as)|evangelic(?:o|a|os|as)|"
+    r"islam|musulm(?:an|ana|anes)|juda(?:ismo|ico|ica|icos|icas)|tora|coran|"
+    r"bud(?:a|ismo|ista)|hindu(?:ismo|ista)|misa|misas|oracion|oraciones|templo|templos|"
+    r"sacerdot(?:e|es|isa|isas)|pastor|pastores|fe\b|espiritualidad|culto|rezar"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_ROLE_TOPIC_EXCLUSIONS: dict[str, set[str]] = {
+    "psicologa": {"salud_nutricion", "estetica_autocuidado"},
+    "medico": {"bienestar_emocional", "familia_educacion"},
+}
+
+_ROLE_TOPIC_VISIBILITY: dict[str, set[str]] = {
+    "psicologa": {
+        "psicologia_relacionados",
+        "psicologia_no_relacionados",
+        "bienestar_emocional",
+        "familia_educacion",
+    },
+    "psicologo": {
+        "psicologia_relacionados",
+        "psicologia_no_relacionados",
+        "bienestar_emocional",
+        "familia_educacion",
+    },
+    "medico": {
+        "medicina_relacionados",
+        "medicina_no_relacionados",
+        "salud_nutricion",
+        "estetica_autocuidado",
+    },
+    "medica": {
+        "medicina_relacionados",
+        "medicina_no_relacionados",
+        "salud_nutricion",
+        "estetica_autocuidado",
+    },
+}
+
+_TOPIC_POST_TYPES = ("opinion", "listicle", "howto")
+
+
+def _topic_mentions_religion(topic: str) -> bool:
+    return bool(_RELIGION_TOPIC_PATTERN.search(str(topic or "")))
+
+
+def _sanitize_topic_list(raw_topics: list[str] | tuple[str, ...] | None) -> tuple[list[str], list[str]]:
+    kept: list[str] = []
+    removed: list[str] = []
+    seen: set[str] = set()
+    for item in raw_topics or []:
+        topic = str(item or "").strip()
+        if not topic or topic in seen:
+            continue
+        seen.add(topic)
+        if _topic_mentions_religion(topic):
+            removed.append(topic)
+            continue
+        kept.append(topic)
+    return kept, removed
+
+
+def _sanitize_topics_payload(payload: dict | None) -> tuple[dict, list[str]]:
+    safe_payload: dict = {}
+    removed_topics: list[str] = []
+    for key, value in (payload or {}).items():
+        if key == "fecha":
+            safe_payload[key] = value
+            continue
+        if key == "amazon_sugerencias":
+            safe_payload[key] = value if isinstance(value, list) else []
+            continue
+        if isinstance(value, list):
+            kept, removed = _sanitize_topic_list(value)
+            safe_payload[key] = kept
+            removed_topics.extend(removed)
+    return safe_payload, removed_topics
+
+
+def _apply_role_topic_visibility(topics: dict, user: dict | None) -> dict:
+    if not isinstance(topics, dict):
+        return topics
+
+    role = (user or {}).get("role", "")
+    allowed = _ROLE_TOPIC_VISIBILITY.get(role)
+    if allowed is None:
+        allowed = (user or {}).get("topic_categories")
+    excluded = _ROLE_TOPIC_EXCLUSIONS.get(role, set())
+    visible: dict = {}
+
+    for key, value in topics.items():
+        if key in {"fecha", "amazon_sugerencias"}:
+            visible[key] = value
+            continue
+        if excluded and key in excluded:
+            continue
+        if allowed is None or key in allowed:
+            visible[key] = value
+    return visible
+
+
+def _normalize_saved_suggestions(raw_suggestions: list[dict] | None) -> list[dict]:
+    normalized: list[dict] = []
+    seen_topics: set[str] = set()
+    for item in raw_suggestions or []:
+        if not isinstance(item, dict):
+            continue
+        topic = str(item.get("topico", "")).strip()
+        if not topic or topic in seen_topics or _topic_mentions_religion(topic):
+            continue
+        seen_topics.add(topic)
+        normalized.append({
+            "topico": topic,
+            "evergreen": str(item.get("evergreen", "")).strip(),
+            "listicle": str(item.get("listicle", "")).strip(),
+            "howto": str(item.get("howto", "")).strip(),
+        })
+    return normalized
+
+
+def _load_saved_topics_workspace(username: str) -> dict | None:
+    user = load_users().get(username)
+    state = (user or {}).get("topics_workspace")
+    if not isinstance(state, dict):
+        return None
+    if state.get("fecha") != str(date.today()):
+        return None
+    return state
+
+
+def _save_topics_workspace(username: str, state: dict) -> None:
+    users = load_users()
+    if username not in users:
+        return
+    users[username]["topics_workspace"] = state
+    save_users(users)
+
+
+def _get_wp_request_context() -> tuple[str, HTTPBasicAuth | None]:
+    base_url = os.getenv("WP_BASE_URL", "").rstrip("/")
+    user = get_current_user()
+    username = user.get("wp_username", "") if user else os.getenv("WP_USERNAME", "")
+    app_password = user.get("wp_app_password", "") if user else os.getenv("WP_APP_PASSWORD", "")
+    auth = HTTPBasicAuth(username, app_password) if username and app_password else None
+    return base_url, auth
+
+
+def _wp_get_json(endpoint: str, *, params: dict | None = None):
+    base_url, auth = _get_wp_request_context()
+    if not base_url:
+        raise ValueError("WP_BASE_URL no está configurado.")
+
+    url = f"{base_url}{endpoint}"
+    attempts = [auth] if auth else []
+    if not attempts or attempts[-1] is not None:
+        attempts.append(None)
+
+    last_error: Exception | None = None
+    for current_auth in attempts:
+        try:
+            response = req_lib.get(url, params=params, auth=current_auth, timeout=20)
+            response.raise_for_status()
+            return response.json(), response.headers
+        except Exception as exc:
+            last_error = exc
+
+    raise ValueError(f"No se pudo consultar WordPress: {last_error}")
+
+
+def _fetch_published_wp_posts(limit: int = 30) -> list[dict]:
+    safe_limit = max(1, min(int(limit), 50))
+    posts, _ = _wp_get_json(
+        "/wp-json/wp/v2/posts",
+        params={
+            "status": "publish",
+            "per_page": safe_limit,
+            "orderby": "date",
+            "order": "desc",
+            "_fields": "id,date,link,slug,title,excerpt",
+        },
+    )
+
+    items = []
+    for post in posts or []:
+        title = _strip_html_tags((post.get("title") or {}).get("rendered", ""))
+        if not title:
+            title = f"Post {post.get('id', '')}".strip()
+        items.append(
+            {
+                "id": post.get("id"),
+                "title": title,
+                "excerpt": _strip_html_tags((post.get("excerpt") or {}).get("rendered", "")),
+                "date": post.get("date", ""),
+                "link": post.get("link", ""),
+                "slug": post.get("slug", ""),
+            }
+        )
+    return items
+
+
+def _fetch_wp_post_topic(post_id: int | str) -> dict:
+    post, _ = _wp_get_json(
+        f"/wp-json/wp/v2/posts/{int(post_id)}",
+        params={"_fields": "id,date,link,slug,status,title,content,excerpt"},
+    )
+    title = _strip_html_tags((post.get("title") or {}).get("rendered", ""))
+    excerpt = _strip_html_tags((post.get("excerpt") or {}).get("rendered", ""))
+    content = _strip_html_tags((post.get("content") or {}).get("rendered", ""))[:3000]
+    summary = excerpt or content[:320]
+    topic_text = (
+        f"Título del post publicado: {title}\n"
+        f"Resumen útil: {summary}\n"
+        f"Contenido base: {content}"
+    )
+    return {
+        "id": post.get("id"),
+        "title": title,
+        "excerpt": excerpt,
+        "date": post.get("date", ""),
+        "link": post.get("link", ""),
+        "slug": post.get("slug", ""),
+        "topic_text": topic_text,
+    }
 
 
 # ==================================================================================
@@ -534,7 +770,10 @@ def api_perfil_update():
     if not username:
         return jsonify({"error": "No autenticado"}), 401
 
-    allowed_keys = {"style", "tone", "vocabulary", "examples", "sample", "compiled"}
+    allowed_keys = {
+        "style", "tone", "vocabulary", "examples", "sample", "compiled",
+        "facts", "author_references",
+    }
     voice_data = {k: str(data.get(k, "")).strip() for k in allowed_keys}
 
     users = load_users()
@@ -709,14 +948,15 @@ def api_topicos_cargar():
         gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
         topics = get_topics(gemini, force_refresh=force)
         _token_manager = gemini.token_manager
-        # Filtrar por rol de usuario (las 4 categorías de bienestar son universales para todos los roles)
+        topics, removed_topics = _sanitize_topics_payload(topics)
         user    = get_current_user()
-        allowed = user.get("topic_categories") if user else None
-        if allowed and isinstance(topics, dict):
-            _universal = ["salud_nutricion", "bienestar_emocional", "familia_educacion", "estetica_autocuidado"]
-            _allowed_full = list(allowed) + _universal
-            topics = {k: v for k, v in topics.items() if k == "fecha" or k in _allowed_full}
-        return jsonify({"ok": True, "data": topics, "from_cache": not force})
+        topics = _apply_role_topic_visibility(topics, user)
+        return jsonify({
+            "ok": True,
+            "data": topics,
+            "from_cache": not force,
+            "filtered_out": removed_topics,
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
@@ -726,8 +966,10 @@ def api_topicos_cargar():
 def api_topicos_sugerir():
     global _token_manager
     data      = request.get_json() or {}
-    topics    = data.get("topics", [])
+    topics, removed_topics = _sanitize_topic_list(data.get("topics", []))
     mock_mode, _ = _get_modes()
+    if not topics:
+        return jsonify({"ok": False, "error": "No hay tópicos válidos para sugerir títulos."})
     try:
         from core.post_type_advisor import suggest_post_structure
         from core.gemini_client     import GeminiClient
@@ -735,7 +977,11 @@ def api_topicos_sugerir():
         gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
         sugs   = suggest_post_structure(gemini, topics)
         _token_manager = gemini.token_manager
-        return jsonify({"ok": True, "suggestions": [s.to_dict() for s in sugs]})
+        return jsonify({
+            "ok": True,
+            "suggestions": [s.to_dict() for s in sugs],
+            "filtered_out": removed_topics,
+        })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
@@ -745,14 +991,28 @@ def api_topicos_sugerir():
 def api_topicos_generar():
     global _token_manager
     data          = request.get_json() or {}
-    topics        = data.get("topics", [])
+    topics, removed_topics = _sanitize_topic_list(data.get("topics", []))
     edited_titles = data.get("edited_titles", {})
+    generation_plan = data.get("generation_plan", {}) if isinstance(data.get("generation_plan"), dict) else {}
     reviewer      = data.get("reviewer", "")
     gemini_model  = data.get("gemini_model", "gemini-2.5-flash")
     focus_global  = data.get("focus_global", "")
 
     if not topics:
         return jsonify({"error": "Sin topicos seleccionados"}), 400
+
+    topic_jobs: list[dict] = []
+    for topic in topics:
+        raw_types = (generation_plan.get(topic) or {}).get("post_types", [])
+        selected_types = [post_type for post_type in raw_types if post_type in _TOPIC_POST_TYPES]
+        if not raw_types:
+            selected_types = list(_TOPIC_POST_TYPES)
+        if not selected_types:
+            continue
+        topic_jobs.append({"topic": topic, "post_types": selected_types})
+
+    if not topic_jobs:
+        return jsonify({"error": "No hay títulos activos para generar."}), 400
 
     task_id = str(uuid.uuid4())
     q       = queue.Queue()
@@ -766,14 +1026,16 @@ def api_topicos_generar():
         try:
             from core.orchestrator import ContentOrchestrator
             tm           = get_token_manager()
-            total_topics = len(topics)
+            total_topics = len(topic_jobs)
             all_results  = []
 
-            for t_idx, topic in enumerate(topics):
+            for t_idx, job in enumerate(topic_jobs):
+                topic = job["topic"]
+                selected_types = job["post_types"]
                 q.put({"type": "topic_start", "topic": topic, "idx": t_idx, "total": total_topics})
                 ct = {
                     pt: edited_titles.get(f"{topic}:{pt}", "")
-                    for pt in ("opinion", "listicle", "howto")
+                    for pt in selected_types
                 }
                 ct = {k: v for k, v in ct.items() if v.strip()}
 
@@ -794,6 +1056,7 @@ def api_topicos_generar():
                         focus=focus_global,
                         reviewer=reviewer,
                         custom_titles=ct or None,
+                        selected_post_types=selected_types,
                         username=_current_username,
                         badge_html=_current_badge,
                         voice_profile=_current_voice,
@@ -822,7 +1085,73 @@ def api_topicos_generar():
             q.put({"type": "error", "message": str(e)})
 
     threading.Thread(target=run, daemon=True).start()
-    return jsonify({"task_id": task_id})
+    return jsonify({"task_id": task_id, "filtered_out": removed_topics})
+
+
+@app.get("/api/topicos/estado")
+@login_required
+def api_topicos_estado_get():
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "No autenticado"}), 401
+
+    state = _load_saved_topics_workspace(username)
+    if not state:
+        return jsonify({"ok": True, "state": None})
+
+    topics_data, _ = _sanitize_topics_payload(state.get("topics_data") or {})
+    state = {
+        **state,
+        "topics_data": _apply_role_topic_visibility(topics_data, get_current_user()),
+        "suggestions": _normalize_saved_suggestions(state.get("suggestions") or []),
+    }
+    return jsonify({"ok": True, "state": state})
+
+
+@app.put("/api/topicos/estado")
+@login_required
+def api_topicos_estado_put():
+    payload = request.get_json() or {}
+    username = session.get("username")
+    if not username:
+        return jsonify({"error": "No autenticado"}), 401
+
+    topics_data, removed_topics = _sanitize_topics_payload(payload.get("topics_data") or {})
+    topics_data = _apply_role_topic_visibility(topics_data, get_current_user())
+    selected_topics, removed_selected = _sanitize_topic_list(payload.get("selected_topics", []))
+    free_topic = str(payload.get("free_topic", "")).strip()
+    if free_topic and _topic_mentions_religion(free_topic):
+        free_topic = ""
+
+    edited_titles = {
+        str(key): str(value or "").strip()
+        for key, value in (payload.get("edited_titles") or {}).items()
+        if isinstance(key, str)
+    }
+    disabled_posts = [
+        str(key) for key in (payload.get("disabled_posts") or [])
+        if isinstance(key, str) and ":" in key
+    ]
+
+    state = {
+        "fecha": str(date.today()),
+        "saved_at": datetime.now().isoformat(timespec="seconds"),
+        "topics_data": topics_data,
+        "selected_topics": selected_topics,
+        "free_topic": free_topic,
+        "suggestions": _normalize_saved_suggestions(payload.get("suggestions") or []),
+        "edited_titles": edited_titles,
+        "disabled_posts": disabled_posts,
+        "reviewer": str(payload.get("reviewer", "")).strip(),
+        "gemini_model": str(payload.get("gemini_model", "gemini-2.5-flash")).strip(),
+        "focus_global": str(payload.get("focus_global", "")).strip(),
+    }
+    _save_topics_workspace(username, state)
+    return jsonify({
+        "ok": True,
+        "saved_at": state["saved_at"],
+        "filtered_out": list(dict.fromkeys(removed_topics + removed_selected)),
+    })
 
 
 # ==================================================================================
@@ -1187,14 +1516,18 @@ def serve_image(img_name):
 @app.post("/api/borrador/<path:filename>/social")
 @login_required
 def api_borrador_social(filename):
-    """Genera contenido optimizado para redes sociales usando Gemini."""
+    """Genera propuestas TikTok 2026 a partir de un borrador usando Gemini."""
     safe = _safe_draft_path(filename)
     if safe is None or not safe.exists():
         return jsonify({"error": "No encontrado"}), 404
-    body     = request.get_json() or {}
-    platform = body.get("platform", "").lower()
-    if platform not in ("tiktok", "instagram", "facebook"):
-        return jsonify({"error": "Plataforma no válida. Usa: tiktok, instagram, facebook"}), 400
+    body = request.get_json() or {}
+    platform = (body.get("platform") or "tiktok").lower()
+    selected_character_ids = _normalize_social_character_ids(body.get("selected_characters"))
+    selected_hooks = _normalize_selected_hooks(body.get("selected_hooks"))
+    if not selected_character_ids:
+        return jsonify({"error": "Selecciona al menos un participante para este tema."}), 400
+    if platform != "tiktok":
+        return jsonify({"error": "Plataforma no válida. Solo se admite TikTok 2026."}), 400
     draft_data = json.loads(safe.read_text(encoding="utf-8"))
     title      = draft_data.get("title", "")
     focus_kw   = draft_data.get("focus_keyword", "")
@@ -1205,57 +1538,47 @@ def api_borrador_social(filename):
                     .split())
         if not w.startswith("<") and not w.startswith(">")
     )[:3000]
-    platform_prompts = {
-        "tiktok": (
-            f"Escribe un guión viral para TikTok basado en este artículo de salud/bienestar.\n"
-            f"Título del artículo: \"{title}\"\n"
-            f"Palabra clave: \"{focus_kw}\"\n"
-            f"Resumen del contenido: {plain_content}\n\n"
-            f"El guión debe:\n"
-            f"- Durar entre 45-60 segundos (aprox. 130-160 palabras habladas).\n"
-            f"- Empezar con un GANCHO impactante (primeros 3 segundos) que genere curiosidad.\n"
-            f"- Usar lenguaje directo y cercano (tuteo).\n"
-            f"- Incluir indicaciones de escena entre corchetes: [PAUSA], [MOSTRAR TEXTO], [ZOOM IN], etc.\n"
-            f"- Terminar con una llamada a la acción clara: comentar, seguir o guardar el vídeo.\n"
-            f"- Sugerir 5 hashtags relevantes al final.\n"
-            f"Escribe el guión completo en español de España."
-        ),
-        "instagram": (
-            f"Escribe el copy completo para un post de Instagram basado en este artículo.\n"
-            f"Título del artículo: \"{title}\"\n"
-            f"Palabra clave: \"{focus_kw}\"\n"
-            f"Resumen del contenido: {plain_content}\n\n"
-            f"El copy debe incluir:\n"
-            f"1. PRIMERA LÍNEA gancho (máx. 20 palabras, sin emojis al inicio).\n"
-            f"2. Cuerpo: 3-5 párrafos cortos con insights del artículo, usando emojis estratégicos.\n"
-            f"3. Llamada a la acción.\n"
-            f"4. Bloque de 20-25 hashtags relevantes (mezcla de populares y nicho), separados por espacios.\n"
-            f"5. Sugerencia de descripción para la imagen/carrusel (1-2 frases).\n"
-            f"Escribe en español de España, tono empático y motivador."
-        ),
-        "facebook": (
-            f"Escribe un post completo para Facebook basado en este artículo de salud/bienestar.\n"
-            f"Título del artículo: \"{title}\"\n"
-            f"Palabra clave: \"{focus_kw}\"\n"
-            f"Resumen del contenido: {plain_content}\n\n"
-            f"El post de Facebook debe:\n"
-            f"- Tener entre 150-300 palabras (formato largo, Facebook lo permite).\n"
-            f"- Empezar con una pregunta o dato sorprendente para generar interacción.\n"
-            f"- Desarrollar los puntos clave del artículo de forma conversacional.\n"
-            f"- Invitar a la comunidad a compartir su experiencia en los comentarios.\n"
-            f"- Incluir 3-5 emojis distribuidos naturalmente.\n"
-            f"- Terminar con el enlace al artículo (deja el placeholder: [URL DEL ARTÍCULO]).\n"
-            f"- Añadir 5-8 hashtags relevantes al final.\n"
-            f"Escribe en español de España, tono cálido y comunitario."
-        ),
-    }
+    prompt = _build_tiktok_2026_prompt(
+        topic=f"Título del borrador: {title}\nKeyword foco: {focus_kw}\nResumen útil: {plain_content}",
+        mode="borrador",
+        selected_ids=selected_character_ids,
+    )
     mock_mode, _ = _get_modes()
     try:
-        from core.gemini_client import GeminiClient
-        tm     = get_token_manager()
-        gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
-        result = gemini.call_raw(platform_prompts[platform])
-        return jsonify({"ok": True, "platform": platform, "content": result})
+        if mock_mode:
+            result = _social_mock_response(
+                title or focus_kw or plain_content[:60],
+                selected_character_ids,
+            )
+            if selected_hooks:
+                selected_labels = {hook["tipo_de_angulo"] for hook in selected_hooks}
+                result["tiktok"]["opciones"] = [
+                    option for option in result.get("tiktok", {}).get("opciones", [])
+                    if option.get("tipo_de_angulo") in selected_labels
+                ]
+                result["tiktok"]["checklist"] = _build_tiktok_checklist_from_options(result["tiktok"]["opciones"])
+        else:
+            result = _generate_tiktok_2026_result(
+                topic_context=f"Título del borrador: {title}\nKeyword foco: {focus_kw}\nResumen útil: {plain_content}",
+                mode="borrador",
+                selected_character_ids=selected_character_ids,
+                selected_hooks=selected_hooks,
+            )
+        _validate_tiktok_2026_payload(
+            result,
+            selected_character_ids,
+            expected_labels=[hook["tipo_de_angulo"] for hook in selected_hooks] if selected_hooks else None,
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "platform": "tiktok",
+                "data": result,
+                "content": json.dumps(result, ensure_ascii=False, indent=2),
+            }
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1568,7 +1891,96 @@ def api_admin_gemini_keys_delete(n):
 # CREADOR DE CONTENIDO PARA REDES SOCIALES
 # ==================================================================================
 SOCIAL_DIR = Path("social_drafts")
+SOCIAL_PARTICIPANTS_FILE = Path("social_participants.json")
+SOCIAL_RETENTION_DAYS = 30
 SOCIAL_DIR.mkdir(parents=True, exist_ok=True)
+
+TIKTOK_HOOK_LIBRARY = [
+    {
+        "label": "Resultado Express",
+        "template": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+    },
+    {
+        "label": "Advertencia",
+        "template": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+    },
+    {
+        "label": "Hubiera Pagado",
+        "template": "Hubiera pagado por saber esto antes de cumplir los [Edad/Etapa].",
+    },
+    {
+        "label": "Error Oculto",
+        "template": "¿Sabías que estás haciendo esto mal?",
+    },
+    {
+        "label": "Verdad Incómoda",
+        "template": "Lo que nadie te cuenta sobre [Tema popular/Industria].",
+    },
+    {
+        "label": "Señales",
+        "template": "X señales de que tu [Producto/Hábito] te está arruinando.",
+    },
+    {
+        "label": "Hablemos Claro",
+        "template": "Hablemos de la realidad de [Trabajo/Situación] que nadie te está contando.",
+    },
+    {
+        "label": "POV",
+        "template": "POV: Te das cuenta de que [Situación irónica o graciosa].",
+    },
+    {
+        "label": "Fracaso",
+        "template": "Mi mayor fracaso este año y lo que aprendí para que tú no lo repitas.",
+    },
+    {
+        "label": "Dosis de Realidad",
+        "template": "Dosis de realidad: no necesitas [Producto caro] para [Resultado].",
+    },
+]
+TIKTOK_HOOK_LABELS = [item["label"] for item in TIKTOK_HOOK_LIBRARY]
+TIKTOK_HOOK_TEMPLATES = [item["template"] for item in TIKTOK_HOOK_LIBRARY]
+TIKTOK_HOOK_TEMPLATE_BY_LABEL = {
+    item["label"]: item["template"] for item in TIKTOK_HOOK_LIBRARY
+}
+SOCIAL_DEFAULT_PARTICIPANTS = [
+    {"id": "mama", "nombre": "Mama", "perfil": "30 años, psicologa"},
+    {"id": "papa", "nombre": "Papa", "perfil": "30 años, ingeniero de sistemas"},
+    {"id": "hija", "nombre": "Hija", "perfil": "8 años"},
+]
+TIKTOK_REQUIRED_OPTION_KEYS = {
+    "tipo_de_angulo",
+    "plantilla_base",
+    "gancho_texto",
+    "promesa_valor",
+    "duracion_segundos",
+    "personajes",
+    "instruccion_visual_inicio",
+    "puntos_retencion",
+    "guion_detallado",
+    "plan_rodaje",
+    "cta_engagement",
+}
+TIKTOK_HOOK_KEYS = {
+    "tipo_de_angulo",
+    "plantilla_base",
+    "gancho_texto",
+    "promesa_valor",
+    "instruccion_visual_inicio",
+}
+TIKTOK_COMPACT_RETRY_SUFFIX = """
+
+MODO COMPACTO OBLIGATORIO PARA ASEGURAR JSON COMPLETO:
+- Mantén exactamente la misma estructura JSON y las mismas reglas.
+- Genera 5 opciones completas, pero con redacción más compacta.
+- Usa preferentemente 5 bloques en guion_detallado, no más, salvo necesidad real.
+- promesa_valor: máximo 18 palabras.
+- objetivo, visual, texto_pantalla, transicion, locacion, tono, ritmo_edicion, vestuario, props, musica_sfx: máximo 12 palabras.
+- dialogo y mensaje: máximo 22 palabras.
+- micro_transicion y rol_en_video: máximo 10 palabras.
+- tomas_clave: frases muy breves.
+- checklist: items y detalles breves.
+- Devuelve solo JSON válido y completo.
+"""
 
 
 def _safe_social_path(filename: str) -> Path | None:
@@ -1578,6 +1990,831 @@ def _safe_social_path(filename: str) -> Path | None:
         return None
     return safe
 
+
+def _prune_expired_social_drafts() -> None:
+    cutoff = datetime.now() - timedelta(days=SOCIAL_RETENTION_DAYS)
+    for path in SOCIAL_DIR.glob("social_*.json"):
+        try:
+            modified_at = datetime.fromtimestamp(path.stat().st_mtime)
+            if modified_at < cutoff:
+                path.unlink(missing_ok=True)
+        except Exception:
+            continue
+
+
+def _safe_social_participant_id(raw_value: str) -> str:
+    value = re.sub(r"[^a-z0-9]+", "_", str(raw_value or "").strip().lower()).strip("_")
+    return value[:40]
+
+
+def _load_social_participants() -> list[dict]:
+    if not SOCIAL_PARTICIPANTS_FILE.exists():
+        SOCIAL_PARTICIPANTS_FILE.write_text(
+            json.dumps(SOCIAL_DEFAULT_PARTICIPANTS, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return [dict(item) for item in SOCIAL_DEFAULT_PARTICIPANTS]
+
+    try:
+        data = json.loads(SOCIAL_PARTICIPANTS_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        data = []
+
+    participants = []
+    seen = set()
+    for item in data if isinstance(data, list) else []:
+        if not isinstance(item, dict):
+            continue
+        participant_id = _safe_social_participant_id(item.get("id") or item.get("nombre"))
+        nombre = str(item.get("nombre", "")).strip()
+        perfil = str(item.get("perfil", "")).strip()
+        if not participant_id or not nombre or not perfil or participant_id in seen:
+            continue
+        participants.append({"id": participant_id, "nombre": nombre, "perfil": perfil})
+        seen.add(participant_id)
+
+    if participants:
+        return participants
+    return [dict(item) for item in SOCIAL_DEFAULT_PARTICIPANTS]
+
+
+def _save_social_participants(participants: list[dict]) -> None:
+    SOCIAL_PARTICIPANTS_FILE.write_text(
+        json.dumps(participants, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _social_participant_map() -> dict[str, dict]:
+    return {item["id"]: item for item in _load_social_participants()}
+
+
+def _normalize_social_character_ids(selected_ids: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen = set()
+    participants_by_id = _social_participant_map()
+    for raw_id in selected_ids or []:
+        char_id = str(raw_id or "").strip().lower()
+        if char_id in participants_by_id and char_id not in seen:
+            normalized.append(char_id)
+            seen.add(char_id)
+    return normalized
+
+
+def _selected_social_characters(selected_ids: list[str] | None) -> list[dict]:
+    participants_by_id = _social_participant_map()
+    return [participants_by_id[char_id] for char_id in _normalize_social_character_ids(selected_ids) if char_id in participants_by_id]
+
+
+def _resolve_social_generation_context(
+    mode: str,
+    topic: str,
+    selected_post_id,
+) -> tuple[str, str, dict | None]:
+    selected_post_meta = None
+    clean_topic = (topic or "").strip()
+
+    if mode != "borrador" and not clean_topic:
+        raise ValueError("Se requiere un tema o borrador.")
+    if len(clean_topic) > 4000:
+        raise ValueError("El texto de entrada es demasiado largo (máx 4000 caracteres).")
+
+    if mode == "borrador":
+        if selected_post_id not in (None, ""):
+            selected_post_meta = _fetch_wp_post_topic(selected_post_id)
+            clean_topic = selected_post_meta["title"]
+            input_instruction = selected_post_meta["topic_text"]
+        elif clean_topic:
+            input_instruction = (
+                "Analiza este borrador de blog y conviértelo en propuestas de vídeo para TikTok 2026, "
+                "centradas en retención, conversación y ejecución visual inmediata:\n\nBORRADOR:\n" + clean_topic
+            )
+        else:
+            raise ValueError("Selecciona un post publicado o pega un borrador.")
+    else:
+        input_instruction = (
+            "Crea propuestas originales para TikTok 2026 buscando el hook más comercial, práctico, "
+            "visual y retenible:\n\nTEMA: " + clean_topic
+        )
+
+    return clean_topic, input_instruction, selected_post_meta
+
+
+def _build_tiktok_hook_candidates_prompt(topic: str, mode: str, selected_ids: list[str] | None = None) -> str:
+    hook_bank = "\n".join(
+        f'- {item["label"]}: "{item["template"]}"' for item in TIKTOK_HOOK_LIBRARY
+    )
+    selected_characters = _selected_social_characters(selected_ids)
+    character_bank = "\n".join(
+        f'- {item["id"]}: {item["nombre"]}, {item["perfil"]}' for item in selected_characters
+    )
+    return f"""Eres estratega senior de TikTok 2026 especializado en hooks de alta retención.
+
+Entrada de trabajo ({mode}):
+{topic}
+
+Banco maestro de hooks autorizado:
+{hook_bank}
+
+Personajes disponibles para este tema:
+{character_bank}
+
+Objetivo:
+- Genera exactamente 5 hooks candidatos para TikTok 2026.
+- Deben salir de 5 plantillas distintas del banco maestro.
+- Prioriza hooks con potencial de scroll stop y claridad comercial.
+- No desarrolles el guion completo. Solo entrega la capa de decisión inicial.
+
+Reglas:
+- Devuelve solo JSON válido.
+- Cada hook debe incluir: tipo_de_angulo, plantilla_base, gancho_texto, promesa_valor, instruccion_visual_inicio.
+- tipo_de_angulo debe ser exactamente uno de estos valores: {', '.join(TIKTOK_HOOK_LABELS)}.
+- plantilla_base debe ser exactamente la plantilla original elegida del banco maestro.
+- gancho_texto debe ser la adaptación final sin placeholders.
+- promesa_valor debe ser breve y concreta.
+- instruccion_visual_inicio debe ser breve, visual y grabable.
+- No repitas plantillas.
+
+Formato exacto:
+{{
+  "hooks": [
+    {{
+      "tipo_de_angulo": "Resultado Express",
+      "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+      "gancho_texto": "...",
+      "promesa_valor": "...",
+      "instruccion_visual_inicio": "..."
+    }}
+  ]
+}}
+"""
+
+
+def _normalize_selected_hooks(selected_hooks: list[dict] | None) -> list[dict]:
+    normalized = []
+    seen = set()
+    for raw_hook in selected_hooks or []:
+        if not isinstance(raw_hook, dict):
+            continue
+        label = str(raw_hook.get("tipo_de_angulo", "")).strip()
+        if label not in TIKTOK_HOOK_LABELS or label in seen:
+            continue
+        gancho_texto = str(raw_hook.get("gancho_texto", "")).strip()
+        promesa = str(raw_hook.get("promesa_valor", "")).strip()
+        visual = str(raw_hook.get("instruccion_visual_inicio", "")).strip()
+        if not (gancho_texto and promesa and visual):
+            continue
+        normalized.append({
+            "tipo_de_angulo": label,
+            "plantilla_base": TIKTOK_HOOK_TEMPLATE_BY_LABEL[label],
+            "gancho_texto": gancho_texto,
+            "promesa_valor": promesa,
+            "instruccion_visual_inicio": visual,
+        })
+        seen.add(label)
+    return normalized
+
+
+def _validate_tiktok_hook_candidates(data: dict) -> None:
+    hooks = data.get("hooks")
+    if not isinstance(hooks, list) or len(hooks) != 5:
+        raise ValueError("Se requieren exactamente 5 hooks candidatos.")
+
+    used_labels = []
+    for idx, hook in enumerate(hooks, start=1):
+        if not isinstance(hook, dict):
+            raise ValueError(f"El hook {idx} no es válido.")
+        missing = [key for key in TIKTOK_HOOK_KEYS if key not in hook]
+        if missing:
+            raise ValueError(f"El hook {idx} no incluye: {', '.join(missing)}.")
+        label = hook.get("tipo_de_angulo")
+        if label not in TIKTOK_HOOK_LABELS:
+            raise ValueError(f"El hook {idx} usa una plantilla no permitida: {label}.")
+        plantilla = str(hook.get("plantilla_base", "")).strip()
+        if TIKTOK_HOOK_TEMPLATE_BY_LABEL.get(label) != plantilla:
+            raise ValueError(f"El hook {idx} no corresponde con su plantilla base.")
+        for field in ("gancho_texto", "promesa_valor", "instruccion_visual_inicio"):
+            value = str(hook.get(field, "")).strip()
+            if not value:
+                raise ValueError(f"El hook {idx} tiene {field} vacío.")
+            if field == "gancho_texto" and ("[" in value or "]" in value):
+                raise ValueError(f"El hook {idx} mantiene placeholders sin adaptar.")
+        used_labels.append(label)
+
+    if len(set(used_labels)) != 5:
+        raise ValueError("Los hooks deben usar 5 plantillas distintas del banco maestro.")
+
+
+def _generate_tiktok_hook_candidates_from_mock(topic: str, selected_ids: list[str]) -> dict:
+    mock = _social_mock_response(topic, selected_ids)
+    hooks = []
+    for option in mock.get("tiktok", {}).get("opciones", []):
+        hooks.append({
+            "tipo_de_angulo": option.get("tipo_de_angulo"),
+            "plantilla_base": option.get("plantilla_base"),
+            "gancho_texto": option.get("gancho_texto"),
+            "promesa_valor": option.get("promesa_valor"),
+            "instruccion_visual_inicio": option.get("instruccion_visual_inicio"),
+        })
+    payload = {"hooks": hooks[:5]}
+    _validate_tiktok_hook_candidates(payload)
+    return payload
+
+
+def _generate_tiktok_hook_candidates(topic_context: str, mode: str, selected_ids: list[str]) -> dict:
+    from core.gemini_client import GeminiClient
+
+    tm = get_token_manager()
+    gemini = GeminiClient(token_manager=tm, mock_mode=False)
+    prompt = _build_tiktok_hook_candidates_prompt(topic_context, mode, selected_ids)
+    prompt_variants = [prompt, prompt + TIKTOK_COMPACT_RETRY_SUFFIX]
+    last_error: Exception | None = None
+
+    for attempt, prompt_variant in enumerate(prompt_variants, start=1):
+        raw = gemini.call_raw(prompt_variant)
+        try:
+            parsed = _parse_social_json(raw)
+            hooks = _normalize_selected_hooks(parsed.get("hooks"))
+            payload = {"hooks": hooks}
+            _validate_tiktok_hook_candidates(payload)
+            return payload
+        except (json.JSONDecodeError, ValueError) as exc:
+            last_error = exc
+            app.logger.warning("TikTok hooks failed on attempt %s: %s", attempt, exc)
+
+    raise ValueError(f"No se pudieron generar hooks TikTok válidos: {last_error}")
+
+
+def _build_tiktok_2026_prompt(topic: str, mode: str, selected_ids: list[str] | None = None) -> str:
+    hook_bank = "\n".join(
+        f'- {item["label"]}: "{item["template"]}"' for item in TIKTOK_HOOK_LIBRARY
+    )
+    selected_characters = _selected_social_characters(selected_ids)
+    character_bank = "\n".join(
+        f'- {item["id"]}: {item["nombre"]}, {item["perfil"]}' for item in selected_characters
+    )
+    return f"""Eres estratega senior de TikTok 2026 especializado en contenido de alta retención para salud, bienestar y estilo de vida.
+
+Entrada de trabajo ({mode}):
+{topic}
+
+Objetivo:
+- Genera exactamente 5 propuestas distintas de vídeo para TikTok 2026.
+- Prioriza solo TikTok. No menciones ni planifiques Instagram, Facebook ni cross-posting.
+- Cada propuesta debe estar diseñada para detener el scroll en los primeros 3 segundos, sostener la atención durante todo el vídeo y durar entre 40 y 70 segundos.
+
+Banco maestro de hooks autorizado:
+{hook_bank}
+
+Personajes disponibles para este tema:
+{character_bank}
+
+Reglas obligatorias:
+- Las 5 propuestas deben ser realmente distintas entre sí.
+- Debes elegir exactamente 5 plantillas distintas del banco maestro: las 5 que mejor encajen con el tópico.
+- No inventes fórmulas nuevas fuera del banco maestro.
+- Nunca repitas la misma plantilla ni el mismo gancho con cambios mínimos.
+- Solo puedes usar personajes del listado anterior. Si un personaje no está seleccionado, no puede aparecer en el guion, en la interacción ni en el plan de rodaje.
+- El vídeo completo debe quedar resuelto de principio a fin: apertura, desarrollo, prueba/valor, cierre y CTA.
+- Adapta cada hook al tema reemplazando los placeholders por detalles concretos del tópico. No dejes corchetes ni variables sin resolver.
+- El campo tipo_de_angulo debe ser exactamente uno de estos valores: {', '.join(TIKTOK_HOOK_LABELS)}.
+- El campo plantilla_base debe ser exactamente la plantilla original elegida del banco maestro, sin adaptar.
+- El campo gancho_texto debe ser la versión adaptada y final de esa plantilla, optimizada para los primeros 3 segundos.
+- El campo promesa_valor debe resumir en una frase qué gana la audiencia si ve el vídeo completo.
+- El campo duracion_segundos debe ser un entero entre 40 y 70.
+- El campo personajes debe ser una lista con los participantes reales del vídeo. Cada personaje debe incluir: id, nombre, perfil, rol_en_video.
+- El campo instruccion_visual_inicio debe describir una acción física, edición o plano que detenga el scroll.
+- El campo puntos_retencion debe contener exactamente 3 objetos, uno por cada bloque de 3 segundos iniciales.
+- Cada objeto de puntos_retencion debe incluir: paso, segundos, mensaje, micro_transicion.
+- El campo guion_detallado debe cubrir todo el vídeo en 5 a 8 bloques consecutivos. Cada bloque debe incluir: bloque, segundos, objetivo, personaje, visual, dialogo, texto_pantalla, transicion.
+- El campo plan_rodaje debe incluir: locacion, tono, ritmo_edicion, vestuario, props, musica_sfx, tomas_clave.
+- El CTA debe buscar conversación real: pedir opinión, experiencia, duda o caso concreto. Prohibido pedir solo likes, follows o shares.
+- Escribe en español claro, directo y natural.
+- Sé conciso para que el JSON completo quepa en una sola respuesta: prioriza frases cortas y 5 bloques de guion cuando sea posible.
+- Devuelve solo JSON válido, sin markdown ni texto adicional.
+
+Estructura obligatoria:
+{{
+    "tiktok": {{
+        "opciones": [
+            {{
+                "tipo_de_angulo": "Resultado Express",
+                "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+                "gancho_texto": "...",
+                "promesa_valor": "...",
+                "duracion_segundos": 52,
+                "personajes": [
+                    {{"id": "mama", "nombre": "Mama", "perfil": "30 años, psicologa", "rol_en_video": "..."}}
+                ],
+                "instruccion_visual_inicio": "...",
+                "puntos_retencion": [
+                    {{"paso": 1, "segundos": "0-3", "mensaje": "...", "micro_transicion": "..."}},
+                    {{"paso": 2, "segundos": "3-6", "mensaje": "...", "micro_transicion": "..."}},
+                    {{"paso": 3, "segundos": "6-9", "mensaje": "...", "micro_transicion": "..."}}
+                ],
+                "guion_detallado": [
+                    {{"bloque": 1, "segundos": "0-3", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}},
+                    {{"bloque": 2, "segundos": "3-12", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}}
+                ],
+                "plan_rodaje": {{
+                    "locacion": "...",
+                    "tono": "...",
+                    "ritmo_edicion": "...",
+                    "vestuario": "...",
+                    "props": "...",
+                    "musica_sfx": "...",
+                    "tomas_clave": ["...", "...", "..."]
+                }},
+                "cta_engagement": "..."
+            }}
+        ],
+        "checklist": {{
+            "preproduccion": [
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}}
+            ],
+            "grabacion": [
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}}
+            ],
+            "edicion": [
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}},
+                {{"item": "...", "detalle": "..."}}
+            ]
+        }}
+    }}
+}}
+
+Control de calidad:
+1. Deben existir exactamente 5 objetos en tiktok.opciones.
+2. Las 5 propuestas deben salir de 5 plantillas distintas del banco maestro.
+3. Ninguna propuesta puede omitir campos.
+4. Ningún string puede quedar vacío.
+5. Cada propuesta debe durar entre 40 y 70 segundos.
+6. Cada propuesta debe usar solo personajes seleccionados.
+7. No dejes placeholders como [Resultado], [X días] o similares en gancho_texto.
+8. No uses explicaciones genéricas; todo debe sonar accionable, visual y específico.
+9. JSON perfectamente válido: sin comas finales y sin comentarios.
+"""
+
+
+def _parse_social_json(raw: str) -> dict:
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```[a-z]*\n?", "", cleaned)
+        cleaned = re.sub(r"\n?```$", "", cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return json.loads(cleaned[start:end + 1])
+        raise
+
+
+def _build_single_tiktok_option_prompt(
+    topic: str,
+    mode: str,
+    selected_ids: list[str],
+    approved_hook: dict,
+    option_number: int,
+) -> str:
+    selected_characters = _selected_social_characters(selected_ids)
+    character_bank = "\n".join(
+        f'- {item["id"]}: {item["nombre"]}, {item["perfil"]}' for item in selected_characters
+    )
+    label = approved_hook["tipo_de_angulo"]
+    plantilla = approved_hook["plantilla_base"]
+    gancho = approved_hook["gancho_texto"]
+    promesa = approved_hook["promesa_valor"]
+    visual = approved_hook["instruccion_visual_inicio"]
+    return f"""Eres estratega senior de TikTok 2026 especializado en alta retención.
+
+Entrada de trabajo ({mode}):
+{topic}
+
+Tarea:
+- Genera solo la opción #{option_number}.
+- Debes desarrollar exactamente este hook ya aprobado por el usuario:
+- tipo_de_angulo: {label}
+- plantilla_base: {plantilla}
+- gancho_texto: {gancho}
+- promesa_valor: {promesa}
+- instruccion_visual_inicio: {visual}
+- El resultado debe ser ejecutable de principio a fin en 40 a 70 segundos.
+- Usa solo estos personajes:
+{character_bank}
+
+Reglas:
+- Devuelve exactamente un objeto JSON con la clave "opcion".
+- Mantén exactamente tipo_de_angulo, plantilla_base y gancho_texto.
+- Mantén la misma promesa de valor y la misma instrucción visual, salvo limpieza mínima de puntuación si fuera imprescindible.
+- Usa 5 bloques de guion detallado, salvo necesidad excepcional.
+- Sé muy concreto pero breve: frases cortas, sin relleno.
+- CTA conversacional real, no pidas solo likes o follows.
+- JSON válido, sin markdown ni comentarios.
+
+Formato exacto:
+{{
+  "opcion": {{
+    "tipo_de_angulo": "Resultado Express",
+    "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+    "gancho_texto": "...",
+    "promesa_valor": "...",
+    "duracion_segundos": 52,
+    "personajes": [
+      {{"id": "mama", "nombre": "Mama", "perfil": "30 años, psicologa", "rol_en_video": "..."}}
+    ],
+    "instruccion_visual_inicio": "...",
+    "puntos_retencion": [
+      {{"paso": 1, "segundos": "0-3", "mensaje": "...", "micro_transicion": "..."}},
+      {{"paso": 2, "segundos": "3-6", "mensaje": "...", "micro_transicion": "..."}},
+      {{"paso": 3, "segundos": "6-9", "mensaje": "...", "micro_transicion": "..."}}
+    ],
+    "guion_detallado": [
+      {{"bloque": 1, "segundos": "0-3", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}},
+      {{"bloque": 2, "segundos": "3-12", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}},
+      {{"bloque": 3, "segundos": "12-24", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}},
+      {{"bloque": 4, "segundos": "24-38", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}},
+      {{"bloque": 5, "segundos": "38-52", "objetivo": "...", "personaje": "Mama", "visual": "...", "dialogo": "...", "texto_pantalla": "...", "transicion": "..."}}
+    ],
+    "plan_rodaje": {{
+      "locacion": "...",
+      "tono": "...",
+      "ritmo_edicion": "...",
+      "vestuario": "...",
+      "props": "...",
+      "musica_sfx": "...",
+      "tomas_clave": ["...", "...", "..."]
+    }},
+    "cta_engagement": "..."
+  }}
+}}
+"""
+
+
+def _extract_tiktok_option_candidate(parsed: dict) -> dict:
+    if isinstance(parsed, dict) and isinstance(parsed.get("opcion"), dict):
+        return parsed["opcion"]
+    if isinstance(parsed, dict):
+        tiktok = parsed.get("tiktok")
+        if isinstance(tiktok, dict):
+            opciones = tiktok.get("opciones")
+            if isinstance(opciones, list) and opciones:
+                return opciones[0]
+    raise ValueError("Gemini no devolvió una opción TikTok válida.")
+
+
+def _normalize_tiktok_option_candidate(opcion: dict, selected_ids: list[str]) -> dict:
+    normalized = dict(opcion or {})
+    label = normalized.get("tipo_de_angulo")
+    allowed_characters = _selected_social_characters(selected_ids)
+    allowed_names = [item["nombre"] for item in allowed_characters]
+    fallback_name = allowed_names[0] if allowed_names else "Mama"
+
+    if label in TIKTOK_HOOK_TEMPLATE_BY_LABEL:
+        normalized["plantilla_base"] = TIKTOK_HOOK_TEMPLATE_BY_LABEL[label]
+
+    guion = normalized.get("guion_detallado") if isinstance(normalized.get("guion_detallado"), list) else []
+    puntos = normalized.get("puntos_retencion")
+    if not isinstance(puntos, list) or len(puntos) != 3:
+        derived_points = []
+        for index, bloque in enumerate(guion[:3], start=1):
+            if not isinstance(bloque, dict):
+                continue
+            derived_points.append({
+                "paso": index,
+                "segundos": str(bloque.get("segundos", "")),
+                "mensaje": str(bloque.get("objetivo") or bloque.get("dialogo") or "").strip(),
+                "micro_transicion": str(bloque.get("transicion") or "Corte rápido").strip(),
+            })
+        normalized["puntos_retencion"] = derived_points
+    else:
+        repaired_points = []
+        for index, punto in enumerate(puntos, start=1):
+            if isinstance(punto, dict):
+                repaired_points.append({
+                    "paso": punto.get("paso") or index,
+                    "segundos": str(punto.get("segundos") or (guion[index - 1].get("segundos") if len(guion) >= index and isinstance(guion[index - 1], dict) else "")),
+                    "mensaje": str(punto.get("mensaje") or (guion[index - 1].get("objetivo") if len(guion) >= index and isinstance(guion[index - 1], dict) else "")).strip(),
+                    "micro_transicion": str(punto.get("micro_transicion") or (guion[index - 1].get("transicion") if len(guion) >= index and isinstance(guion[index - 1], dict) else "Corte rápido")).strip(),
+                })
+        normalized["puntos_retencion"] = repaired_points
+
+    repaired_guion = []
+    for bloque in guion:
+        if not isinstance(bloque, dict):
+            continue
+        personaje = str(bloque.get("personaje", "")).strip()
+        resolved = next((name for name in allowed_names if name in personaje), "")
+        bloque["personaje"] = resolved or fallback_name
+        repaired_guion.append(bloque)
+    normalized["guion_detallado"] = repaired_guion
+
+    plan = normalized.get("plan_rodaje")
+    if isinstance(plan, dict):
+        tomas = plan.get("tomas_clave")
+        if not isinstance(tomas, list) or len(tomas) < 3:
+            derived_takes = []
+            for bloque in guion[:3]:
+                if isinstance(bloque, dict):
+                    visual = str(bloque.get("visual", "")).strip()
+                    if visual:
+                        derived_takes.append(visual)
+            if derived_takes:
+                plan["tomas_clave"] = derived_takes[:3]
+        normalized["plan_rodaje"] = plan
+
+    return normalized
+
+
+def _apply_approved_hook_to_option(opcion: dict, approved_hook: dict) -> dict:
+    normalized = dict(opcion or {})
+    for key in ("tipo_de_angulo", "plantilla_base", "gancho_texto", "promesa_valor", "instruccion_visual_inicio"):
+        normalized[key] = approved_hook[key]
+    return normalized
+
+
+def _validate_tiktok_option_candidate(
+    opcion: dict,
+    selected_ids: list[str],
+    remaining_labels: list[str],
+) -> None:
+    if not isinstance(opcion, dict):
+        raise ValueError("La opción generada no es un objeto válido.")
+    missing = [key for key in TIKTOK_REQUIRED_OPTION_KEYS if key not in opcion]
+    if missing:
+        raise ValueError(f"La opción generada no incluye: {', '.join(missing)}.")
+
+    label = opcion.get("tipo_de_angulo")
+    if label not in remaining_labels:
+        raise ValueError(f"La opción generada usó una plantilla no permitida: {label}.")
+
+    plantilla_base = str(opcion.get("plantilla_base", "")).strip()
+    if TIKTOK_HOOK_TEMPLATE_BY_LABEL.get(label) != plantilla_base:
+        raise ValueError("La opción generada no respeta la plantilla base elegida.")
+
+    duration = opcion.get("duracion_segundos")
+    if not isinstance(duration, int) or duration < 40 or duration > 70:
+        raise ValueError("La opción generada no respeta la duración 40-70 segundos.")
+
+    gancho = str(opcion.get("gancho_texto", "")).strip()
+    if not gancho or "[" in gancho or "]" in gancho:
+        raise ValueError("La opción generada dejó placeholders o gancho vacío.")
+
+    allowed_characters = {item["nombre"]: item for item in _selected_social_characters(selected_ids)}
+    personajes = opcion.get("personajes")
+    if not isinstance(personajes, list) or not personajes:
+        raise ValueError("La opción generada no incluye personajes válidos.")
+    for personaje in personajes:
+        if personaje.get("nombre") not in allowed_characters:
+            raise ValueError(f"La opción generada usa un personaje no permitido: {personaje.get('nombre')}.")
+
+    puntos = opcion.get("puntos_retencion")
+    if not isinstance(puntos, list) or len(puntos) != 3:
+        raise ValueError("La opción generada debe incluir exactamente 3 puntos de retención.")
+    for punto in puntos:
+        if not isinstance(punto, dict):
+            raise ValueError("Un punto de retención no es válido.")
+        for field in ("paso", "segundos", "mensaje", "micro_transicion"):
+            if not str(punto.get(field, "")).strip():
+                raise ValueError(f"Falta {field} en un punto de retención.")
+
+    guion = opcion.get("guion_detallado")
+    if not isinstance(guion, list) or len(guion) < 5 or len(guion) > 8:
+        raise ValueError("La opción generada debe incluir entre 5 y 8 bloques de guion.")
+    for bloque in guion:
+        if not isinstance(bloque, dict):
+            raise ValueError("Un bloque del guion no es válido.")
+        for field in ("bloque", "segundos", "objetivo", "personaje", "visual", "dialogo", "texto_pantalla", "transicion"):
+            if not str(bloque.get(field, "")).strip():
+                raise ValueError(f"Falta {field} en un bloque del guion.")
+        if bloque.get("personaje") not in allowed_characters:
+            raise ValueError(f"El guion usa un personaje no permitido: {bloque.get('personaje')}.")
+
+    plan = opcion.get("plan_rodaje")
+    if not isinstance(plan, dict):
+        raise ValueError("La opción generada debe incluir plan_rodaje.")
+    for field in ("locacion", "tono", "ritmo_edicion", "vestuario", "props", "musica_sfx"):
+        if not str(plan.get(field, "")).strip():
+            raise ValueError(f"Falta plan_rodaje.{field}.")
+    tomas = plan.get("tomas_clave")
+    if not isinstance(tomas, list) or len(tomas) < 3:
+        raise ValueError("La opción generada debe incluir al menos 3 tomas clave.")
+
+
+def _build_tiktok_checklist_from_options(opciones: list[dict]) -> dict:
+    first = opciones[0]
+    plan = first.get("plan_rodaje", {})
+    takes = plan.get("tomas_clave", [])
+    return {
+        "preproduccion": [
+            {"item": "Definir hook principal", "detalle": str(first.get("gancho_texto", ""))[:120]},
+            {"item": "Preparar locación y vestuario", "detalle": f"{plan.get('locacion', '')} | {plan.get('vestuario', '')}".strip(" |")},
+            {"item": "Revisar props", "detalle": str(plan.get("props", ""))[:120]},
+        ],
+        "grabacion": [
+            {"item": "Grabar apertura", "detalle": str(first.get("instruccion_visual_inicio", ""))[:120]},
+            {"item": "Cubrir tomas clave", "detalle": str('; '.join(takes[:3]))[:120]},
+            {"item": "Cerrar con CTA", "detalle": str(first.get("cta_engagement", ""))[:120]},
+        ],
+        "edicion": [
+            {"item": "Aplicar ritmo", "detalle": str(plan.get("ritmo_edicion", ""))[:120]},
+            {"item": "Insertar textos", "detalle": str(first.get("promesa_valor", ""))[:120]},
+            {"item": "Añadir música y remates", "detalle": str(plan.get("musica_sfx", ""))[:120]},
+        ],
+    }
+
+
+def _generate_tiktok_2026_result(
+    topic_context: str,
+    mode: str,
+    selected_character_ids: list[str],
+    selected_hooks: list[dict] | None = None,
+) -> dict:
+    from core.gemini_client import GeminiClient
+
+    tm = get_token_manager()
+    gemini = GeminiClient(token_manager=tm, mock_mode=False)
+    approved_hooks = _normalize_selected_hooks(selected_hooks)
+    if not approved_hooks:
+        approved_hooks = _generate_tiktok_hook_candidates(topic_context, mode, selected_character_ids)["hooks"]
+    opciones: list[dict] = []
+
+    for option_number, approved_hook in enumerate(approved_hooks, start=1):
+        option_prompt = _build_single_tiktok_option_prompt(
+            topic=topic_context,
+            mode=mode,
+            selected_ids=selected_character_ids,
+            approved_hook=approved_hook,
+            option_number=option_number,
+        )
+        prompt_variants = [option_prompt, option_prompt + TIKTOK_COMPACT_RETRY_SUFFIX]
+        last_error: Exception | None = None
+
+        for attempt, prompt_variant in enumerate(prompt_variants, start=1):
+            raw = gemini.call_raw(prompt_variant)
+            try:
+                parsed = _parse_social_json(raw)
+                opcion = _apply_approved_hook_to_option(
+                    _normalize_tiktok_option_candidate(
+                        _extract_tiktok_option_candidate(parsed),
+                        selected_character_ids,
+                    ),
+                    approved_hook,
+                )
+                _validate_tiktok_option_candidate(
+                    opcion,
+                    selected_character_ids,
+                    [approved_hook["tipo_de_angulo"]],
+                )
+                opciones.append(opcion)
+                last_error = None
+                break
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_error = exc
+                app.logger.warning(
+                    "TikTok option %s failed on attempt %s: %s",
+                    option_number,
+                    attempt,
+                    exc,
+                )
+
+        if last_error is not None:
+            raise ValueError(f"No se pudo generar la opción TikTok #{option_number}: {last_error}")
+
+    result = {
+        "tiktok": {
+            "opciones": opciones,
+        }
+    }
+    _validate_tiktok_2026_payload(
+        result,
+        selected_character_ids,
+        expected_labels=[hook["tipo_de_angulo"] for hook in approved_hooks],
+    )
+    return result
+
+
+def _validate_tiktok_2026_payload(
+    data: dict,
+    selected_ids: list[str] | None = None,
+    expected_labels: list[str] | None = None,
+) -> None:
+    tiktok = data.get("tiktok")
+    if not isinstance(tiktok, dict):
+        raise ValueError("La respuesta debe incluir el bloque tiktok.")
+
+    opciones = tiktok.get("opciones")
+    expected_count = len(expected_labels) if expected_labels else 5
+    if not isinstance(opciones, list) or len(opciones) != expected_count:
+        raise ValueError(f"TikTok 2026 requiere exactamente {expected_count} opciones de vídeo.")
+
+    allowed_characters = {
+        item["nombre"]: item for item in _selected_social_characters(selected_ids)
+    }
+    used_labels = []
+    for idx, opcion in enumerate(opciones, start=1):
+        if not isinstance(opcion, dict):
+            raise ValueError(f"La opción {idx} no es un objeto válido.")
+        missing = [key for key in TIKTOK_REQUIRED_OPTION_KEYS if key not in opcion]
+        if missing:
+            raise ValueError(f"La opción {idx} no incluye: {', '.join(missing)}.")
+
+        label = opcion.get("tipo_de_angulo")
+        if label not in TIKTOK_HOOK_LABELS:
+            raise ValueError(f"La opción {idx} usa una plantilla no permitida: {label}.")
+        used_labels.append(label)
+
+        plantilla_base = str(opcion.get("plantilla_base", "")).strip()
+        if plantilla_base not in TIKTOK_HOOK_TEMPLATES:
+            raise ValueError(f"La opción {idx} no usa una plantilla base válida.")
+        if TIKTOK_HOOK_TEMPLATE_BY_LABEL.get(label) != plantilla_base:
+            raise ValueError(
+                f"La opción {idx} no corresponde entre tipo_de_angulo y plantilla_base."
+            )
+
+        for key in ("gancho_texto", "instruccion_visual_inicio", "cta_engagement"):
+            if not str(opcion.get(key, "")).strip():
+                raise ValueError(f"La opción {idx} tiene el campo {key} vacío.")
+
+        if not str(opcion.get("promesa_valor", "")).strip():
+            raise ValueError(f"La opción {idx} tiene promesa_valor vacío.")
+
+        duration = opcion.get("duracion_segundos")
+        if not isinstance(duration, int) or duration < 40 or duration > 70:
+            raise ValueError(f"La opción {idx} debe durar entre 40 y 70 segundos.")
+
+        gancho = str(opcion.get("gancho_texto", "")).strip()
+        if "[" in gancho or "]" in gancho:
+            raise ValueError(f"La opción {idx} mantiene placeholders sin adaptar en gancho_texto.")
+
+        personajes = opcion.get("personajes")
+        if not isinstance(personajes, list) or not personajes:
+            raise ValueError(f"La opción {idx} debe incluir al menos un personaje.")
+        for char_idx, personaje in enumerate(personajes, start=1):
+            if not isinstance(personaje, dict):
+                raise ValueError(f"El personaje {char_idx} de la opción {idx} no es válido.")
+            for field in ("id", "nombre", "perfil", "rol_en_video"):
+                if not str(personaje.get(field, "")).strip():
+                    raise ValueError(
+                        f"El personaje {char_idx} de la opción {idx} no incluye {field}."
+                    )
+            if personaje.get("id") not in _social_participant_map():
+                raise ValueError(f"La opción {idx} usa un personaje desconocido: {personaje.get('id')}.")
+            if allowed_characters and personaje.get("nombre") not in allowed_characters:
+                raise ValueError(f"La opción {idx} usa un personaje no seleccionado: {personaje.get('nombre')}.")
+
+        puntos = opcion.get("puntos_retencion")
+        if not isinstance(puntos, list) or len(puntos) != 3:
+            raise ValueError(f"La opción {idx} debe tener 3 puntos de retención.")
+        for point_idx, punto in enumerate(puntos, start=1):
+            if not isinstance(punto, dict):
+                raise ValueError(f"El punto {point_idx} de la opción {idx} no es válido.")
+            for field in ("paso", "segundos", "mensaje", "micro_transicion"):
+                if field not in punto or not str(punto.get(field, "")).strip():
+                    raise ValueError(
+                        f"El punto {point_idx} de la opción {idx} no incluye {field}."
+                    )
+
+        guion = opcion.get("guion_detallado")
+        if not isinstance(guion, list) or len(guion) < 5 or len(guion) > 8:
+            raise ValueError(f"La opción {idx} debe incluir entre 5 y 8 bloques de guion detallado.")
+        for block_idx, bloque in enumerate(guion, start=1):
+            if not isinstance(bloque, dict):
+                raise ValueError(f"El bloque {block_idx} de la opción {idx} no es válido.")
+            for field in ("bloque", "segundos", "objetivo", "personaje", "visual", "dialogo", "texto_pantalla", "transicion"):
+                if field not in bloque or not str(bloque.get(field, "")).strip():
+                    raise ValueError(
+                        f"El bloque {block_idx} de la opción {idx} no incluye {field}."
+                    )
+            if allowed_characters and bloque.get("personaje") not in allowed_characters:
+                raise ValueError(
+                    f"El bloque {block_idx} de la opción {idx} usa un personaje no seleccionado: {bloque.get('personaje')}."
+                )
+
+        plan = opcion.get("plan_rodaje")
+        if not isinstance(plan, dict):
+            raise ValueError(f"La opción {idx} debe incluir plan_rodaje.")
+        for field in ("locacion", "tono", "ritmo_edicion", "vestuario", "props", "musica_sfx"):
+            if not str(plan.get(field, "")).strip():
+                raise ValueError(f"La opción {idx} tiene plan_rodaje.{field} vacío.")
+        tomas_clave = plan.get("tomas_clave")
+        if not isinstance(tomas_clave, list) or len(tomas_clave) < 3:
+            raise ValueError(f"La opción {idx} debe incluir al menos 3 tomas clave.")
+        if any(not str(toma).strip() for toma in tomas_clave):
+            raise ValueError(f"La opción {idx} tiene una toma clave vacía.")
+
+    if expected_labels:
+        if set(used_labels) != set(expected_labels):
+            raise ValueError("Las opciones generadas no coinciden con los hooks seleccionados.")
+    elif len(set(used_labels)) != 5:
+        raise ValueError("Las 5 opciones deben usar 5 plantillas distintas del banco maestro.")
 
 @app.route("/social")
 @login_required
@@ -1589,6 +2826,7 @@ def social_page():
 @login_required
 def api_social_historial():
     """Devuelve la lista de borradores de contenido social guardados."""
+    _prune_expired_social_drafts()
     files = []
     for f in sorted(SOCIAL_DIR.glob("social_*.json"), reverse=True):
         try:
@@ -1604,6 +2842,79 @@ def api_social_historial():
     return jsonify(files[:50])
 
 
+@app.get("/api/social/wordpress-posts")
+@login_required
+def api_social_wordpress_posts():
+    """Lista posts publicados en WordPress para reutilizarlos como tema social."""
+    try:
+        limit = request.args.get("limit", 30, type=int)
+        return jsonify({"ok": True, "items": _fetch_published_wp_posts(limit)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.get("/api/social/participants")
+@login_required
+def api_social_participants_list():
+    return jsonify({"ok": True, "items": _load_social_participants()})
+
+
+@app.post("/api/social/participants")
+@login_required
+def api_social_participants_create():
+    body = request.get_json(force=True) or {}
+    nombre = str(body.get("nombre", "")).strip()
+    perfil = str(body.get("perfil", "")).strip()
+    participant_id = _safe_social_participant_id(body.get("id") or nombre)
+    if not nombre or not perfil or not participant_id:
+        return jsonify({"error": "Nombre y perfil son obligatorios."}), 400
+
+    participants = _load_social_participants()
+    if any(item["id"] == participant_id for item in participants):
+        return jsonify({"error": "Ya existe un participante con ese identificador."}), 409
+
+    participants.append({"id": participant_id, "nombre": nombre, "perfil": perfil})
+    _save_social_participants(participants)
+    return jsonify({"ok": True, "item": {"id": participant_id, "nombre": nombre, "perfil": perfil}})
+
+
+@app.put("/api/social/participants/<participant_id>")
+@login_required
+def api_social_participants_update(participant_id):
+    body = request.get_json(force=True) or {}
+    nombre = str(body.get("nombre", "")).strip()
+    perfil = str(body.get("perfil", "")).strip()
+    if not nombre or not perfil:
+        return jsonify({"error": "Nombre y perfil son obligatorios."}), 400
+
+    participants = _load_social_participants()
+    updated = None
+    for item in participants:
+        if item["id"] == participant_id:
+            item["nombre"] = nombre
+            item["perfil"] = perfil
+            updated = item
+            break
+    if not updated:
+        return jsonify({"error": "Participante no encontrado."}), 404
+
+    _save_social_participants(participants)
+    return jsonify({"ok": True, "item": updated})
+
+
+@app.delete("/api/social/participants/<participant_id>")
+@login_required
+def api_social_participants_delete(participant_id):
+    participants = _load_social_participants()
+    filtered = [item for item in participants if item["id"] != participant_id]
+    if len(filtered) == len(participants):
+        return jsonify({"error": "Participante no encontrado."}), 404
+    _save_social_participants(filtered)
+    return jsonify({"ok": True})
+
+
 @app.get("/api/social/historial/<filename>")
 @login_required
 def api_social_borrador(filename):
@@ -1614,231 +2925,152 @@ def api_social_borrador(filename):
     return jsonify(json.loads(path.read_text(encoding="utf-8")))
 
 
+@app.patch("/api/social/historial/<filename>")
+@login_required
+def api_social_borrador_update(filename):
+    path = _safe_social_path(filename)
+    if not path or not path.exists():
+        return jsonify({"error": "No encontrado"}), 404
+
+    body = request.get_json(force=True) or {}
+    topic = str(body.get("topic", "")).strip()
+    if not topic:
+        return jsonify({"error": "El topic es obligatorio."}), 400
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload.setdefault("meta", {})["topic"] = topic[:120]
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return jsonify({"ok": True})
+
+
+@app.delete("/api/social/historial/<filename>")
+@login_required
+def api_social_borrador_delete(filename):
+    path = _safe_social_path(filename)
+    if not path or not path.exists():
+        return jsonify({"error": "No encontrado"}), 404
+    path.unlink(missing_ok=True)
+    return jsonify({"ok": True})
+
+
+@app.post("/api/social/hooks")
+@login_required
+def api_social_hooks():
+    """Genera solo los 5 hooks candidatos para que el usuario elija."""
+    data = request.get_json(force=True)
+    mode = data.get("mode", "scratch")
+    topic = (data.get("input") or "").strip()
+    selected_post_id = data.get("selected_post_id")
+    selected_character_ids = _normalize_social_character_ids(data.get("selected_characters"))
+    if not selected_character_ids:
+        return jsonify({"error": "Selecciona al menos un participante para este tema."}), 400
+
+    try:
+        resolved_topic, input_instruction, selected_post_meta = _resolve_social_generation_context(
+            mode,
+            topic,
+            selected_post_id,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    mock_mode, _ = _get_modes()
+    try:
+        if mock_mode:
+            hooks_payload = _generate_tiktok_hook_candidates_from_mock(resolved_topic, selected_character_ids)
+        else:
+            hooks_payload = _generate_tiktok_hook_candidates(input_instruction, mode, selected_character_ids)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "ok": True,
+        "data": {
+            "hooks": hooks_payload["hooks"],
+            "meta": {
+                "topic": resolved_topic[:120],
+                "mode": mode,
+                "mock": mock_mode,
+                "selected_characters": selected_character_ids,
+                "source_post": selected_post_meta,
+            },
+        },
+    })
+
+
 @app.post("/api/social/generar")
 @login_required
 def api_social_generar():
-    """Genera contenido optimizado para TikTok, Instagram y Facebook usando Gemini."""
+    """Genera propuestas TikTok 2026 usando Gemini."""
     data = request.get_json(force=True)
     mode      = data.get("mode", "scratch")   # "borrador" | "scratch"
     topic     = (data.get("input") or "").strip()
-    platforms = data.get("platforms", ["tiktok", "instagram", "facebook"])
+    selected_post_id = data.get("selected_post_id")
+    platforms = ["tiktok"]
+    selected_character_ids = _normalize_social_character_ids(data.get("selected_characters"))
+    selected_hooks = _normalize_selected_hooks(data.get("selected_hooks"))
+    if not selected_character_ids:
+        return jsonify({"error": "Selecciona al menos un participante para este tema."}), 400
 
-    if not topic:
-        return jsonify({"error": "Se requiere un tema o borrador."}), 400
-    if len(topic) > 4000:
-        return jsonify({"error": "El texto de entrada es demasiado largo (máx 4000 caracteres)."}), 400
-
-    if mode == "borrador":
-        input_instruction = (
-            "Analiza este borrador de blog y extrae los puntos más valiosos "
-            "para adaptarlos a contenido viral en redes sociales:\n\nBORRADOR:\n" + topic
+    try:
+        topic, input_instruction, selected_post_meta = _resolve_social_generation_context(
+            mode,
+            topic,
+            selected_post_id,
         )
-    else:
-        input_instruction = (
-            "Crea contenido original para redes sociales buscando el ángulo "
-            "más comercial, práctico y viral:\n\nTEMA: " + topic
-        )
-
-    prompt = f"""Eres un experto en marketing digital, producción audiovisual y estrategia de contenido viral.
-
-{input_instruction}
-
-Genera el siguiente contenido en formato JSON estrictamente válido. SOLO responde con el JSON, sin texto extra ni bloques markdown.
-
-ESTRUCTURA REQUERIDA (completa todos los campos, sin omitir ninguno):
-{{
-  "tiktok": {{
-    "hooks": [
-      {{"tipo": "curiosidad", "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}},
-      {{"tipo": "fomo",       "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}},
-      {{"tipo": "beneficio",  "texto": "Frase exacta dicha a cámara (máx 10 palabras)", "descripcion_visual": "Cómo grabarlo: plano, movimiento de cámara, expresión facial"}}
-    ],
-    "guion": [
-      {{
-        "escena": 1,
-        "segundos": "0-3",
-        "tipo": "gancho",
-        "toma": "Descripción técnica del plano: ángulo, encuadre, distancia a cámara",
-        "dialogo": "TEXTO EXACTO a decir en voz alta, sin paréntesis ni indicaciones, como si lo leyeras",
-        "texto_pantalla": "Frase corta que aparece como texto en pantalla (bold, contraste alto)",
-        "nota_edicion": "Corte rápido / zoom automático / sonido de impacto al inicio"
-      }},
-      {{
-        "escena": 2,
-        "segundos": "3-15",
-        "tipo": "retencion",
-        "toma": "Descripción técnica del plano",
-        "dialogo": "TEXTO EXACTO: presenta el problema o contexto. Genera tensión. Usa pausas dramáticas.",
-        "texto_pantalla": "Texto refuerzo en pantalla",
-        "nota_edicion": "Jump cuts cada 2-3 segundos. Música al 20%."
-      }},
-      {{
-        "escena": 3,
-        "segundos": "15-30",
-        "tipo": "valor_1",
-        "toma": "Descripción técnica del plano (puede ser b-roll, overhead, pantalla grabada)",
-        "dialogo": "TEXTO EXACTO: explica el primer punto de valor con ejemplo concreto",
-        "texto_pantalla": "PUNTO 1: [resumen en 5 palabras]",
-        "nota_edicion": "Texto aparece al inicio de la escena. Corte a b-roll si hay demo."
-      }},
-      {{
-        "escena": 4,
-        "segundos": "30-45",
-        "tipo": "valor_2",
-        "toma": "Descripción técnica del plano",
-        "dialogo": "TEXTO EXACTO: explica el segundo punto con dato o error común a evitar",
-        "texto_pantalla": "PUNTO 2: [resumen en 5 palabras]",
-        "nota_edicion": "Zoom sutil en la palabra clave. Subtítulos activados."
-      }},
-      {{
-        "escena": 5,
-        "segundos": "45-55",
-        "tipo": "resultado",
-        "toma": "Plano medio frontal, energía más alta, gestos expresivos",
-        "dialogo": "TEXTO EXACTO: resume el beneficio clave y conecta con la vida del espectador",
-        "texto_pantalla": "EL RESULTADO: [frase impactante]",
-        "nota_edicion": "Música sube ligeramente. Ritmo de edición más rápido."
-      }},
-      {{
-        "escena": 6,
-        "segundos": "55-60",
-        "tipo": "cta",
-        "toma": "Plano medio, señalar pantalla o apuntar hacia abajo con el dedo",
-        "dialogo": "TEXTO EXACTO del CTA: específico, que invite a guardar o comentar con una razón concreta",
-        "texto_pantalla": "GUARDA ESTO 👇 / COMENTA SI TE PASÓ",
-        "nota_edicion": "Pantalla congela 0.5s en último frame. Audio fade out."
-      }}
-    ],
-    "checklist": {{
-      "grabacion": [
-        {{"item": "...", "detalle": "Descripción específica de cómo ejecutar este paso"}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ],
-      "recursos": [
-        {{"item": "...", "tipo": "prop/iluminacion/audio/locacion"}},
-        {{"item": "...", "tipo": "..."}},
-        {{"item": "...", "tipo": "..."}}
-      ],
-      "edicion": [
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ]
-    }}
-  }},
-  "instagram": {{
-    "slides": [
-      {{"numero": 1, "tipo": "portada",    "titulo": "Titular magnético (máx 8 palabras)", "subtitulo": "Subtítulo complementario", "cuerpo": "", "estetica": "Paleta de colores + tipografía + elemento visual principal"}},
-      {{"numero": 2, "tipo": "problema",   "titulo": "El problema real", "subtitulo": "", "cuerpo": "2-3 oraciones que describan el problema con el que el lector se identifica", "estetica": "..."}},
-      {{"numero": 3, "tipo": "desarrollo", "titulo": "Paso / Consejo 1", "subtitulo": "", "cuerpo": "Explicación clara y accionable del primer punto. Una idea, un slide.", "estetica": "..."}},
-      {{"numero": 4, "tipo": "desarrollo", "titulo": "Paso / Consejo 2", "subtitulo": "", "cuerpo": "Segundo punto con ejemplo o dato concreto.", "estetica": "..."}},
-      {{"numero": 5, "tipo": "desarrollo", "titulo": "Paso / Consejo 3", "subtitulo": "", "cuerpo": "Tercer punto. Si aplica, incluye una mini-comparación o error a evitar.", "estetica": "..."}},
-      {{"numero": 6, "tipo": "desarrollo", "titulo": "Paso / Consejo 4", "subtitulo": "", "cuerpo": "Cuarto punto práctico y diferenciador.", "estetica": "..."}},
-      {{"numero": 7, "tipo": "resumen",    "titulo": "Quick Win ⚡", "subtitulo": "", "cuerpo": "Una sola acción que el lector puede ejecutar hoy mismo para ver resultados rápidos.", "estetica": "Fondo vibrante/diferenciado para que destaque del resto del carrusel"}},
-      {{"numero": 8, "tipo": "cta",        "titulo": "¿Te fue útil?", "subtitulo": "", "cuerpo": "Instrucción clara: GUARDA + COMPARTE + COMENTA. Incluye qué comentar exactamente.", "estetica": "Color de marca, CTA visual bold"}}
-    ],
-    "hashtags": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."],
-    "checklist": {{
-      "diseno": [
-        {{"item": "...", "detalle": "Indicación visual específica de diseño o Canva para este slide"}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ],
-      "recursos": [
-        {{"item": "...", "tipo": "imagen/icono/color/tipografia"}},
-        {{"item": "...", "tipo": "..."}},
-        {{"item": "...", "tipo": "..."}}
-      ],
-      "publicacion": [
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ]
-    }}
-  }},
-  "facebook": {{
-    "post": "Post completo listo para copiar-pegar (200-350 palabras). Tono cercano, personal, narrativo. Usa saltos de línea para facilitar la lectura. Incluye emojis estratégicos. NO incluyas la pregunta de engagement aquí.",
-    "pregunta_engagement": "Pregunta abierta específica al final para activar comentarios. Que sea fácil de responder.",
-    "checklist": {{
-      "contenido": [
-        {{"item": "...", "detalle": "Verificación específica del post texto"}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ],
-      "recursos": [
-        {{"item": "...", "tipo": "imagen/video/gif/enlace"}},
-        {{"item": "...", "tipo": "..."}}
-      ],
-      "publicacion": [
-        {{"item": "...", "detalle": "Mejor horario, configuración de privacidad, etiquetas"}},
-        {{"item": "...", "detalle": "..."}},
-        {{"item": "...", "detalle": "..."}}
-      ]
-    }}
-  }}
-}}
-
-REGLAS DE CALIDAD (obligatorias):
-1. TikTok guion: el campo "dialogo" de cada escena debe ser TEXTO LITERAL para leer en voz alta, no descripciones entre paréntesis.
-2. TikTok guion: las 6 escenas cubren el video completo de 60 segundos sin huecos.
-3. Instagram slides: 8 slides exactos en el orden dado (portada > problema > x4 desarrollo > resumen > cta).
-4. Facebook: el post NO termina con la pregunta (esa va en "pregunta_engagement" separada).
-5. Todos los checklists: items concretos y ejecutables hoy, no genéricos.
-6. Hashtags de Instagram: mezcla de 4 alto volumen (>500k) + 4 nicho específico (<100k) + 2 de marca/tendencia.
-7. Todo en español neutro profesional (sin regionalismos).
-8. JSON perfectamente válido: sin comas finales, sin saltos de línea dentro de strings (usar \\n si se necesita).
-"""
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
     mock_mode, _ = _get_modes()
 
     if mock_mode:
         import time as _time
         _time.sleep(0.8)
-        result = _social_mock_response(topic)
+        result = _social_mock_response(topic, selected_character_ids)
+        if selected_hooks:
+            selected_labels = {hook["tipo_de_angulo"] for hook in selected_hooks}
+            result["tiktok"]["opciones"] = [
+                option for option in result.get("tiktok", {}).get("opciones", [])
+                if option.get("tipo_de_angulo") in selected_labels
+            ]
+            result["tiktok"]["checklist"] = _build_tiktok_checklist_from_options(result["tiktok"]["opciones"])
+            _validate_tiktok_2026_payload(
+                result,
+                selected_character_ids,
+                expected_labels=[hook["tipo_de_angulo"] for hook in selected_hooks],
+            )
+        else:
+            _validate_tiktok_2026_payload(result, selected_character_ids)
     else:
         try:
-            tm = get_token_manager()
-            if not tm or not tm.valid_keys_count:
-                return jsonify({"error": "No hay API keys de Gemini configuradas."}), 503
-
-            import google.generativeai as genai
-            from core.gemini_client import _apply_proxy_from_env, _install_dns_patch
-            _apply_proxy_from_env()
-            _install_dns_patch()
-
-            api_key = tm.get_active_key()
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
-                generation_config=genai.GenerationConfig(
-                    temperature=0.8,
-                    max_output_tokens=8192,
-                ),
+            result = _generate_tiktok_2026_result(
+                topic_context=input_instruction,
+                mode=mode,
+                selected_character_ids=selected_character_ids,
+                selected_hooks=selected_hooks,
             )
-            response = model.generate_content(prompt)
-            raw = response.text.strip()
-            if raw.startswith("```"):
-                raw = re.sub(r"^```[a-z]*\n?", "", raw)
-                raw = re.sub(r"\n?```$", "", raw)
-            result = json.loads(raw)
-
-        except json.JSONDecodeError as e:
-            return jsonify({"error": f"Gemini devolvió JSON inválido: {e}"}), 500
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 500
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
+    result.get("tiktok", {}).pop("checklist", None)
+
     # Guardar siempre el resultado con metadatos
     meta = {
-        "topic":      topic[:120],
         "mode":       mode,
         "mock":       mock_mode,
         "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "platforms":  platforms,
+        "selected_characters": selected_character_ids,
+        "source_post": selected_post_meta,
+        "selected_hooks": selected_hooks,
     }
     result["meta"] = meta
     slug = re.sub(r"[^a-z0-9]+", "_", topic[:40].lower()).strip("_")
@@ -1854,225 +3086,227 @@ REGLAS DE CALIDAD (obligatorias):
     return jsonify({"ok": True, "data": result, "saved_as": filename})
 
 
-def _social_mock_response(topic: str) -> dict:
-    """Respuesta mock detallada para el creador de contenido social."""
-    t = topic[:60] if len(topic) > 60 else topic
-    ts = topic[:30] if len(topic) > 30 else topic  # slug corto
+def _social_mock_response(topic: str, selected_ids: list[str] | None = None) -> dict:
+    """Respuesta mock para TikTok 2026 usando hooks del banco maestro."""
+    ts = topic[:30] if len(topic) > 30 else topic
+    selected_characters = _selected_social_characters(selected_ids)
+    lead_character = selected_characters[0]
+
+    def build_cast(lead_role: str) -> list[dict]:
+        cast = []
+        for index, character in enumerate(selected_characters):
+            if index == 0:
+                role = lead_role
+            elif character["id"] == "hija":
+                role = "reaccion emocional y prueba visual"
+            else:
+                role = "apoyo, contraste y dinamica familiar"
+            cast.append(
+                {
+                    "id": character["id"],
+                    "nombre": character["nombre"],
+                    "rol_en_video": role,
+                }
+            )
+        return cast
+
     return {
         "tiktok": {
-            "hooks": [
+            "opciones": [
                 {
-                    "tipo": "curiosidad",
-                    "texto": f"Lo que nadie te dice sobre {ts}...",
-                    "descripcion_visual": "Zoom dramático de lejos a primer plano en 1 segundo. Expresión de sorpresa. Fondo liso o difuminado. Texto animado apareciendo letra a letra."
+                    "tipo_de_angulo": "Resultado Express",
+                    "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+                    "gancho_texto": f"Cómo logré disfrutar mejor {ts} en solo 3 días con este cambio simple.",
+                    "promesa_valor": f"La audiencia entiende qué ajuste concreto aplicar para que {ts} salga mejor desde la próxima vez.",
+                    "duracion_segundos": 51,
+                    "personajes": build_cast(f"conduce el cambio simple y explica el resultado desde su experiencia como {lead_character['perfil']}") ,
+                    "instruccion_visual_inicio": "Abre mostrando el resultado final a pantalla completa y corta a tu mano deteniendo un cronómetro en el segundo 1.",
+                    "puntos_retencion": [
+                        {"paso": 1, "segundos": "0-3", "mensaje": f"Enseña el antes y después real que conseguiste con {ts}.", "micro_transicion": "Zoom in duro al subtítulo con corte seco."},
+                        {"paso": 2, "segundos": "3-6", "mensaje": "Aísla el cambio puntual que produjo el resultado más rápido.", "micro_transicion": "Jump cut con texto rojo y pequeño shake."},
+                        {"paso": 3, "segundos": "6-9", "mensaje": "Remata con el beneficio concreto para quien quiera replicarlo hoy.", "micro_transicion": "Match cut al resultado con sonido click."}
+                    ],
+                    "guion_detallado": [
+                        {"bloque": 1, "segundos": "0-3", "objetivo": "Frenar el scroll con el resultado final.", "personaje": lead_character["nombre"], "visual": f"Plano recurso del resultado ideal de {ts} y entrada inmediata a camara.", "dialogo": f"Asi logre que {ts} saliera mucho mejor en solo tres dias con un cambio simple.", "texto_pantalla": "Resultado real en 3 dias", "transicion": "Whip pan al rostro."},
+                        {"bloque": 2, "segundos": "3-10", "objetivo": "Instalar el problema comun.", "personaje": lead_character["nombre"], "visual": "Plano medio explicando el error tipico con gesto claro de stop.", "dialogo": f"El fallo era intentar hacerlo igual que siempre, sin mirar el detalle que de verdad cambia {ts}.", "texto_pantalla": "El error que frena todo", "transicion": "Jump cut con zoom al gesto."},
+                        {"bloque": 3, "segundos": "10-22", "objetivo": "Explicar el cambio simple.", "personaje": lead_character["nombre"], "visual": "Demostracion paso a paso del ajuste con plano de manos o accion concreta.", "dialogo": f"Lo que cambie fue esto: preparar primero la parte clave, observar la reaccion y corregir sobre la marcha en vez de improvisar.", "texto_pantalla": "Cambio simple", "transicion": "Corte a detalle de la accion."},
+                        {"bloque": 4, "segundos": "22-34", "objetivo": "Añadir prueba social o familiar.", "personaje": selected_characters[-1]["nombre"], "visual": "Reaccion autentica al aplicar el cambio, sin posar.", "dialogo": "Cuando lo hicimos asi, la experiencia se noto enseguida: menos caos, mas disfrute y mucha mas atencion en lo importante.", "texto_pantalla": "Se nota al momento", "transicion": "Match cut a la reaccion."},
+                        {"bloque": 5, "segundos": "34-45", "objetivo": "Bajar a instruccion concreta.", "personaje": lead_character["nombre"], "visual": "Plano frontal enumerando el mini paso a paso con dedos o texto sobreimpreso.", "dialogo": f"Si quieres replicarlo, haz tres cosas: define el objetivo, quita distracciones y deja que {ts} tenga un ritmo mas simple y consciente.", "texto_pantalla": "3 pasos para copiarlo", "transicion": "Flash de texto numerado."},
+                        {"bloque": 6, "segundos": "45-51", "objetivo": "Cerrar con CTA util.", "personaje": lead_character["nombre"], "visual": "Plano cercano a camara, energia alta y gesto de invitacion.", "dialogo": "Dime que parte te cuesta mas y te digo que cambio simple probar primero en tu caso.", "texto_pantalla": "Te respondo tu caso", "transicion": "Freeze final con subtitulo."}
+                    ],
+                    "plan_rodaje": {
+                        "locacion": "Espacio real donde ocurra la accion principal, con un antes y despues visible en pocos segundos.",
+                        "tono": "Cercano, practico y con autoridad tranquila.",
+                        "ritmo_edicion": "Agil, con cortes cada 2-4 segundos y refuerzo visual en cada idea clave.",
+                        "vestuario": "Ropa cotidiana, limpia y coherente con una familia real; sin looks demasiado producidos.",
+                        "props": f"Elemento central relacionado con {ts}, cronometro o movil para marcar el cambio, y apoyo visual del antes/despues.",
+                        "musica_sfx": "Base ligera y dinamica, con whoosh suave en cambios y click de refuerzo en el beneficio.",
+                        "tomas_clave": [
+                            "Resultado final en el primer frame.",
+                            "Detalle de la accion concreta que cambia el resultado.",
+                            "Reaccion autentica del participante secundario."
+                        ]
+                    },
+                    "cta_engagement": "Cuéntame qué resultado querrías lograr tú y te digo qué cambio simple probar primero."
                 },
                 {
-                    "tipo": "fomo",
-                    "texto": f"El 90% hace {ts} mal. ¿Eres del 10%?",
-                    "descripcion_visual": "Corte rápido: plano del error (tachado rojo en pantalla) → plano del método correcto (check verde). Energía alta, hablar rápido."
+                    "tipo_de_angulo": "Advertencia",
+                    "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+                    "gancho_texto": f"Deja de improvisar con {ts} si no quieres seguir perdiéndote lo mejor de la experiencia.",
+                    "promesa_valor": f"La audiencia detecta el error que sabotea {ts} y sale con una correccion clara para evitarlo.",
+                    "duracion_segundos": 58,
+                    "personajes": build_cast("detecta el error comun y lo corrige en vivo"),
+                    "instruccion_visual_inicio": "Arranca con tres etiquetas rojas entrando una a una mientras niegas con la cabeza a cámara.",
+                    "puntos_retencion": [
+                        {"paso": 1, "segundos": "0-3", "mensaje": "Nombra la acción común que arruina el resultado aunque parezca inocente.", "micro_transicion": "Flash rojo y hard cut al gesto facial."},
+                        {"paso": 2, "segundos": "3-6", "mensaje": "Sube la tensión con la consecuencia visible de seguir igual.", "micro_transicion": "Zoom digital al detalle problemático y pausa corta."},
+                        {"paso": 3, "segundos": "6-9", "mensaje": "Corrige el hábito con una acción concreta que cualquiera pueda aplicar.", "micro_transicion": "Split screen antes/después con golpe sonoro."}
+                    ],
+                    "guion_detallado": [
+                        {"bloque": 1, "segundos": "0-3", "objetivo": "Golpe de advertencia.", "personaje": lead_character["nombre"], "visual": "Plano frontal negando con la cabeza y error visible en pantalla.", "dialogo": f"Deja de improvisar con {ts} si no quieres cargarte la experiencia otra vez.", "texto_pantalla": "Deja de hacerlo asi", "transicion": "Hard cut con alarma suave."},
+                        {"bloque": 2, "segundos": "3-11", "objetivo": "Mostrar el error real.", "personaje": lead_character["nombre"], "visual": "Plano detalle del error mientras se explica por encima.", "dialogo": f"La mayoria falla aqui porque quiere correr demasiado o meter demasiadas cosas a la vez con {ts}.", "texto_pantalla": "Error comun", "transicion": "Zoom al detalle."},
+                        {"bloque": 3, "segundos": "11-24", "objetivo": "Explicar la consecuencia.", "personaje": selected_characters[-1]["nombre"], "visual": "Reaccion de frustracion o desconexion que refleje la consecuencia.", "dialogo": "Y lo peor es que no solo sale peor: tambien hace que la gente se canse antes, se despiste o deje de disfrutar.", "texto_pantalla": "Consecuencia real", "transicion": "Push-in a la reaccion."},
+                        {"bloque": 4, "segundos": "24-38", "objetivo": "Enseñar la correccion practica.", "personaje": lead_character["nombre"], "visual": "Demostracion comparativa entre hacerlo mal y hacerlo bien.", "dialogo": f"Haz esto en cambio: baja el ritmo al inicio, marca una sola prioridad y construye {ts} sobre una accion clara desde el principio.", "texto_pantalla": "Haz esto en cambio", "transicion": "Split screen antes/despues."},
+                        {"bloque": 5, "segundos": "38-50", "objetivo": "Cerrar con mini checklist.", "personaje": lead_character["nombre"], "visual": "Plano medio enumerando tres checks cortos.", "dialogo": "Si quieres saber si lo estas haciendo bien, revisa esto: se entiende rapido, nadie se pierde y el resultado mejora desde el minuto uno.", "texto_pantalla": "Checklist rapida", "transicion": "Texto en bullets."},
+                        {"bloque": 6, "segundos": "50-58", "objetivo": "CTA conversacional.", "personaje": lead_character["nombre"], "visual": "Plano cercano con gesto de pregunta directa.", "dialogo": "Si te has visto en este error, escribeme cual es tu caso y te digo como corregirlo sin complicarte.", "texto_pantalla": "Te ayudo a corregirlo", "transicion": "Fade corto al final."}
+                    ],
+                    "plan_rodaje": {
+                        "locacion": "Lugar donde el error pueda verse en primeros planos y compararse con la version corregida.",
+                        "tono": "Directo, preventivo y con energia de alerta util.",
+                        "ritmo_edicion": "Muy dinamico al inicio y mas explicativo desde la correccion.",
+                        "vestuario": "Neutro y funcional; colores que permitan ver bien texto y gestos.",
+                        "props": f"Elemento que muestre el error habitual en {ts}, etiquetas rojas y apoyo visual de checklist.",
+                        "musica_sfx": "Beat tenso al inicio, con sonidos de freno y alivio al mostrar la correccion.",
+                        "tomas_clave": [
+                            "Macro del error real.",
+                            "Comparativa error vs correccion.",
+                            "Plano de reaccion del participante secundario."
+                        ]
+                    },
+                    "cta_engagement": "Si te viste haciendo esto, escríbeme qué parte te cuesta más y te respondo con una alternativa realista."
                 },
                 {
-                    "tipo": "beneficio",
-                    "texto": f"En 60 segundos dominas {ts}. Empieza.",
-                    "descripcion_visual": "Temporizador en esquina superior. Plano medio frontal, cámara a nivel de ojos, ring light visible en pupilas. Señalar pantalla al decir 'empieza'."
-                }
-            ],
-            "guion": [
-                {
-                    "escena": 1,
-                    "segundos": "0-3",
-                    "tipo": "gancho",
-                    "toma": "Plano medio frontal. Cámara a nivel de ojos. Fondo liso o bokeh. Ring light activada. Grabación vertical 9:16.",
-                    "dialogo": f"Para. Lo que nadie te explica sobre {t} es esto.",
-                    "texto_pantalla": f"🚨 {ts.upper()}: EL ERROR #1",
-                    "nota_edicion": "Zoom automático de 0.9x a 1.1x en el primer segundo. Sonido de 'whoosh' o campana al inicio. Corte seco al siguiente clip."
+                    "tipo_de_angulo": "Hubiera Pagado",
+                    "plantilla_base": "Hubiera pagado por saber esto antes de cumplir los [Edad/Etapa].",
+                    "gancho_texto": f"Hubiera pagado por saber esto antes de planear {ts} por primera vez.",
+                    "promesa_valor": f"La audiencia recibe una leccion concreta que evita errores caros o frustrantes al organizar {ts}.",
+                    "duracion_segundos": 47,
+                    "personajes": build_cast("confiesa el aprendizaje y lo convierte en consejo util"),
+                    "instruccion_visual_inicio": "Empieza con una toma handheld del fallo real antes de mirar a cámara y decir la verdad incómoda.",
+                    "puntos_retencion": [
+                        {"paso": 1, "segundos": "0-3", "mensaje": "Confiesa el error que te habría ahorrado tiempo, frustración o dinero.", "micro_transicion": "Corte documental sin música y sin estabilizar del todo."},
+                        {"paso": 2, "segundos": "3-6", "mensaje": f"Conecta esa lección con el momento clave de preparar {ts}.", "micro_transicion": "Push-in lento al rostro con subtítulo blanco."},
+                        {"paso": 3, "segundos": "6-9", "mensaje": "Deja un consejo simple que la audiencia pueda aplicar antes de cometer el mismo fallo.", "micro_transicion": "Jump cut a demostración simple con silencio breve."}
+                    ],
+                    "guion_detallado": [
+                        {"bloque": 1, "segundos": "0-3", "objetivo": "Abrir con honestidad.", "personaje": lead_character["nombre"], "visual": "Plano handheld del fallo y mirada directa a camara.", "dialogo": f"Hubiera pagado por saber esto antes de planear {ts} por primera vez.", "texto_pantalla": "La leccion que me falto", "transicion": "Corte documental."},
+                        {"bloque": 2, "segundos": "3-12", "objetivo": "Contar el error.", "personaje": lead_character["nombre"], "visual": "Recreacion corta del momento en que se cometio el fallo.", "dialogo": "Yo pensaba que hacerlo asi era suficiente, pero en realidad estaba complicando todo desde el primer paso.", "texto_pantalla": "Pensaba que estaba bien", "transicion": "Jump cut a recuerdo."},
+                        {"bloque": 3, "segundos": "12-24", "objetivo": "Traducirlo en aprendizaje.", "personaje": lead_character["nombre"], "visual": "Plano medio explicando con calma y un gesto de insight.", "dialogo": f"Lo que aprendi es que {ts} funciona mucho mejor cuando priorizas una sola necesidad real y no intentas controlarlo todo de golpe.", "texto_pantalla": "La leccion real", "transicion": "Zoom suave."},
+                        {"bloque": 4, "segundos": "24-36", "objetivo": "Poner ejemplo practico.", "personaje": selected_characters[-1]["nombre"], "visual": "Escena corta donde el consejo se aplica y mejora la dinamica.", "dialogo": "Cuando lo cambiamos, todo fue mas fluido, mas facil y mucho mas disfrutable para todos los que estaban ahi.", "texto_pantalla": "Se noto enseguida", "transicion": "Match cut a escena buena."},
+                        {"bloque": 5, "segundos": "36-47", "objetivo": "Cerrar con consejo + CTA.", "personaje": lead_character["nombre"], "visual": "Plano cercano final con tono de confidencia.", "dialogo": "Si estas en esa etapa ahora mismo, dime donde te bloqueas y te comparto la leccion que a mi me habria ahorrado mas.", "texto_pantalla": "Te cuento que haria distinto", "transicion": "Cierre limpio con hold final."}
+                    ],
+                    "plan_rodaje": {
+                        "locacion": "Entorno autentico donde el error y la correccion puedan verse sin decorado excesivo.",
+                        "tono": "Honesto, cercano y vulnerable, pero siempre util.",
+                        "ritmo_edicion": "Documental al principio y mas limpio conforme llega la solucion.",
+                        "vestuario": "Natural, del dia a dia, sin estilismo artificial.",
+                        "props": f"Objeto o situacion que simbolice el fallo cometido en {ts} y su correccion posterior.",
+                        "musica_sfx": "Muy minima al principio, con entrada emocional suave en la resolucion.",
+                        "tomas_clave": [
+                            "Fallo real grabado con camara en mano.",
+                            "Primer plano al contar la leccion.",
+                            "Escena de correccion funcionando."
+                        ]
+                    },
+                    "cta_engagement": "Dime en qué etapa te pilló más verde esto y te comparto qué habría hecho distinto desde el principio."
                 },
                 {
-                    "escena": 2,
-                    "segundos": "3-15",
-                    "tipo": "retencion",
-                    "toma": "Plano medio frontal. Mismo encuadre. Empezar a hablar más rápido. Gestos con manos activos.",
-                    "dialogo": f"La mayoría se acerca a {t} sin saber esto: hay un paso que todo el mundo se salta. Y ese paso es exactamente el que hace la diferencia entre resultados reales y perder el tiempo. Te lo explico en 3 puntos.",
-                    "texto_pantalla": "3 puntos que cambian todo 👇",
-                    "nota_edicion": "Jump cut cada 2-3 segundos. Subtítulos automáticos activados al 100%. Música de fondo al 15%."
+                    "tipo_de_angulo": "Señales",
+                    "plantilla_base": "X señales de que tu [Producto/Hábito] te está arruinando.",
+                    "gancho_texto": f"3 señales de que tu forma de preparar {ts} te está arruinando el plan.",
+                    "promesa_valor": f"La audiencia aprende a detectar tres alertas claras para corregir {ts} antes de que salga mal.",
+                    "duracion_segundos": 63,
+                    "personajes": build_cast("detecta las señales y guia el diagnostico en pantalla"),
+                    "instruccion_visual_inicio": "El primer frame es el resultado final ocupando toda la pantalla; después entra tu mano señalando el detalle con un whip pan.",
+                    "puntos_retencion": [
+                        {"paso": 1, "segundos": "0-3", "mensaje": "Lanza la primera señal visual como alerta inmediata.", "micro_transicion": "Whip pan del resultado a tu cara en el segundo 3."},
+                        {"paso": 2, "segundos": "3-6", "mensaje": "Muestra la segunda señal en una situación cotidiana para que sea reconocible.", "micro_transicion": "Zoom al elemento protagonista con subtítulo anclado."},
+                        {"paso": 3, "segundos": "6-9", "mensaje": "Cierra con la señal definitiva y la corrección más simple.", "micro_transicion": "Corte rápido a demostración física con sonido snap."}
+                    ],
+                    "guion_detallado": [
+                        {"bloque": 1, "segundos": "0-3", "objetivo": "Abrir con lista util.", "personaje": lead_character["nombre"], "visual": "Primer frame del resultado malo y gesto de alerta en camara.", "dialogo": f"Tres señales de que tu forma de preparar {ts} te esta arruinando el plan.", "texto_pantalla": "3 señales claras", "transicion": "Whoosh con numero 1."},
+                        {"bloque": 2, "segundos": "3-14", "objetivo": "Señal 1.", "personaje": lead_character["nombre"], "visual": "Mostrar el primer sintoma en contexto real.", "dialogo": "Señal uno: empiezas con demasiada prisa y nadie entiende que tiene que pasar primero.", "texto_pantalla": "Senal 1: vas demasiado rapido", "transicion": "Corte a prueba visual."},
+                        {"bloque": 3, "segundos": "14-25", "objetivo": "Señal 2.", "personaje": selected_characters[-1]["nombre"], "visual": "Reaccion de confusion o desconexion durante la escena.", "dialogo": "Señal dos: la atencion se cae enseguida porque todo compite al mismo tiempo y no hay foco real.", "texto_pantalla": "Senal 2: se pierde la atencion", "transicion": "Zoom con subtitulo."},
+                        {"bloque": 4, "segundos": "25-36", "objetivo": "Señal 3.", "personaje": lead_character["nombre"], "visual": "Plano detalle del tercer error mientras se enumera.", "dialogo": "Señal tres: acabas corrigiendo tarde, cuando ya ves frustracion o cansancio en lugar de disfrute.", "texto_pantalla": "Senal 3: corriges tarde", "transicion": "Flash al numero 3."},
+                        {"bloque": 5, "segundos": "36-52", "objetivo": "Dar la correccion.", "personaje": lead_character["nombre"], "visual": "Comparativa entre mala ejecucion y version ordenada.", "dialogo": f"La solucion es simple: simplifica el inicio, marca un objetivo visible y deja que {ts} tenga una sola prioridad a la vez.", "texto_pantalla": "La correccion simple", "transicion": "Split screen."},
+                        {"bloque": 6, "segundos": "52-63", "objetivo": "CTA y cierre.", "personaje": lead_character["nombre"], "visual": "Plano frontal final con mano abierta invitando a comentar.", "dialogo": "Escribeme cual de estas tres señales te pasa mas y te digo como corregirla sin montar un plan complicado.", "texto_pantalla": "Te digo como corregirla", "transicion": "Hold final con subtitulo."}
+                    ],
+                    "plan_rodaje": {
+                        "locacion": "Entorno donde puedan mostrarse claramente las tres señales dentro de una misma rutina.",
+                        "tono": "Didactico, agil y muy reconocible para familias reales.",
+                        "ritmo_edicion": "Formato lista, con marcadores visuales de cada senal y comparativas rapidas.",
+                        "vestuario": "Casual y coherente con una situacion cotidiana.",
+                        "props": f"Cartelas o texto en pantalla para las 3 senales, y apoyo visual del error visible relacionado con {ts}.",
+                        "musica_sfx": "Base ritmica con golpes cortos para cada numero y alivio al llegar a la solucion.",
+                        "tomas_clave": [
+                            "Resultado malo del primer frame.",
+                            "Una toma por cada senal.",
+                            "Comparativa final de la correccion."
+                        ]
+                    },
+                    "cta_engagement": "Escríbeme cuál de estas señales te pasa y te digo cómo corregirla sin complicarte el plan."
                 },
                 {
-                    "escena": 3,
-                    "segundos": "15-30",
-                    "tipo": "valor_1",
-                    "toma": "Plano medio o b-roll de manos mostrando el proceso / pantalla / objeto. Si es digital: grabación de pantalla con recuadro de webcam pequeño en esquina.",
-                    "dialogo": f"Punto uno. El fundamento. Con {t}, lo primero que necesitas entender es EL POR QUÉ, no el cómo. Cuando entiendes por qué funciona, todo lo demás tiene sentido.",
-                    "texto_pantalla": "PUNTO 1: Entiende el POR QUÉ primero",
-                    "nota_edicion": "Texto aparece en pantalla 0.5s después de que empieces a hablar. Corte a b-roll si estás mostrando algo. Resalta la palabra clave con color."
-                },
-                {
-                    "escena": 4,
-                    "segundos": "30-45",
-                    "tipo": "valor_2",
-                    "toma": "Plano medio frontal. Levantar dos dedos al decir 'punto dos'. Mantener contacto visual con cámara.",
-                    "dialogo": f"Punto dos. El error costoso. El 80% falla en {t} porque intenta hacer todo a la vez. La clave es enfocarse en una sola variable primero, medirla, y solo entonces sumar la siguiente.",
-                    "texto_pantalla": "PUNTO 2: Una variable a la vez ✅",
-                    "nota_edicion": "Zoom sutil en la palabra 'error'. Añadir ícono de X rojo cuando digas el error y ✅ verde cuando digas la solución."
-                },
-                {
-                    "escena": 5,
-                    "segundos": "45-55",
-                    "tipo": "resultado",
-                    "toma": "Plano medio frontal. Energía más alta. Sonreír. Inclinarse ligeramente hacia la cámara al dar el dato clave.",
-                    "dialogo": f"Y el resultado cuando aplicas esto correctamente: en lugar de frustrarte con {t}, empiezas a ver progreso en días, no en meses. Porque estás trabajando con el sistema, no contra él.",
-                    "texto_pantalla": "RESULTADO: Progreso en días 🚀",
-                    "nota_edicion": "Transición de entrada con fade rápido. Música puede subir ligeramente al 25%. Ritmo más dinámico."
-                },
-                {
-                    "escena": 6,
-                    "segundos": "55-60",
-                    "tipo": "cta",
-                    "toma": "Plano medio. Señalar hacia abajo con el dedo índice al decir 'guarda'. Mantener la energía alta hasta el último segundo.",
-                    "dialogo": f"Guarda este video ahora para cuando empieces. Y cuéntame en comentarios: ¿habías escuchado esto antes de {ts}?",
-                    "texto_pantalla": "💾 GUARDA ESTO · COMENTA ABAJO",
-                    "nota_edicion": "Último frame congela 0.5 segundos. Fade out de audio. Añadir sticker de 'guardar' o flecha apuntando abajo."
+                    "tipo_de_angulo": "Dosis de Realidad",
+                    "plantilla_base": "Dosis de realidad: no necesitas [Producto caro] para [Resultado].",
+                    "gancho_texto": f"Dosis de realidad: no necesitas gastar de más para disfrutar bien {ts}.",
+                    "promesa_valor": f"La audiencia rompe una creencia cara y sale con una forma mas simple y realista de resolver {ts}.",
+                    "duracion_segundos": 44,
+                    "personajes": build_cast("derriba el mito y demuestra una alternativa suficiente"),
+                    "instruccion_visual_inicio": "Empieza con el error en macro, tápalo con la mano en el segundo 1 y destápalo con texto de alerta ocupando media pantalla.",
+                    "puntos_retencion": [
+                        {"paso": 1, "segundos": "0-3", "mensaje": "Rompe una creencia cara o aparatosa que la gente da por obligatoria.", "micro_transicion": "Hard cut con sonido de freno y texto rojo."},
+                        {"paso": 2, "segundos": "3-6", "mensaje": "Demuestra por qué el resultado depende más del enfoque que del gasto.", "micro_transicion": "Zoom out rápido a plano general con pausa tensa."},
+                        {"paso": 3, "segundos": "6-9", "mensaje": "Cierra con la alternativa simple y suficiente para hacerlo bien.", "micro_transicion": "Corte a close-up del gesto correctivo con subtítulo amarillo."}
+                    ],
+                    "guion_detallado": [
+                        {"bloque": 1, "segundos": "0-3", "objetivo": "Romper el mito caro.", "personaje": lead_character["nombre"], "visual": "Tapar con la mano el elemento caro o exagerado y destaparlo con texto de alerta.", "dialogo": f"Dosis de realidad: no necesitas gastar de mas para disfrutar bien {ts}.", "texto_pantalla": "No necesitas gastar de mas", "transicion": "Hard cut."},
+                        {"bloque": 2, "segundos": "3-11", "objetivo": "Nombrar la creencia.", "personaje": lead_character["nombre"], "visual": "Plano medio señalando el mito o expectativa cara.", "dialogo": "Nos han vendido que si no haces esto a lo grande, no merece la pena. Y eso no es verdad.", "texto_pantalla": "Mito caro", "transicion": "Zoom con texto."},
+                        {"bloque": 3, "segundos": "11-24", "objetivo": "Demostrar la alternativa.", "personaje": lead_character["nombre"], "visual": "Comparativa entre opcion cara y solucion simple pero efectiva.", "dialogo": f"Lo que realmente funciona con {ts} es tener claridad, ritmo y una experiencia sencilla que se pueda sostener, no un montaje perfecto.", "texto_pantalla": "Lo que si funciona", "transicion": "Split screen corto."},
+                        {"bloque": 4, "segundos": "24-36", "objetivo": "Mostrar resultado real.", "personaje": selected_characters[-1]["nombre"], "visual": "Reaccion genuina disfrutando la alternativa simple.", "dialogo": "Cuando bajas el gasto inutil y subes la intencion, el resultado sigue estando ahi y se disfruta mucho mas.", "texto_pantalla": "Simple tambien funciona", "transicion": "Match cut al resultado."},
+                        {"bloque": 5, "segundos": "36-44", "objetivo": "CTA util.", "personaje": lead_character["nombre"], "visual": "Plano cercano final con tono complice.", "dialogo": "Si quieres, dime en que te gastarias de mas y te digo que merece la pena y que no para este caso.", "texto_pantalla": "Te digo donde si gastar", "transicion": "Freeze final."}
+                    ],
+                    "plan_rodaje": {
+                        "locacion": "Sitio donde pueda verse la opcion cara frente a la alternativa simple sin mover demasiada produccion.",
+                        "tono": "Mito vs realidad, cercano y con sentido comun.",
+                        "ritmo_edicion": "Rapido al plantear el mito y mas claro al enseñar la solucion.",
+                        "vestuario": "Natural, familiar y sin estetica de anuncio.",
+                        "props": f"Un elemento que represente gasto innecesario y otro que muestre la solucion sencilla para {ts}.",
+                        "musica_sfx": "Beat ligero con sonido de freno al romper el mito y toque de alivio al mostrar la alternativa.",
+                        "tomas_clave": [
+                            "Elemento caro en primer plano.",
+                            "Comparativa visual cara vs simple.",
+                            "Resultado final con disfrute autentico."
+                        ]
+                    },
+                    "cta_engagement": "Cuéntame qué gasto te genera más dudas y te digo qué sí merece la pena y qué no para este tema."
                 }
             ],
             "checklist": {
-                "grabacion": [
-                    {"item": "Encuadre y cámara", "detalle": "Grabar en vertical 1080x1920 (9:16). Cámara a nivel de ojos, no desde abajo. Cara centrada en el tercio superior del cuadro."},
-                    {"item": "Iluminación", "detalle": "Ring light frontal o ventana al lado. Sin sombras duras en el rostro. El fondo debe estar más oscuro que el primer plano."},
-                    {"item": "Audio", "detalle": "Usar micrófono de solapa o airpods. Grabar en habitación silenciosa. Hacer prueba de audio de 10 segundos antes de la toma definitiva."},
-                    {"item": "Energía y ritmo", "detalle": "Hablar un 20% más rápido de lo normal. Pausas cortas (menos de 0.5s). Gestos con manos visibles en cuadro para dinamismo."},
-                    {"item": "Múltiples tomas", "detalle": "Grabar el gancho (escena 1) al menos 5 veces y elegir la mejor. Las demás escenas con 2-3 tomas. Siempre dejar 1 segundo de silencio antes de hablar."}
+                "preproduccion": [
+                    {"item": "Elegir 5 plantillas distintas", "detalle": "Selecciona las 5 fórmulas del banco maestro que mejor encajan con el tópico antes de grabar."},
+                    {"item": "Diseñar el primer frame", "detalle": "Cada propuesta necesita una imagen inicial que funcione sin audio y detenga el scroll sola."},
+                    {"item": "Resolver los placeholders", "detalle": "Sustituye cada variable por situaciones, resultados o errores concretos del tema antes de pasar a grabación."}
                 ],
-                "recursos": [
-                    {"item": "Ring light o fuente de luz difusa", "tipo": "iluminacion"},
-                    {"item": "Trípode o soporte de teléfono", "tipo": "equipo"},
-                    {"item": f"Props relacionados con {ts} (si el contenido es físico)", "tipo": "prop"},
-                    {"item": "Fondo liso, pared clean o bookshelf ordenado", "tipo": "locacion"},
-                    {"item": "Música de fondo desde TikTok Sound Library (trending)", "tipo": "audio"}
+                "grabacion": [
+                    {"item": "Grabar dos versiones del hook", "detalle": "Haz una versión más agresiva y otra más natural para decidir cuál abre mejor el vídeo."},
+                    {"item": "Meter acción física desde el segundo 0", "detalle": "Empieza señalando, tapando, enseñando o comparando algo; evita abrir hablando estático."},
+                    {"item": "Cerrar pidiendo contexto real", "detalle": "El CTA debe pedir caso, experiencia o duda concreta, no interacción vacía."}
                 ],
                 "edicion": [
-                    {"item": "Subtítulos automáticos", "detalle": "Activar en CapCut o TikTok. Fuente bold, color blanco con sombra negra, tamaño grande (al menos 16% del ancho)."},
-                    {"item": "Textos en pantalla", "detalle": "Añadir el texto de cada escena antes del diálogo correspondiente. Fuente bold, contraste alto. Duración: toda la escena."},
-                    {"item": "Música de fondo", "detalle": "Usar trending sound de la semana o lo-fi motivacional. Volumen: 15-20% (no debe competir con la voz)."},
-                    {"item": "Cortes y ritmo", "detalle": "Jump cut cada 2-3 segundos en las escenas 2-4. Eliminar silencios mayores a 0.3 segundos. Velocidad de reproducción: 1.05x en toda la edición."}
-                ]
-            }
-        },
-        "instagram": {
-            "slides": [
-                {
-                    "numero": 1,
-                    "tipo": "portada",
-                    "titulo": f"Todo lo que necesitas saber sobre {ts}",
-                    "subtitulo": "Y nadie te lo había explicado así",
-                    "cuerpo": "",
-                    "estetica": "Fondo degradado morado-azul oscuro. Tipografía Montserrat Bold blanca. Icono o emoji grande centrado sobre el título. Nombre de usuario en esquina inferior."
-                },
-                {
-                    "numero": 2,
-                    "tipo": "problema",
-                    "titulo": "El problema real",
-                    "subtitulo": "",
-                    "cuerpo": f"La mayoría de personas que trabajan con {t} cometen el mismo error: van directo a la acción sin entender el sistema. El resultado es frustración, tiempo perdido y la sensación de que 'esto no es para mí'.",
-                    "estetica": "Fondo oscuro (#1a1a2e). Texto blanco. Icono ⚠️ en ámbar visible en esquina superior. Línea divisoria de color bajo el título."
-                },
-                {
-                    "numero": 3,
-                    "tipo": "desarrollo",
-                    "titulo": "01 · Entiende el fundamento",
-                    "subtitulo": "",
-                    "cuerpo": f"Antes de cualquier técnica, necesitas entender POR QUÉ funciona {t}. El 'por qué' es tu mapa. Sin mapa, todas las rutas se ven iguales. Dedica 20 minutos a entender la lógica antes de ejecutar.",
-                    "estetica": "Número '01' grande como watermark de fondo (color muy claro). Contenido en tarjeta blanca superpuesta. Punto de color en el número = color del tema."
-                },
-                {
-                    "numero": 4,
-                    "tipo": "desarrollo",
-                    "titulo": "02 · El error más costoso",
-                    "subtitulo": "",
-                    "cuerpo": f"Intentar hacer todo a la vez con {t} es la trampa más común. Enfócate en UNA variable, mídela durante 7 días y solo entonces agrega la siguiente. La consistencia late a la intensidad.",
-                    "estetica": "Número '02'. Icono de ❌ rojo pequeño junto al error y ✅ verde junto a la solución. Layout limpio, espacio en blanco generoso."
-                },
-                {
-                    "numero": 5,
-                    "tipo": "desarrollo",
-                    "titulo": "03 · La técnica que funciona",
-                    "subtitulo": "",
-                    "cuerpo": f"Los mejores resultados con {t} vienen de ciclos cortos: aplica → mide → ajusta → repite. No de sesiones largas y esporádicas. 15 minutos diarios consistentes > 3 horas una vez a la semana.",
-                    "estetica": "Número '03'. Flecha circular de retroalimentación como elemento gráfico. Colores consistentes con slides anteriores."
-                },
-                {
-                    "numero": 6,
-                    "tipo": "desarrollo",
-                    "titulo": "04 · Cómo medir tu progreso",
-                    "subtitulo": "",
-                    "cuerpo": f"Sin métricas no hay progreso real. Define tu indicador de éxito con {t} ANTES de empezar. ¿Qué cambia cuando funciona? Anótalo. Revísalo cada semana. Ajusta lo que no mueve esa métrica.",
-                    "estetica": "Número '04'. Gráfica de barra ascendente simple como elemento decorativo. Fondo consistente."
-                },
-                {
-                    "numero": 7,
-                    "tipo": "resumen",
-                    "titulo": "⚡ Quick Win — Hazlo hoy",
-                    "subtitulo": "",
-                    "cuerpo": f"Aplica SOLO el punto 01 durante 7 días. Dedica 20 minutos a entender el fundamento de {t} sin ejecutar todavía. Los resultados llegan a quien construye sobre bases sólidas, no a quien corre sin dirección.",
-                    "estetica": "Fondo amarillo vibrante (#FFD700) o verde energético. Tipografía negra bold. Este slide debe verse completamente diferente al resto para detener el scroll."
-                },
-                {
-                    "numero": 8,
-                    "tipo": "cta",
-                    "titulo": "¿Te fue útil esto? 👇",
-                    "subtitulo": "",
-                    "cuerpo": "💾 GUARDA este carrusel (lo vas a necesitar después)\n📤 COMPÁRTELO con alguien que esté luchando con esto\n💬 COMENTA: ¿cuál de los 4 puntos te resonó más?",
-                    "estetica": "Fondo del color de marca. Tres iconos grandes para cada acción (guardar/compartir/comentar). Nombre de usuario visible. Foto de perfil en esquina."
-                }
-            ],
-            "hashtags": [
-                f"#{ts.replace(' ', '').lower()}",
-                "#aprendizaje",
-                "#crecimientopersonal",
-                "#productividad",
-                f"#{ts.replace(' ', '').lower()}tips",
-                "#contenidodevalor",
-                "#desarrollopersonal",
-                "#habitos",
-                "#mentoring",
-                "#viralenespanol"
-            ],
-            "checklist": {
-                "diseno": [
-                    {"item": "Paleta de colores consistente", "detalle": "Elegir 2-3 colores y mantenerlos en TODOS los slides. Usar Canva 'Brand Kit' para guardarlos. El slide 7 puede romper la paleta intencionalmente."},
-                    {"item": "Tipografía unificada", "detalle": "Título: Montserrat Bold o Poppins Bold (mínimo 40pt). Cuerpo: Open Sans Regular o Lato (mínimo 24pt). Máximo 2 familias tipográficas."},
-                    {"item": "Elementos numéricos en slides 3-6", "detalle": "Número grande (200pt+) como watermark de fondo en transparencia 15-20%. Ayuda a la navegación visual del carrusel."},
-                    {"item": "Portada llamativa (slide 1)", "detalle": "Debe detener el scroll. Probar con degradado vibrante, imagen de fondo con overlay, o ilustración. A/B test con 2 versiones si es posible."}
-                ],
-                "recursos": [
-                    {"item": "Plantilla base en Canva", "tipo": "diseno"},
-                    {"item": f"Imagen o ilustración relacionada con {ts}", "tipo": "imagen"},
-                    {"item": "Paleta de colores en HEX definida", "tipo": "color"},
-                    {"item": "Logo o @usuario para portada y CTA", "tipo": "marca"}
-                ],
-                "publicacion": [
-                    {"item": "Cargar slides en orden exacto", "detalle": "Verificar en vista previa antes de publicar. El slide 1 es portada, el 8 es CTA."},
-                    {"item": "Escribir pie de foto con gancho", "detalle": "Primera línea = gancho que obligue a leer más. No empieces con 'Hoy quiero hablarte de...'."},
-                    {"item": "Incluir hashtags en primer comentario", "detalle": "Publicar el post y en los primeros 60 segundos añadir los hashtags en un comentario para mantener el pie de foto limpio."}
-                ]
-            }
-        },
-        "facebook": {
-            "post": f"Hoy quiero ser honesto sobre algo que nadie dice abiertamente respecto a {t}.\n\nCuando empecé, pensé que era cuestión de seguir pasos. Que si hacía lo que decían los expertos, los resultados vendrían solos. Spoiler: no fue así.\n\nLo que descubrí después de mucho tiempo (y varios errores costosos) es que hay 4 principios que nadie te enseña porque nadie los redujo a algo concreto:\n\n✅ Principio 1: El fundamento lo es todo. Si no entiendes POR QUÉ algo funciona, no puedes adaptarlo cuando cambian las condiciones.\n\n✅ Principio 2: La consistencia supera a la intensidad. 15 minutos diarios durante 30 días producen más resultado que 8 horas un domingo.\n\n✅ Principio 3: El error más caro no es equivocarse, es no saber QUÉ medir. Sin métricas claras, cualquier esfuerzo es ruido.\n\n✅ Principio 4: Menos variables, más control. Enfócate en una sola cosa a la vez. Mídela. Ajusta. Después suma la siguiente.\n\nSi estás empezando con {t} hoy, mi consejo es: aplica solo el principio 1 esta semana. Antes de ejecutar cualquier cosa, entiende el sistema.",
-            "pregunta_engagement": f"¿Cuál de estos 4 principios te hubiera ayudado más cuando empezaste con {t}? ¿O hay algo que agregarías tú a la lista? 👇 Me interesa mucho leer tu respuesta.",
-            "checklist": {
-                "contenido": [
-                    {"item": "Revisar primera línea del post", "detalle": "La primera oración debe generar curiosidad o identificación inmediata. Evitar empezar con 'Hoy quiero...'. Probar con 'Lo que nadie dice sobre...' o una afirmación polarizante."},
-                    {"item": "Verificar longitud", "detalle": "Entre 200-350 palabras. Facebook muestra solo las primeras 3 líneas antes del 'Ver más'. Esas 3 líneas deben ser el gancho perfecto."},
-                    {"item": "Emojis estratégicos", "detalle": "Usar 1 emoji por párrafo como máximo. Antes de cada punto de la lista (✅, 🔑, ⚡). No abusar o perderá credibilidad."}
-                ],
-                "recursos": [
-                    {"item": f"Imagen cuadrada 1:1 o 4:5 relacionada con {ts}", "tipo": "imagen"},
-                    {"item": "Primera lámina del carrusel de Instagram (reutilizable)", "tipo": "imagen"},
-                    {"item": "Video corto de TikTok (cross-posting si aplica)", "tipo": "video"}
-                ],
-                "publicacion": [
-                    {"item": "Horario óptimo", "detalle": "Publicar entre 7-9am, 12-1pm o 7-9pm hora local. Martes, miércoles y jueves tienen mayor engagement promedio en Facebook."},
-                    {"item": "Responder comentarios en la primera hora", "detalle": "El algoritmo de Facebook prioriza posts con actividad en los primeros 60 minutos. Responder todos los comentarios aunque sea con un '¡Gracias! ¿Y tú qué harías?'"},
-                    {"item": "No añadir enlace externo en el texto", "detalle": "Facebook reduce el alcance de posts con URLs. Si necesitas compartir un enlace, ponlo en el primer comentario, no en el cuerpo del post."}
+                    {"item": "Cambiar plano cada 2-3 segundos", "detalle": "Sostén la retención con cortes, acercamientos o overlays que acompañen cada bloque."},
+                    {"item": "Subtitular la promesa principal", "detalle": "El gancho adaptado debe leerse completo o casi completo en pantalla en los primeros segundos."},
+                    {"item": "Rematar con prueba o contraste", "detalle": "Cierra mostrando el resultado, el error o la corrección visual que valide la promesa del hook."}
                 ]
             }
         }
@@ -2129,7 +3363,7 @@ def api_editor_guardar():
     import base64
     import platform
     from io import BytesIO
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image
 
     data = request.get_json(force=True)
     image_b64 = data.get("image", "")
@@ -2208,14 +3442,44 @@ def api_editor_guardar():
 
     img_final = buf.getvalue()
 
-    # Determinar ruta de guardado
-    now = datetime.now()
-    year = str(now.year)
-    month = f"{now.month:02d}"
-
     is_production = platform.system() == "Linux"
     if is_production:
-        base_dir = Path("/var/www/html/wp-content/uploads") / year / month
+        base_url, auth = _get_wp_request_context()
+        if not base_url or auth is None:
+            return jsonify({
+                "error": "No hay credenciales de WordPress configuradas para subir a la biblioteca de medios."
+            }), 500
+
+        final_name = f"{filename}.jpg"
+        try:
+            response = req_lib.post(
+                f"{base_url}/wp-json/wp/v2/media",
+                auth=auth,
+                headers={
+                    "Content-Disposition": f'attachment; filename="{final_name}"',
+                },
+                files={"file": (final_name, img_final, "image/jpeg")},
+                timeout=45,
+            )
+            response.raise_for_status()
+            media = response.json() if response.content else {}
+        except Exception as exc:
+            return jsonify({"error": f"Error subiendo a WordPress Media Library: {exc}"}), 500
+
+        media_url = str(media.get("source_url", "")).strip()
+        if not media_url:
+            return jsonify({
+                "error": "WordPress no devolvió la URL del media; no se pudo confirmar el guardado en biblioteca."
+            }), 500
+
+        size_kb = len(img_final) / 1024
+        return jsonify({
+            "ok": True,
+            "path": media_url,
+            "size_kb": round(size_kb, 1),
+            "filename": final_name,
+            "wp_media_id": media.get("id"),
+        })
     else:
         base_dir = Path(r"C:\Users\Luis.RANGEL-GONZALEZ\OneDrive - Akkodis\Desktop\fotos\editadas")
 

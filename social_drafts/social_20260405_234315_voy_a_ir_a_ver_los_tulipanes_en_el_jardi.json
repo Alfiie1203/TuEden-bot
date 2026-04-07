@@ -1,0 +1,373 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "¿Sabías que la forma en que 'diviertes' a tus hijos podría estar agotando su cerebro?",
+        "promesa_valor": "Aprende a ofrecerles un recreo que realmente los relaje y estimule su creatividad.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Narradora y ejemplo de crianza consciente."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Ejemplo de niño disfrutando de la naturaleza."
+          }
+        ],
+        "instruccion_visual_inicio": "Mamá, con expresión pensativa, se arrodilla junto a la hija que está absorta observando los pétalos de un tulipán.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Tu hijo agotado no es normal.",
+            "micro_transicion": "Corte a pregunta en pantalla."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "¿Cine? ¿Centros comerciales? Estímulos excesivos agotan.",
+            "micro_transicion": "Corte a montaje de sobre-estimulación."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "La calma de la naturaleza es la clave.",
+            "micro_transicion": "Corte a escena tranquila en jardín."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar atención con el gancho y la imagen de reflexión.",
+            "personaje": "Mama",
+            "visual": "Mamá, con expresión pensativa, se arrodilla junto a la hija que está absorta observando los pétalos de un tulipán. Close-up al tulipán y manos de la niña.",
+            "dialogo": "(Voz en off, tono ligeramente preocupado) Mamás, ¿sabían esto?",
+            "texto_pantalla": "¿Sabías que la forma en que 'diviertes' a tus hijos podría estar agotando su cerebro?",
+            "transicion": "Corte rápido a secuencia de estímulos."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Explicar el problema de la sobre-estimulación.",
+            "personaje": "Mama",
+            "visual": "Montaje rápido: Niños en sala de juegos ruidosa (luces, sonidos), centro comercial (multitud, luces), cine (pantalla gigante, sonido fuerte). Cortes rápidos. Luego, Mama aparece en pantalla, mirando a cámara.",
+            "dialogo": "Llevamos a nuestros hijos a salas de juegos, centros comerciales, al cine... pensando que es diversión. Pero estos entornos los bombardean con estímulos constantes.",
+            "texto_pantalla": "Estímulos = Agotamiento Cerebral Infantil",
+            "transicion": "Desenfoque rápido y aparece el jardín botánico."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Presentar la alternativa: la naturaleza y la observación.",
+            "personaje": "Mama",
+            "visual": "Mama y Hija caminan por un sendero tranquilo del jardín botánico, rodeadas de flores. Mama señala algo, Hija mira con curiosidad. Planos amplios de la belleza natural.",
+            "dialogo": "Su cerebro necesita pausas, momentos de calma. Y la naturaleza es el mejor lugar para encontrarlos. Aquí, los estímulos son diferentes, orgánicos.",
+            "texto_pantalla": "La Naturaleza: Desconexión y Recarga.",
+            "transicion": "Corte a Hija sentada observando."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Demostrar los beneficios de la observación y la calma.",
+            "personaje": "Mama",
+            "visual": "Hija sentada en el césped, observando un tulipán de cerca. Toca suavemente un pétalo. Mama se arrodilla a su lado, sonriendo, observándola. Luego, Hija dibuja en una pequeña libreta (un tulipán).",
+            "dialogo": "(Voz en off) Observar un tulipán, sentir el viento, escuchar los pájaros... Esto no agota. Estimula la curiosidad, la creatividad, y fomenta la relajación profunda. Es conectar sin pantallas, sin ruido.",
+            "texto_pantalla": "Calma = Creatividad y Bienestar.",
+            "transicion": "Mama mira a cámara con una sonrisa."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Resumir el mensaje y CTA.",
+            "personaje": "Mama",
+            "visual": "Mama mirando a cámara, con el jardín de tulipanes de fondo. Hija se acerca y la abraza brevemente, luego sigue explorando. Mama sonríe.",
+            "dialogo": "Somos nosotros quienes les presentamos el mundo. Incluyamos más espacios de calma, de observación, de belleza simple. Su cerebro y su bienestar lo agradecerán. ¿Y tú, qué espacio de calma vas a explorar con tus hijos?",
+            "texto_pantalla": "Regala CALMA a su cerebro. #DesconectaParaConectar",
+            "transicion": "Fade out con imagen de Hija explorando."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Jardín botánico con una vibrante sección de tulipanes.",
+          "tono": "Empático, educativo, inspirador, calmado.",
+          "ritmo_edicion": "Rápido al inicio (problema), luego lento y contemplativo (solución).",
+          "vestuario": "Mama: Ropa casual, cómoda, tonos tierra/pastel. Hija: Ropa cómoda, alegre, que permita movimiento.",
+          "props": "Tulipanes (como parte del entorno), pequeña libreta de dibujo y lápices para Hija.",
+          "musica_sfx": "Música de fondo suave y orgánica (ukelele, piano, sonidos de la naturaleza) que transmita calma. SFX de ambiente natural (pájaros, viento suave) en las escenas del jardín. SFX de ruido/bullicio en las escenas de sobre-estimulación.",
+          "tomas_clave": [
+            "Close-up a las manos de Hija tocando un pétalo de tulipán.",
+            "Montaje rápido de escenas de sobre-estimulación (sala de juegos, centro comercial).",
+            "Plano general de Mama y Hija caminando tranquilas por el jardín.",
+            "Mama mirando a cámara con el jardín de tulipanes de fondo."
+          ]
+        },
+        "cta_engagement": "¿Qué otros lugares de calma descubriste para tus hijos? ¡Cuéntame en los comentarios y compartamos ideas para nutrir su mente!"
+      },
+      {
+        "tipo_de_angulo": "Verdad Incómoda",
+        "plantilla_base": "Lo que nadie te cuenta sobre [Tema popular/Industria].",
+        "gancho_texto": "La verdad incómoda sobre el 'tiempo de calidad' que le das a tus hijos en centros comerciales.",
+        "promesa_valor": "Entiende por qué la calma y la naturaleza son el mejor estímulo para su desarrollo y bienestar.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Narradora y voz experta."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Ejemplo visual de interacción con la naturaleza."
+          }
+        ],
+        "instruccion_visual_inicio": "Mamá y la hija sentadas en un banco del jardín botánico. La hija dibuja concentrada en un cuaderno mientras mamá mira los tulipanes pensativamente.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Tu 'tiempo de calidad' puede ser sobrecarga.",
+            "micro_transicion": "Texto aparece rápido."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Centros comerciales y salas de juego: ¿conexión real?",
+            "micro_transicion": "Corte a imágenes rápidas."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Descubre el verdadero estímulo para su cerebro.",
+            "micro_transicion": "Regreso a la calma del jardín."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar la atención con una afirmación provocadora.",
+            "personaje": "Mama",
+            "visual": "Mama y la hija sentadas en el banco del jardín. Hija dibuja. Mama mira pensativa a los tulipanes.",
+            "dialogo": "La verdad incómoda sobre el 'tiempo de calidad' que le das a tus hijos en centros comerciales.",
+            "texto_pantalla": "La verdad incómoda sobre el 'tiempo de calidad' que le das a tus hijos en centros comerciales.",
+            "transicion": "Corte rápido."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Explicar el problema de la sobre-estimulación.",
+            "personaje": "Mama",
+            "visual": "Cortes rápidos: sala de juegos ruidosa, pasillo de centro comercial con luces y música. Luego, Mama mira a cámara con seriedad, jardín de fondo.",
+            "dialogo": "Creemos que la diversión es sinónimo de mil estímulos. Pantallas, ruidos, colores... pero para un cerebro en desarrollo, eso es sobrecarga. No es tiempo de conexión, es tiempo de saturación.",
+            "texto_pantalla": "Estímulos = Sobrecarga. ¿Tiempo de calidad real?",
+            "transicion": "Transición suave de vuelta al jardín."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Presentar la alternativa y su beneficio psicológico.",
+            "personaje": "Mama",
+            "visual": "Mama observa a Hija, que ahora mira un tulipán de cerca, con asombro. Primer plano del tulipán y la expresión de la niña. Mama sonríe suavemente a cámara.",
+            "dialogo": "Como psicóloga, veo la necesidad de espacios donde el cerebro pueda respirar. Aquí, los estímulos son diferentes: la forma de una flor, el color, el silencio roto solo por un pájaro. Esto entrena la atención plena y la calma.",
+            "texto_pantalla": "La calma entrena el cerebro. #DesconectarParaConectar",
+            "transicion": "Corte a Hija en acción."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Mostrar el impacto positivo de la naturaleza.",
+            "personaje": "Mama",
+            "visual": "Hija camina lentamente entre los tulipanes, los toca con suavidad, se agacha a oler uno. Mama la sigue a distancia, observando con cariño. Planos detalle de las manos de Hija interactuando con las flores.",
+            "dialogo": "Aquí no hay pantallas ni premios que busquen mantenerla enganchada. Solo la belleza natural, la curiosidad innata. Ella decide qué observar, a qué ritmo. Es la magia de la pausa, de la observación y del disfrute desde la tranquilidad.",
+            "texto_pantalla": "Estímulos naturales = Desarrollo real. #BienestarInfantil",
+            "transicion": "Plano general del jardín."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Cerrar con una llamada a la reflexión y acción.",
+            "personaje": "Mama",
+            "visual": "Mama mira a cámara, luego a su hija dibujando de nuevo en el banco, el jardín de fondo. Cierra con un plano general del jardín botánico y los tulipanes.",
+            "dialogo": "¿Y si cambiamos el chip? ¿Y si presentamos a nuestros hijos la diversión desde la calma, desde la belleza que no grita? Te aseguro que su desarrollo y bienestar te lo agradecerán.",
+            "texto_pantalla": "¿Y si le das a tus hijos la calma que necesitan? #NaturalezaParaNiños",
+            "transicion": "Fundido a negro."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Jardín botánico con campos de tulipanes.",
+          "tono": "Reflexivo, cálido, educativo y ligeramente provocador al inicio.",
+          "ritmo_edicion": "Dinámico en los cortes de contraste, luego más pausado y contemplativo en las escenas del jardín.",
+          "vestuario": "Mama y Hija con ropa cómoda y casual en tonos pastel o neutros, que se integren con el entorno natural.",
+          "props": "Cuaderno de dibujo, lápices de colores, flores (tulipanes) como elemento central.",
+          "musica_sfx": "Música de fondo suave, melódica y ambiental. Sonidos de la naturaleza (pájaros, viento) para las escenas del jardín. Sonidos estridentes y música comercial breve para los 'flashbacks' de sobre-estimulación.",
+          "tomas_clave": [
+            "Plano medio de Mama y Hija en el banco, con tulipanes de fondo.",
+            "Cortes rápidos de stock footage o recreaciones minimalistas de centros comerciales/salas de juegos (con efectos de sonido).",
+            "Primeros planos de Hija observando y tocando tulipanes con asombro.",
+            "Mama hablando directamente a cámara, con los tulipanes desenfocados detrás.",
+            "Plano general del jardín con Mama y Hija interactuando de forma serena."
+          ]
+        },
+        "cta_engagement": "Cuéntame, ¿cuál es tu espacio favorito para que tus hijos desconecten de verdad? Te leo en comentarios."
+      },
+      {
+        "tipo_de_angulo": "Dosis de Realidad",
+        "plantilla_base": "Dosis de realidad: no necesitas [Producto caro] para [Resultado].",
+        "gancho_texto": "Dosis de realidad: no necesitas la última consola para despertar la magia en los ojos de tus hijos.",
+        "promesa_valor": "Descubre cómo la naturaleza ofrece una estimulación inigualable, gratuita y esencial para su cerebro.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Guía y educadora, comparte su visión profesional y maternal."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Niña curiosa y asombrada, ejemplo vivo de la experiencia."
+          }
+        ],
+        "instruccion_visual_inicio": "Primer plano de la hija con los ojos muy abiertos, asombrada, mirando un campo de tulipanes. Luego, un plano general de ella y mamá disfrutando del vasto paisaje floral.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Captar atención con el gancho y la imagen de asombro.",
+            "micro_transicion": "Corte rápido a plano general."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-12",
+            "mensaje": "Presentar el problema de la sobre-estimulación y la alternativa natural.",
+            "micro_transicion": "Disolvencia suave."
+          },
+          {
+            "paso": 3,
+            "segundos": "12-24",
+            "mensaje": "Explicar el beneficio psicológico de la naturaleza desde la perspectiva de Mama.",
+            "micro_transicion": "Corte a detalle de tulipanes."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar atención con el gancho y la imagen de asombro.",
+            "personaje": "Mama",
+            "visual": "Primer plano de la hija con ojos muy abiertos, asombrada. Luego, plano general de ella y mamá en un campo de tulipanes.",
+            "dialogo": "Dosis de realidad: no necesitas la última consola para despertar la magia en los ojos de tus hijos.",
+            "texto_pantalla": "Dosis de realidad: no necesitas la última consola...",
+            "transicion": "Corte rápido a plano general."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Presentar el problema de la sobre-estimulación y la alternativa natural.",
+            "personaje": "Mama",
+            "visual": "Mama y Hija caminan lentamente entre tulipanes. Hija se agacha para oler o tocar suavemente una flor. Mama la observa sonriendo.",
+            "dialogo": "Vivimos rodeados de estímulos constantes: luces, ruidos, pantallas. Pero, ¿realmente eso conecta con el cerebro infantil? Yo, como psicóloga, busco algo diferente.",
+            "texto_pantalla": "Menos pantallas, más asombro.",
+            "transicion": "Disolvencia suave."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Explicar el beneficio psicológico de la naturaleza desde la perspectiva de Mama.",
+            "personaje": "Mama",
+            "visual": "Mama y Hija sentadas en un banco o en el césped, observando tranquilamente el campo de tulipanes. Mama señala algo a la hija, quien asiente concentrada.",
+            "dialogo": "Aquí la estimulación la da la naturaleza. Observar colores, sentir el viento, escuchar el silencio. Esto ayuda al cerebro a relajarse, a encontrar calma. Es vital para su desarrollo.",
+            "texto_pantalla": "La calma entrena el cerebro.",
+            "transicion": "Corte a detalle de tulipanes."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Demostrar el impacto positivo en la hija a través de sus acciones y la narración de Mama.",
+            "personaje": "Mama",
+            "visual": "Hija corre suavemente por un sendero entre las flores, riendo. Luego se detiene a observar de cerca un grupo de tulipanes. Mama la mira con orgullo.",
+            "dialogo": "Mira cómo se concentra, cómo disfruta. No hay prisa, no hay ruido. Solo ella y la belleza. Este tipo de experiencias fortalecen su capacidad de atención y su bienestar emocional.",
+            "texto_pantalla": "Observar = Conectar.",
+            "transicion": "Corte dinámico a Hija en movimiento."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Reforzar el mensaje, la promesa de valor y lanzar el CTA.",
+            "personaje": "Mama",
+            "visual": "Mama y Hija se abrazan, mirando el vasto paisaje floral. Sonríen a cámara. Cierre con un plano general inspirador de los tulipanes.",
+            "dialogo": "La naturaleza ofrece una estimulación inigualable, gratuita y esencial para su cerebro. Regálales estos momentos. ¿Cuál es ese lugar mágico donde tus hijos se desconectan de la pantalla y se conectan con el mundo real?",
+            "texto_pantalla": "Tu hijo merece esta calma. ¡Comparte tu lugar mágico!",
+            "transicion": "Fade out a pantalla con CTA."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Jardín botánico con campos de tulipanes.",
+          "tono": "Inspirador, sereno, educativo, tierno.",
+          "ritmo_edicion": "Lento y contemplativo al inicio, con momentos más dinámicos pero suaves en el desarrollo, y un final calmado.",
+          "vestuario": "Ropa cómoda de primavera en tonos suaves (pasteles, tierra) para Mama e Hija, que no compita con los colores de las flores.",
+          "props": "Ninguno, la naturaleza es el escenario y el elemento principal.",
+          "musica_sfx": "Música instrumental suave y ambiental (piano, cuerdas ligeras), con sonidos naturales sutiles (canto de pájaros, brisa).",
+          "tomas_clave": [
+            "Primer plano de la Hija asombrada, ojos muy abiertos.",
+            "Plano general de Mama y Hija en el campo de tulipanes, vasto paisaje.",
+            "Detalles macro de tulipanes, gotas de rocío, texturas.",
+            "Hija oliendo/tocando suavemente una flor, Mama observándola.",
+            "Mama y Hija sentadas, contemplando el paisaje en silencio.",
+            "Hija riendo y caminando suavemente entre las flores.",
+            "Abrazo emotivo de Mama e Hija al final, mirando el paisaje."
+          ]
+        },
+        "cta_engagement": "¿Cuál es ese lugar mágico donde tus hijos se desconectan de la pantalla y se conectan con el mundo real? ¡Cuéntame en los comentarios!"
+      }
+    ]
+  },
+  "meta": {
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T23:43:15Z",
+    "platforms": [
+      "tiktok"
+    ],
+    "selected_characters": [
+      "mama",
+      "hija"
+    ],
+    "source_post": null,
+    "selected_hooks": [
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "¿Sabías que la forma en que 'diviertes' a tus hijos podría estar agotando su cerebro?",
+        "promesa_valor": "Aprende a ofrecerles un recreo que realmente los relaje y estimule su creatividad.",
+        "instruccion_visual_inicio": "Mamá, con expresión pensativa, se arrodilla junto a la hija que está absorta observando los pétalos de un tulipán."
+      },
+      {
+        "tipo_de_angulo": "Verdad Incómoda",
+        "plantilla_base": "Lo que nadie te cuenta sobre [Tema popular/Industria].",
+        "gancho_texto": "La verdad incómoda sobre el 'tiempo de calidad' que le das a tus hijos en centros comerciales.",
+        "promesa_valor": "Entiende por qué la calma y la naturaleza son el mejor estímulo para su desarrollo y bienestar.",
+        "instruccion_visual_inicio": "Mamá y la hija sentadas en un banco del jardín botánico. La hija dibuja concentrada en un cuaderno mientras mamá mira los tulipanes pensativamente."
+      },
+      {
+        "tipo_de_angulo": "Dosis de Realidad",
+        "plantilla_base": "Dosis de realidad: no necesitas [Producto caro] para [Resultado].",
+        "gancho_texto": "Dosis de realidad: no necesitas la última consola para despertar la magia en los ojos de tus hijos.",
+        "promesa_valor": "Descubre cómo la naturaleza ofrece una estimulación inigualable, gratuita y esencial para su cerebro.",
+        "instruccion_visual_inicio": "Primer plano de la hija con los ojos muy abiertos, asombrada, mirando un campo de tulipanes. Luego, un plano general de ella y mamá disfrutando del vasto paisaje floral."
+      }
+    ]
+  }
+}

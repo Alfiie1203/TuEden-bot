@@ -4,21 +4,32 @@
 {% block head %}
 <style>
   .wy-block { border-radius:4px; padding:2px 6px; transition:background .15s; cursor:text; position:relative; }
-  .wy-block:hover { background:rgba(110,168,254,.07); outline:1.5px dashed #2d3348; }
-  .wy-edit-hint { font-size:.65rem; color:#4a5568; margin-left:6px; display:none; }
+  .wy-block:hover { background:rgba(110,168,254,.07); outline:1.5px dashed var(--border); }
+  .wy-edit-hint { font-size:.65rem; color:var(--muted); margin-left:6px; display:none; }
   .wy-block:hover .wy-edit-hint { display:inline; }
-  .wy-h1 { font-size:2rem;   font-weight:700; color:#e8eaf0; }
-  .wy-h2 { font-size:1.5rem; font-weight:600; color:#6ea8fe; }
-  .wy-h3 { font-size:1.2rem; font-weight:600; color:#93c5fd; }
-  .wy-h4 { font-size:1rem;   font-weight:600; color:#c8ccd8; }
-  .wy-p  { font-size:1rem;   line-height:1.75; color:#d1d5db; }
-  .wy-bq { border-left:4px solid #2d3348; padding:.3rem 1rem; color:#8892a4; font-style:italic; background:rgba(255,255,255,.03); }
-  .wy-ul, .wy-ol { color:#d1d5db; line-height:1.75; }
-  .edit-toolbar { position:sticky; top:60px; z-index:100; }
-  @media (max-width:991px) {
-    .edit-toolbar { position:static; }
-  }
+  .wy-h1 { font-size:2rem;   font-weight:700; color:var(--text); }
+  .wy-h2 { font-size:1.5rem; font-weight:600; color:var(--accent); }
+  .wy-h3 { font-size:1.2rem; font-weight:600; color:var(--accent); }
+  .wy-h4 { font-size:1rem;   font-weight:600; color:var(--text); }
+  .wy-p  { font-size:1rem;   line-height:1.75; color:var(--text); }
+  .wy-bq { border-left:4px solid var(--border); padding:.3rem 1rem; color:var(--muted); font-style:italic; background:var(--surface2); }
+  .wy-ul, .wy-ol { color:var(--text); line-height:1.75; }
+  .edit-toolbar { position:static; top:auto; z-index:auto; }
   .img-thumb { width:60px; height:60px; object-fit:cover; border-radius:4px; }
+  .social-rich-grid { display:grid; gap:14px; }
+  .social-rich-card { border:1px solid var(--border); border-radius:12px; background:var(--surface2); overflow:hidden; }
+  .social-rich-head { padding:12px 14px; border-bottom:1px solid var(--border); background:rgba(110,168,254,.08); }
+  .social-rich-title { font-size:.95rem; font-weight:700; color:var(--text); line-height:1.45; }
+  .social-rich-subtitle { font-size:.75rem; color:var(--accent); margin-top:3px; }
+  .social-rich-body { padding:14px; display:grid; gap:12px; }
+  .social-rich-section-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.45px; color:var(--accent); font-weight:800; margin-bottom:5px; }
+  .social-rich-text { font-size:.85rem; color:var(--text); line-height:1.6; }
+  .social-rich-mini { font-size:.78rem; color:var(--muted); line-height:1.5; }
+  .social-rich-list { display:grid; gap:8px; }
+  .social-rich-item { border:1px solid var(--border); border-radius:10px; background:var(--surface); padding:10px 12px; }
+  .social-rich-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
+  .editor-soft-panel { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .editor-soft-pre { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
 </style>
 {% endblock %}
 
@@ -121,16 +132,14 @@
 
       <!-- Redes sociales -->
       <div class="main-card p-3 mb-3">
-        <h6 class="section-title">📱 Contenido para Redes</h6>
-        <p class="text-muted small mb-2">Genera contenido optimizado para cada plataforma con IA.</p>
-        <button class="btn btn-outline-dark w-100 mb-2" onclick="generarRedesSociales('tiktok')">
-          🎵 Guión para TikTok
-        </button>
-        <button class="btn btn-outline-danger w-100 mb-2" onclick="generarRedesSociales('instagram')">
-          📸 Caption para Instagram
-        </button>
-        <button class="btn btn-outline-primary w-100 mb-2" onclick="generarRedesSociales('facebook')">
-          👥 Post para Facebook
+        <h6 class="section-title">📱 TikTok 2026</h6>
+        <p class="text-muted small mb-2">Genera 5 propuestas con reparto seleccionable, guion completo y plan de rodaje.</p>
+        <div class="border rounded p-2 mb-2">
+          <strong class="small d-block mb-2">Participantes para este tema</strong>
+          <div id="socialCastList"><div class="text-muted small">Cargando participantes…</div></div>
+        </div>
+        <button class="btn btn-outline-dark w-100 mb-2" onclick="generarRedesSociales()">
+          🎵 Generar propuestas TikTok 2026
         </button>
         <div id="socialMsg" class="mt-1"></div>
       </div>
@@ -186,9 +195,12 @@ let _draftData  = null;
 let _blocks     = [];
 let _images     = [];
 let _editingIdx = null;
+let _lastSocialData = null;
+let _socialParticipants = [];
 
 // ── Inicialización ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  loadSocialParticipants();
   if (filename) {
     cargarBorrador(filename);
   } else {
@@ -420,7 +432,7 @@ function renderImgThumbnail(img, container) {
 
 function buildImgThumb(img) {
   const d = document.createElement('div');
-  d.className = 'd-flex align-items-center gap-2 my-1 p-2 bg-light rounded';
+  d.className = 'd-flex align-items-center gap-2 my-1 p-2 rounded editor-soft-panel';
   let srcAttr = img.src || '';
   if (srcAttr.startsWith('[LOCAL]')) {
     const localName = srcAttr.replace('[LOCAL]', '').trim().split(/[/\\]/).pop();
@@ -471,7 +483,7 @@ function renderImagePrompts() {
   }
   let html = '';
   for (const [k,v] of Object.entries(labels)) {
-    if (prompts[k]) html += `<strong class="small">${v}</strong><pre class="bg-light rounded p-2 small" style="font-size:.75rem;white-space:pre-wrap">${prompts[k]}</pre>`;
+    if (prompts[k]) html += `<strong class="small">${v}</strong><pre class="rounded p-2 small editor-soft-pre" style="font-size:.75rem;white-space:pre-wrap">${prompts[k]}</pre>`;
   }
   panel.innerHTML = html || '<p class="text-muted small">Sin prompts.</p>';
 }
@@ -802,23 +814,54 @@ function autoDetectarAutor() {
 }
 
 // ── Redes sociales ─────────────────────────────────────────────────────────
-async function generarRedesSociales(platform) {
-  const platformLabels = {tiktok: 'TikTok', instagram: 'Instagram', facebook: 'Facebook'};
-  const label = platformLabels[platform] || platform;
+async function loadSocialParticipants() {
+  const container = document.getElementById('socialCastList');
+  if (!container) return;
+  container.innerHTML = '<div class="text-muted small">Cargando participantes…</div>';
+  try {
+    const response = await fetch('/api/social/participants');
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.error || 'No se pudieron cargar los participantes');
+    }
+    _socialParticipants = payload.items || [];
+    container.innerHTML = _socialParticipants.length
+      ? _socialParticipants.map(item => `
+          <div class="form-check mb-1">
+            <input class="form-check-input social-cast-check" type="checkbox" value="${socialEsc(item.id)}" id="socialCast_${socialEsc(item.id)}">
+            <label class="form-check-label small" for="socialCast_${socialEsc(item.id)}">${socialEsc(item.nombre)}, ${socialEsc(item.perfil)}</label>
+          </div>
+        `).join('')
+      : '<div class="text-muted small">No hay participantes creados.</div>';
+  } catch (error) {
+    container.innerHTML = `<div class="text-danger small">${socialEsc(error.message)}</div>`;
+  }
+}
+
+function getSelectedSocialCast() {
+  return Array.from(document.querySelectorAll('.social-cast-check:checked')).map(element => element.value);
+}
+
+async function generarRedesSociales() {
   const msgEl = document.getElementById('socialMsg');
-  msgEl.innerHTML = `<span class="text-muted small">⏳ Generando contenido para ${label}…</span>`;
+  const selectedCharacters = getSelectedSocialCast();
+  if (!selectedCharacters.length) {
+    showToast('Selecciona al menos un participante para este tema', 'warning');
+    return;
+  }
+  msgEl.innerHTML = '<span class="text-muted small">⏳ Generando propuestas TikTok 2026…</span>';
   try {
     const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/social`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({platform})
+      body: JSON.stringify({platform: 'tiktok', selected_characters: selectedCharacters})
     });
     const d = await r.json();
     msgEl.innerHTML = '';
     if (!d.ok) { showToast(d.error || 'Error generando contenido', 'danger'); return; }
-    // Mostrar en modal
-    document.getElementById('socialModalTitle').textContent = `📱 Contenido para ${label}`;
-    document.getElementById('socialModalBody').textContent  = d.content;
+    _lastSocialData = d.data || null;
+    document.getElementById('socialModalTitle').textContent = '📱 TikTok 2026';
+    document.getElementById('socialModalBody').innerHTML = renderSocialTikTok(d.data);
     const modal = new bootstrap.Modal(document.getElementById('socialModal'));
     modal.show();
   } catch(e) {
@@ -826,22 +869,155 @@ async function generarRedesSociales(platform) {
     showToast('Error de red al generar contenido social', 'danger');
   }
 }
+
+function socialEsc(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function socialFormatOption(option, index) {
+  const cast = (option.personajes || []).map(character => `- ${character.nombre} (${character.perfil}): ${character.rol_en_video}`).join('\n');
+  const retention = (option.puntos_retencion || []).map(point => `- Paso ${point.paso} (${point.segundos}): ${point.mensaje} | Micro-transición: ${point.micro_transicion}`).join('\n');
+  const script = (option.guion_detallado || []).map(block => `- Bloque ${block.bloque} (${block.segundos}) | ${block.personaje}\n  Objetivo: ${block.objetivo}\n  Visual: ${block.visual}\n  Dialogo: ${block.dialogo}\n  Texto en pantalla: ${block.texto_pantalla}\n  Transición: ${block.transicion}`).join('\n');
+  const takes = (option.plan_rodaje?.tomas_clave || []).map(take => `- ${take}`).join('\n');
+  return [
+    `OPCION ${index + 1}`,
+    `Angulo: ${option.tipo_de_angulo || ''}`,
+    `Plantilla base: ${option.plantilla_base || ''}`,
+    `Promesa de valor: ${option.promesa_valor || ''}`,
+    `Duracion: ${option.duracion_segundos || ''} segundos`,
+    'Personajes:',
+    cast,
+    `Gancho: ${option.gancho_texto || ''}`,
+    `Inicio visual: ${option.instruccion_visual_inicio || ''}`,
+    'Puntos de retencion:',
+    retention,
+    'Guion detallado:',
+    script,
+    'Plan de rodaje:',
+    `Locacion: ${option.plan_rodaje?.locacion || ''}`,
+    `Tono: ${option.plan_rodaje?.tono || ''}`,
+    `Ritmo de edicion: ${option.plan_rodaje?.ritmo_edicion || ''}`,
+    `Vestuario: ${option.plan_rodaje?.vestuario || ''}`,
+    `Props: ${option.plan_rodaje?.props || ''}`,
+    `Musica/SFX: ${option.plan_rodaje?.musica_sfx || ''}`,
+    'Tomas clave:',
+    takes,
+    `CTA: ${option.cta_engagement || ''}`,
+  ].join('\n');
+}
+
+function renderSocialTikTok(data) {
+  const options = data?.tiktok?.opciones || [];
+  if (!options.length) {
+    return '<div class="text-muted small">No se recibió ninguna opción TikTok.</div>';
+  }
+
+  return `
+    <div class="social-rich-grid">
+      ${options.map((option, index) => `
+        <div class="social-rich-card">
+          <div class="social-rich-head">
+            <div class="social-rich-title">Opción ${index + 1}: ${socialEsc(option.gancho_texto || '')}</div>
+            <div class="social-rich-subtitle">${socialEsc(option.tipo_de_angulo || '')} · ${socialEsc(option.duracion_segundos || '')} segundos</div>
+          </div>
+          <div class="social-rich-body">
+            <div>
+              <div class="social-rich-section-label">Promesa de valor</div>
+              <div class="social-rich-text">${socialEsc(option.promesa_valor || '')}</div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Personajes</div>
+              <div class="social-rich-list">
+                ${(option.personajes || []).map(character => `
+                  <div class="social-rich-item">
+                    <div class="social-rich-text"><strong>${socialEsc(character.nombre || '')}</strong> · ${socialEsc(character.rol_en_video || '')}</div>
+                    <div class="social-rich-mini">${socialEsc(character.perfil || '')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div class="social-rich-cols">
+              <div>
+                <div class="social-rich-section-label">Inicio visual</div>
+                <div class="social-rich-text">${socialEsc(option.instruccion_visual_inicio || '')}</div>
+              </div>
+              <div>
+                <div class="social-rich-section-label">CTA</div>
+                <div class="social-rich-text">${socialEsc(option.cta_engagement || '')}</div>
+              </div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Puntos de retención</div>
+              <div class="social-rich-list">
+                ${(option.puntos_retencion || []).map(point => `
+                  <div class="social-rich-item">
+                    <div class="social-rich-text"><strong>Paso ${socialEsc(point.paso || '')}</strong> · ${socialEsc(point.segundos || '')}</div>
+                    <div class="social-rich-mini">${socialEsc(point.mensaje || '')}</div>
+                    <div class="social-rich-mini">Micro-transición: ${socialEsc(point.micro_transicion || '')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Guion detallado</div>
+              <div class="social-rich-list">
+                ${(option.guion_detallado || []).map(block => `
+                  <div class="social-rich-item">
+                    <div class="social-rich-text"><strong>Bloque ${socialEsc(block.bloque || '')}</strong> · ${socialEsc(block.segundos || '')} · ${socialEsc(block.personaje || '')}</div>
+                    <div class="social-rich-mini">Objetivo: ${socialEsc(block.objetivo || '')}</div>
+                    <div class="social-rich-mini">Visual: ${socialEsc(block.visual || '')}</div>
+                    <div class="social-rich-text" style="margin-top:6px;">${socialEsc(block.dialogo || '')}</div>
+                    <div class="social-rich-mini">Texto en pantalla: ${socialEsc(block.texto_pantalla || '')}</div>
+                    <div class="social-rich-mini">Transición: ${socialEsc(block.transicion || '')}</div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Plan de rodaje</div>
+              <div class="social-rich-cols">
+                <div class="social-rich-item"><div class="social-rich-mini">Locación</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.locacion || '')}</div></div>
+                <div class="social-rich-item"><div class="social-rich-mini">Tono</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.tono || '')}</div></div>
+                <div class="social-rich-item"><div class="social-rich-mini">Ritmo de edición</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.ritmo_edicion || '')}</div></div>
+                <div class="social-rich-item"><div class="social-rich-mini">Vestuario</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.vestuario || '')}</div></div>
+                <div class="social-rich-item"><div class="social-rich-mini">Props</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.props || '')}</div></div>
+                <div class="social-rich-item"><div class="social-rich-mini">Música y SFX</div><div class="social-rich-text">${socialEsc(option.plan_rodaje?.musica_sfx || '')}</div></div>
+              </div>
+              <div class="social-rich-list" style="margin-top:10px;">
+                ${(option.plan_rodaje?.tomas_clave || []).map(take => `
+                  <div class="social-rich-item"><div class="social-rich-text">${socialEsc(take)}</div></div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function copiarContenidoSocial() {
-  const text = document.getElementById('socialModalBody').textContent;
+  const text = _lastSocialData?.tiktok?.opciones?.length
+    ? _lastSocialData.tiktok.opciones.map((option, index) => socialFormatOption(option, index)).join('\n\n')
+    : document.getElementById('socialModalBody').textContent;
   navigator.clipboard.writeText(text).then(() => showToast('✅ Copiado al portapapeles'));
 }
 </script>
 
 <!-- Modal: Contenido para redes sociales -->
 <div class="modal fade" id="socialModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="socialModalTitle">📱 Contenido para Redes</h5>
+        <h5 class="modal-title" id="socialModalTitle">📱 TikTok 2026</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <pre id="socialModalBody" style="white-space:pre-wrap;font-family:inherit;font-size:.9rem;max-height:65vh;overflow-y:auto"></pre>
+        <div id="socialModalBody"></div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline-secondary" onclick="copiarContenidoSocial()">📋 Copiar</button>

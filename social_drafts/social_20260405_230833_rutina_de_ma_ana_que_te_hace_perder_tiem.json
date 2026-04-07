@@ -1,0 +1,129 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "Deja de revisar el móvil nada más despertar si no quieres sentirte agotada antes de las 9 AM.",
+        "promesa_valor": "Recupera tu energía matutina y productividad.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Experta en bienestar y guía"
+          }
+        ],
+        "instruccion_visual_inicio": "Mamá (psicóloga) se despierta, estira la mano para coger el móvil y se detiene con expresión de alerta.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "La pausa intrigante antes de coger el móvil.",
+            "micro_transicion": "Corte rápido a móvil."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-12",
+            "mensaje": "Explicación del impacto negativo (cortisol) con prueba visual.",
+            "micro_transicion": "Pantalla dividida con contraste."
+          },
+          {
+            "paso": 3,
+            "segundos": "24-38",
+            "mensaje": "Solución con pasos prácticos y visualmente claros.",
+            "micro_transicion": "Montaje rápido de actividades."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Introducir el gancho y generar intriga.",
+            "personaje": "Mama",
+            "visual": "Mamá se despierta, estira la mano para coger el móvil y se detiene con expresión de alerta.",
+            "dialogo": "(Voz en off, tono urgente) ¿Sabías que tu móvil te roba la mañana?",
+            "texto_pantalla": "STOP: Agotamiento Matutino",
+            "transicion": "Corte rápido a close-up del móvil."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Explicar el problema y sus consecuencias inmediatas.",
+            "personaje": "Mama",
+            "visual": "Close-up de notificaciones en el móvil. Mama con expresión de estrés, luego agotada.",
+            "dialogo": "(Voz en off) Revisar notificaciones al despertar activa el cortisol. Tu cerebro ya está en modo estrés antes de empezar.",
+            "texto_pantalla": "Cortisol ↑ Estrés ↑",
+            "transicion": "Wipe a pantalla dividida."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Contrastar el problema con la solución propuesta: el 'amortiguador'.",
+            "personaje": "Mama",
+            "visual": "Pantalla dividida: Izquierda (Mama agotada, móvil en mano), Derecha (Mama sonriendo, haciendo estiramientos o bebiendo agua).",
+            "dialogo": "(Mama, mirando a cámara, tono más calmado) Eso te drena la energía. ¿La solución? Un 'amortiguador' entre tú y tu móvil.",
+            "texto_pantalla": "Móvil = Drenaje. Amortiguador = Energía.",
+            "transicion": "Fundido a un ambiente más tranquilo."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Proporcionar pasos prácticos y visuales para implementar el 'amortiguador'.",
+            "personaje": "Mama",
+            "visual": "Mama realizando actividades sencillas: bebiendo agua, estirando, escribiendo en un diario, mirando por la ventana. Montaje rápido.",
+            "dialogo": "(Mama, con tono didáctico) Intenta esto: 1. Bebe un vaso de agua. 2. Estira por 5 minutos. 3. Escribe 3 cosas por las que estás agradecida. 4. ¡Luego, si quieres, el móvil!",
+            "texto_pantalla": "1. Agua. 2. Estira. 3. Agradece. 4. Móvil.",
+            "transicion": "Zoom out de Mama sonriendo."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Reforzar los beneficios de la promesa y lanzar el CTA.",
+            "personaje": "Mama",
+            "visual": "Mama, sentada tranquilamente, con una taza de té/café, mirando a cámara, con energía.",
+            "dialogo": "(Mama, con energía y convicción) Solo 15 minutos sin móvil y verás cómo tu mañana cambia. Menos estrés, más foco, más energía para todo el día. Pruébalo.",
+            "texto_pantalla": "Energía Matutina. Foco Total.",
+            "transicion": "Fade out."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Dormitorio, salón o cocina de un hogar moderno y acogedor.",
+          "tono": "Alerta al inicio, luego informativo, empático y motivador.",
+          "ritmo_edicion": "Rápido y dinámico al principio, luego informativo y fluido.",
+          "vestuario": "Ropa de dormir cómoda (pijama), luego ropa casual de día (camiseta, pantalón cómodo).",
+          "props": "Móvil, cama, vaso de agua, esterilla de yoga o espacio para estirar, diario/cuaderno y bolígrafo, taza de café/té.",
+          "musica_sfx": "Música ligera y motivadora de fondo. SFX de notificación de móvil (al inicio), tic-tac suave (opcional en los 15 min).",
+          "tomas_clave": [
+            "Close-up de la mano de Mama dudando antes de coger el móvil.",
+            "POV del móvil mostrando notificaciones y luego un rostro estresado.",
+            "Montaje rápido de Mama realizando las actividades matutinas sin móvil (beber agua, estirar, escribir)."
+          ]
+        },
+        "cta_engagement": "¿Qué 'amortiguador' usas tú para empezar el día? Cuéntame en los comentarios y comparte este tip si te ayudó a empezar mejor el día."
+      }
+    ]
+  },
+  "meta": {
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T23:08:33Z",
+    "platforms": [
+      "tiktok"
+    ],
+    "selected_characters": [
+      "mama"
+    ],
+    "source_post": null,
+    "selected_hooks": [
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "Deja de revisar el móvil nada más despertar si no quieres sentirte agotada antes de las 9 AM.",
+        "promesa_valor": "Recupera tu energía matutina y productividad.",
+        "instruccion_visual_inicio": "Mamá (psicóloga) se despierta, estira la mano para coger el móvil y se detiene con expresión de alerta."
+      }
+    ]
+  }
+}

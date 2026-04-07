@@ -1,0 +1,316 @@
+{
+  "tiktok": {
+    "hooks": [
+      {
+        "tipo": "curiosidad",
+        "texto": "¿Sabes qué pasa si desconectas a tus hijos?",
+        "descripcion_visual": "Mirada de intriga a cámara, luego un plano rápido a un niño/a tocando pétalos de tulipán."
+      },
+      {
+        "tipo": "fomo",
+        "texto": "No dejes que tus hijos se pierdan ESTO.",
+        "descripcion_visual": "Sonrisa cómplice a cámara, señalando un tulipán vibrante con el dedo."
+      },
+      {
+        "tipo": "beneficio",
+        "texto": "Más creatividad y menos pantallas hoy.",
+        "descripcion_visual": "Asintiendo con la cabeza, luego un plano de niño/a feliz jugando o explorando flores."
+      }
+    ],
+    "guion": [
+      {
+        "escena": 1,
+        "segundos": "0-3",
+        "tipo": "gancho",
+        "toma": "Primer plano frontal, sonrisa genuina, luego corte rápido a plano detalle de mano de niño tocando un tulipán.",
+        "dialogo": "¿Sabías que tus hijos necesitan esto URGENTE?",
+        "texto_pantalla": "¡URGENTE! DESCONECTA A TUS HIJOS",
+        "nota_edicion": "Sonido de 'ding' al inicio. Corte rápido y dinámico."
+      },
+      {
+        "escena": 2,
+        "segundos": "3-15",
+        "tipo": "retencion",
+        "toma": "Plano medio, yo caminando lentamente por un sendero del jardín, mirada reflexiva. Luego, b-roll de niños absortos en pantallas (imágenes de stock o recreadas).",
+        "dialogo": "Pasamos horas frente a pantallas. Niños con tabletas, adolescentes con móviles. Es la norma, ¿verdad? Pero hay un costo… Se pierden algo vital. La conexión real. Con el mundo, y con ellos mismos.",
+        "texto_pantalla": "¿DEMASIADAS PANTALLAS?",
+        "nota_edicion": "Jump cuts cada 2-3 segundos. Música suave y contemplativa al 20%."
+      },
+      {
+        "escena": 3,
+        "segundos": "15-30",
+        "tipo": "valor_1",
+        "toma": "B-roll dinámico de niños riendo, oliendo flores, señalando plantas, tocando texturas. Planos detalle de tulipanes de diferentes colores y formas.",
+        "dialogo": "Aquí, en el jardín botánico, los tulipanes no son solo flores bonitas. Son una excusa perfecta para activar otros sentidos. Tocan, huelen, observan texturas. Su imaginación vuela sin apps ni algoritmos.",
+        "texto_pantalla": "PUNTO 1: SENTIDOS Y CREATIVIDAD",
+        "nota_edicion": "Texto aparece al inicio de la escena. Música se vuelve un poco más alegre. Cortes rápidos a diferentes ángulos de interacción."
+      },
+      {
+        "escena": 4,
+        "segundos": "30-45",
+        "tipo": "valor_2",
+        "toma": "Plano medio, yo sosteniendo una flor o señalando un grupo de flores, explicando con gestos. Luego, plano general de un espacio abierto del jardín con niños jugando libremente.",
+        "dialogo": "Estudios demuestran que pasar tiempo en la naturaleza reduce el estrés y mejora la concentración en niños. Es una terapia gratuita. Aquí no hay notificaciones, solo el sonido del viento y los pájaros. ¡Adiós ansiedad digital!",
+        "texto_pantalla": "PUNTO 2: MENOS ESTRÉS, MÁS FOCO",
+        "nota_edicion": "Zoom sutil en la palabra clave 'ansiedad'. Subtítulos automáticos activados."
+      },
+      {
+        "escena": 5,
+        "segundos": "45-55",
+        "tipo": "resultado",
+        "toma": "Plano medio frontal, energía más alta, sonrisa genuina, gestos expansivos.",
+        "dialogo": "El resultado es mágico. Niños más tranquilos, más curiosos, más conectados. Recuerdos imborrables que ninguna app puede ofrecer. ¡Una inversión en su bienestar presente y futuro!",
+        "texto_pantalla": "EL RESULTADO: NIÑOS FELICES Y CONECTADOS",
+        "nota_edicion": "Música sube ligeramente en volumen. Ritmo de edición más rápido y enérgico."
+      },
+      {
+        "escena": 6,
+        "segundos": "55-60",
+        "tipo": "cta",
+        "toma": "Plano medio, yo señalando hacia abajo con el dedo, con sonrisa amigable.",
+        "dialogo": "Guarda este video y etiqueta a ese amigo que necesita esta idea. ¡Comenta tu actividad favorita al aire libre!",
+        "texto_pantalla": "GUARDA ESTO 👇 / COMENTA SI TE PASÓ",
+        "nota_edicion": "Pantalla congela 0.5s en último frame. Audio fade out gradual."
+      }
+    ],
+    "checklist": {
+      "grabacion": [
+        {
+          "item": "B-roll variado",
+          "detalle": "Capturar al menos 15 segundos de B-roll de niños (reales o simulados) interactuando con las flores y el entorno natural."
+        },
+        {
+          "item": "Iluminación natural",
+          "detalle": "Grabar todo el contenido con luz natural, evitando sombras duras; preferiblemente al amanecer o atardecer."
+        },
+        {
+          "item": "Audio claro",
+          "detalle": "Usar un micrófono lavalier o direccional para asegurar que el diálogo sea nítido y sin ruido ambiente excesivo."
+        },
+        {
+          "item": "Planos diversos",
+          "detalle": "Incluir una mezcla de primeros planos, planos medios y planos generales del jardín botánico para dinamismo visual."
+        },
+        {
+          "item": "Energía y naturalidad",
+          "detalle": "Practicar los diálogos para un tono conversacional, energético y auténtico."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Micrófono externo",
+          "tipo": "audio"
+        },
+        {
+          "item": "Jardín botánico con tulipanes",
+          "tipo": "locacion"
+        },
+        {
+          "item": "Ropa cómoda y colorida",
+          "tipo": "prop"
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Transiciones rápidas",
+          "detalle": "Utilizar cortes rápidos y transiciones suaves para mantener el ritmo."
+        },
+        {
+          "item": "Música de fondo",
+          "detalle": "Seleccionar una pista musical optimista y sin copyright, ajustando el volumen para no opacar el diálogo."
+        },
+        {
+          "item": "Subtítulos automáticos",
+          "detalle": "Generar y revisar los subtítulos automáticos para asegurar precisión."
+        },
+        {
+          "item": "Corrección de color",
+          "detalle": "Aplicar una corrección de color que resalte los tonos vibrantes de las flores y la naturaleza."
+        }
+      ]
+    }
+  },
+  "instagram": {
+    "slides": [
+      {
+        "numero": 1,
+        "tipo": "portada",
+        "titulo": "¡Desconecta a tus hijos, conecta con la magia!",
+        "subtitulo": "La clave para niños felices está en la naturaleza.",
+        "cuerpo": "",
+        "estetica": "Fondo vibrante con un campo de tulipanes en plena floración. Tipografía bold y moderna (ej. Montserrat o Poppins) en blanco. Icono de una hoja o flor minimalista. Paleta de colores: verde esmeralda, rosa intenso, amarillo brillante."
+      },
+      {
+        "numero": 2,
+        "tipo": "problema",
+        "titulo": "La trampa de las pantallas 📱",
+        "subtitulo": "",
+        "cuerpo": "Nuestros niños pasan horas frente a dispositivos, perdiéndose la riqueza del mundo real. ¿Ansiedad, falta de atención, poca creatividad? Es la factura de la sobreexposición digital.",
+        "estetica": "Fondo gris oscuro o azul noche que contrasta con el texto blanco. Icono de un ojo o un reloj de arena. Tipografía más sobria (ej. Lato). Colores que sugieren preocupación o seriedad."
+      },
+      {
+        "numero": 3,
+        "tipo": "desarrollo",
+        "titulo": "Experiencia sensorial única 🌷",
+        "subtitulo": "",
+        "cuerpo": "El jardín botánico es un festival para los sentidos. Tocar pétalos, oler flores, observar insectos. ¡Cada detalle estimula su cerebro de forma natural, sin filtros ni píxeles!",
+        "estetica": "Fondo claro con un degradado suave (verde claro a blanco). Iconos de mano tocando, nariz oliendo, ojo observando. Pequeñas fotos de detalle de tulipanes o elementos naturales."
+      },
+      {
+        "numero": 4,
+        "tipo": "desarrollo",
+        "titulo": "Fomenta la curiosidad y exploración 🔎",
+        "subtitulo": "",
+        "cuerpo": "Lejos de las instrucciones de un juego, los niños son libres de preguntar, investigar y descubrir por sí mismos. ¿Por qué esta flor es así? ¿Quién vive aquí? ¡Nace el científico que llevan dentro!",
+        "estetica": "Fondo amarillo pastel o crema. Icono de lupa o brújula. Ilustraciones o fotos de niños explorando y señalando."
+      },
+      {
+        "numero": 5,
+        "tipo": "desarrollo",
+        "titulo": "Reduce el estrés y mejora el foco 🧠",
+        "subtitulo": "",
+        "cuerpo": "Estudios demuestran que el contacto con la naturaleza disminuye la ansiedad y mejora la concentración. Es una 'terapia verde' que les permite recargar energías y volver más calmados.",
+        "estetica": "Fondo azul cielo suave. Icono de cerebro o corazón con una planta. Gráfico minimalista de una flecha hacia abajo (estrés) y una hacia arriba (foco)."
+      },
+      {
+        "numero": 6,
+        "tipo": "desarrollo",
+        "titulo": "Crea recuerdos inolvidables en familia 👨‍👩‍👧‍👦",
+        "subtitulo": "",
+        "cuerpo": "Más allá de los beneficios individuales, pasar tiempo de calidad en un entorno natural fortalece los lazos familiares. ¡Esos momentos de risas y descubrimientos son tesoros que durarán para siempre!",
+        "estetica": "Fondo verde menta o aguamarina. Iconos de figuras familiares unidas o siluetas. Fotos de familias felices en el jardín."
+      },
+      {
+        "numero": 7,
+        "tipo": "resumen",
+        "titulo": "Quick Win ⚡",
+        "subtitulo": "",
+        "cuerpo": "¡Agenda hoy mismo una visita a un jardín, parque o espacio natural cercano! No necesitas mucho, solo la decisión de desconectar para reconectar.",
+        "estetica": "Fondo naranja vibrante o rojo coral para que destaque. Icono de rayo grande y llamativo. Tipografía en blanco bold y limpia."
+      },
+      {
+        "numero": 8,
+        "tipo": "cta",
+        "titulo": "¡Es hora de reconectar! 💖",
+        "subtitulo": "",
+        "cuerpo": "¿Te inspiró esta idea? GUARDA este carrusel para tu próxima aventura. COMPARTE con otra familia. COMENTA: ¿Cuál es tu actividad favorita al aire libre con niños?",
+        "estetica": "Fondo con color de marca (ej. turquesa o magenta). Botones de 'Guardar', 'Compartir', 'Comentar' estilizados y destacados. Tipografía grande y clara para el llamado a la acción."
+      }
+    ],
+    "hashtags": [
+      "#CrianzaConsciente",
+      "#VidaEnFamilia",
+      "#Naturaleza",
+      "#BienestarInfantil",
+      "#JardinBotanico",
+      "#DesconexionDigital",
+      "#ActividadesConNiños",
+      "#Tulipanes",
+      "#ConexionNatural",
+      "#MomentosEnFamilia"
+    ],
+    "checklist": {
+      "diseno": [
+        {
+          "item": "Consistencia visual",
+          "detalle": "Asegurar que la paleta de colores, tipografía y estilo de iconos sean coherentes en todas las 8 slides."
+        },
+        {
+          "item": "Legibilidad del texto",
+          "detalle": "Verificar que el tamaño y contraste del texto sean óptimos para la lectura en dispositivos móviles."
+        },
+        {
+          "item": "Elementos gráficos",
+          "detalle": "Incluir al menos un icono o ilustración relevante y de alta calidad en cada slide para reforzar el mensaje."
+        },
+        {
+          "item": "Portada atractiva",
+          "detalle": "Diseñar la primera slide como un gancho visual potente que invite a deslizar."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Imágenes de stock",
+          "tipo": "imagen"
+        },
+        {
+          "item": "Set de iconos flat/línea",
+          "tipo": "icono"
+        },
+        {
+          "item": "Paleta de colores específica",
+          "tipo": "color"
+        }
+      ],
+      "publicacion": [
+        {
+          "item": "Copy de post",
+          "detalle": "Escribir un copy corto y directo que invite a deslizar y leer el carrusel completo."
+        },
+        {
+          "item": "Horario óptimo",
+          "detalle": "Publicar en los horarios de mayor actividad de la audiencia para maximizar el alcance."
+        },
+        {
+          "item": "Etiquetar ubicación",
+          "detalle": "Si aplica, etiquetar el jardín botánico o un parque cercano para aumentar la visibilidad local."
+        }
+      ]
+    }
+  },
+  "facebook": {
+    "post": "¡Hola, tribu! 👋 Hoy quiero compartirles una experiencia que me recargó el alma y me hizo reflexionar muchísimo sobre la crianza en la era digital. Estuve visitando el jardín botánico, y entre campos de tulipanes vibrantes, no pude evitar pensar en la importancia de regalarles a nuestros hijos espacios para *desconectar* y *reconectar*.\n\nEs un secreto a voces: vivimos pegados a las pantallas. Nosotros, y por supuesto, ¡nuestros pequeños también! 📱 Tablets, móviles, videojuegos... La tecnología nos ofrece un mundo, pero a veces, nos roba otro: el de la exploración, la creatividad espontánea y la conexión sensorial con lo que nos rodea.\n\nVer a los niños correr, tocar los pétalos de las flores, oler la tierra, maravillarse con un insecto... Es pura magia. ✨ No hay una app que simule esa sensación de asombro genuino, esa curiosidad innata que se activa cuando no hay un algoritmo dictando qué ver o qué hacer.\n\nLos beneficios son inmensos: menos estrés, mejor concentración, desarrollo de la imaginación y, lo más importante, ¡tiempo de calidad en familia creando recuerdos imborrables! No necesitas ir lejos, un parque, un bosque o incluso un pequeño jardín en casa puede ser el escenario perfecto.\n\nAsí que, si sientes que tus hijos necesitan un respiro del mundo digital, te invito a probar esta receta: ¡más naturaleza y menos pantallas! Verás cómo su energía cambia, cómo se vuelven más curiosos y cómo se ilumina su mirada al descubrir la simple belleza del mundo real.",
+    "pregunta_engagement": "¿Cuál es tu lugar favorito para desconectar en familia y qué hacen allí?",
+    "checklist": {
+      "contenido": [
+        {
+          "item": "Tono personal",
+          "detalle": "Revisar que el post transmita una voz auténtica y cercana, como una conversación entre amigos."
+        },
+        {
+          "item": "Claridad del mensaje",
+          "detalle": "Asegurar que la idea principal de desconexión digital y conexión con la naturaleza sea evidente y fácil de comprender."
+        },
+        {
+          "item": "Longitud adecuada",
+          "detalle": "Verificar que el texto esté entre 200 y 350 palabras para mantener el interés del lector."
+        }
+      ],
+      "recursos": [
+        {
+          "item": "Foto de alta calidad",
+          "tipo": "imagen"
+        },
+        {
+          "item": "Video corto de la visita",
+          "tipo": "video"
+        }
+      ],
+      "publicacion": [
+        {
+          "item": "Horario de publicación",
+          "detalle": "Programar el post para las horas pico de interacción en Facebook (ej. 13:00-15:00 o 19:00-21:00)."
+        },
+        {
+          "item": "Etiquetar ubicación",
+          "detalle": "Etiquetar el jardín botánico o la ciudad para aumentar la visibilidad y el engagement local."
+        },
+        {
+          "item": "Visibilidad pública",
+          "detalle": "Asegurar que la configuración de privacidad del post sea 'Pública' para alcanzar a la mayor audiencia posible."
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "voy a ir a ver los tulipanes en el jardin botanico y quiero hacer contenido sobre la importancia de buscar espacio de re",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T20:43:21Z",
+    "platforms": [
+      "tiktok",
+      "instagram",
+      "facebook"
+    ]
+  }
+}

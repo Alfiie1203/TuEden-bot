@@ -1,0 +1,313 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "Deja de revisar el móvil en la cama si no quieres sentirte agotado antes del mediodía.",
+        "promesa_valor": "Identificar un ladrón de tiempo matutino clave.",
+        "duracion_segundos": 58,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Experta, narradora, proveedora de soluciones."
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Ejemplo del problema y de la transformación."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Beneficiaria de la mejora del Papa, elemento de interacción familiar."
+          }
+        ],
+        "instruccion_visual_inicio": "Persona (Papa o Mama) en la cama, estirando la mano para coger el móvil que suena.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-6",
+            "mensaje": "Enganche visual y textual directo al problema.",
+            "micro_transicion": "Zoom in rápido al móvil."
+          },
+          {
+            "paso": 2,
+            "segundos": "6-12",
+            "mensaje": "Explicación breve del efecto negativo.",
+            "micro_transicion": "Texto en pantalla animado."
+          },
+          {
+            "paso": 3,
+            "segundos": "18-24",
+            "mensaje": "Solución simple y alternativa clara.",
+            "micro_transicion": "Transición suave de móvil a ventana."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-6",
+            "objetivo": "Presentar el gancho y el problema visualmente.",
+            "personaje": "Papa",
+            "visual": "Papa en la cama, suena la alarma del móvil. Estira la mano con los ojos medio cerrados para cogerlo. Rostro cansado.",
+            "dialogo": "[Sonido de alarma, luego silencio. Papa suspira.]",
+            "texto_pantalla": "Deja de revisar el móvil en la cama si no quieres sentirte agotado antes del mediodía.",
+            "transicion": "Corte rápido a Papa ya con el móvil en la mano."
+          },
+          {
+            "bloque": 2,
+            "segundos": "6-18",
+            "objetivo": "Explicar el porqué esta acción drena energía.",
+            "personaje": "Mama",
+            "visual": "Papa desplaza el dedo por la pantalla, su cara refleja agotamiento, no interés. Mama entra al dormitorio, lo observa con una expresión de comprensión. Se sienta al borde de la cama, mirando a cámara.",
+            "dialogo": "Ese primer 'hit' de dopamina al ver el móvil... te drena. Tu cerebro cree que ya trabajaste antes de empezar.",
+            "texto_pantalla": "Móvil = Falsa alerta. Agotamiento mental prematuro.",
+            "transicion": "Corte a Mama mirando a Papa."
+          },
+          {
+            "bloque": 3,
+            "segundos": "18-30",
+            "objetivo": "Proponer una alternativa simple y efectiva.",
+            "personaje": "Mama",
+            "visual": "Mama le quita suavemente el móvil a Papa, que la mira sorprendido. Mama le hace un gesto hacia la ventana. Papa mira por la ventana. Sonríe ligeramente al sentir la luz.",
+            "dialogo": "En vez de pantallas, 5 minutos de luz natural. O estiramientos suaves. Despierta tu cuerpo, no tu estrés.",
+            "texto_pantalla": "Cambio simple: 5 min. luz/estiramientos.",
+            "transicion": "Corte rápido a un nuevo escenario."
+          },
+          {
+            "bloque": 4,
+            "segundos": "30-45",
+            "objetivo": "Mostrar el contraste y los beneficios de la nueva rutina.",
+            "personaje": "Papa",
+            "visual": "Papa, con más energía, juega con Hija en el salón mientras preparan el desayuno. Se ríe con ella. Mama aparece en segundo plano, asintiendo con satisfacción.",
+            "dialogo": "[Mama en voz en off, tono positivo] Esa pequeña pausa resetea tu mente. Menos fatiga. Más foco. Mejor humor para todos.",
+            "texto_pantalla": "Menos fatiga, más foco, mejor humor.",
+            "transicion": "Corte a Mama mirando a cámara."
+          },
+          {
+            "bloque": 5,
+            "segundos": "45-58",
+            "objetivo": "Cierre, promesa de valor y CTA conversacional.",
+            "personaje": "Mama",
+            "visual": "Mama mira a cámara, sonriendo. Detrás, Papa y Hija le dan un abrazo rápido y se despiden. Mama regresa su mirada a cámara.",
+            "dialogo": "Identificar este ladrón de tiempo matutino es clave para tu energía. Pruébalo mañana. ¿Qué pequeño cambio harás para empezar tu día mejor?",
+            "texto_pantalla": "Tu rutina, tu energía. #MañanaSinMovil",
+            "transicion": "Fundido a negro."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Dormitorio principal, salón/cocina.",
+          "tono": "Empático, informativo, motivador y práctico.",
+          "ritmo_edicion": "Dinámico y con cortes precisos. Transiciones suaves pero rápidas.",
+          "vestuario": "Ropa de dormir cómoda y casual para Papa y Mama al inicio. Ropa de casa más arreglada para el resto del video.",
+          "props": "Móvil con alarma, cama, ventana con luz natural, elementos de desayuno, juguetes simples de Hija.",
+          "musica_sfx": "Música de fondo suave y ascendente al principio, luego más alegre y enérgica. Sonido de alarma, suspiro, risas de Hija.",
+          "tomas_clave": [
+            "Primer plano de la mano de Papa cogiendo el móvil.",
+            "Plano medio de Mama observando a Papa, luego mirando a cámara.",
+            "Plano detalle de Mama quitando el móvil y señalando la ventana.",
+            "Plano general de Papa y Hija interactuando con energía.",
+            "Primer plano de Mama en el CTA con la familia de fondo."
+          ]
+        },
+        "cta_engagement": "¿Ya identificaste tu ladrón de tiempo matutino? Cuéntame en los comentarios qué pequeño cambio vas a probar mañana para empezar tu día con más energía."
+      },
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "¿Sabías que tu 'multitasking' matutino te está robando horas productivas?",
+        "promesa_valor": "Revelar un error común que sabotea tu mañana.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Protagonista, explica el problema y la solución."
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Apoyo visual, muestra el contraste de una mañana organizada."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Muestra el impacto en la dinámica familiar."
+          }
+        ],
+        "instruccion_visual_inicio": "Persona (Mama) intentando hacer varias cosas a la vez (café, responder email, peinarse) con expresión de estrés.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Tu multitasking matutino es una trampa.",
+            "micro_transicion": "Corte rápido a su cara frustrada."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Estás perdiendo horas y energía sin darte cuenta.",
+            "micro_transicion": "Zoom in a un reloj."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Te revelo el error que sabotea tu mañana.",
+            "micro_transicion": "Cambio de escena a Mama explicando."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Enganchar al espectador mostrando el problema inicial.",
+            "personaje": "Mama",
+            "visual": "Mama en la cocina, intentando preparar café, responder un email en el móvil y cepillarse el pelo simultáneamente. Expresión de estrés. Ritmo frenético.",
+            "dialogo": "¿Sabías que tu 'multitasking' matutino te está robando horas productivas?",
+            "texto_pantalla": "¿Multitasking matutino = productivo? ¡Error!",
+            "transicion": "Corte rápido a primer plano de su cara frustrada."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Explicar las consecuencias negativas del multitasking matutino.",
+            "personaje": "Mama",
+            "visual": "Montaje rápido: Mama deja el café a medias para revisar otro email, luego olvida peinarse. Hija aparece pidiendo algo, Mama la mira con prisa. Mama mira el reloj con frustración.",
+            "dialogo": "Creemos ser eficientes, pero solo saltamos de tarea en tarea. Esto genera estrés y ¡horas perdidas!",
+            "texto_pantalla": "El mito del multitasking 🤯\nEstrés y cero avance real.",
+            "transicion": "Zoom in a un reloj que marca el tiempo pasando."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Revelar el 'error oculto' y cómo afecta al cerebro.",
+            "personaje": "Mama",
+            "visual": "Mama sentada, más calmada, mirando a cámara. Explica con gesticulación. Flashback corto de ella frustrada. Gráfico simple de cerebro cambiando tareas.",
+            "dialogo": "El error es la 'conmutación de contexto'. Cada vez que cambias de tarea, tu cerebro gasta energía en reenfocarse. ¡Es un ladrón silencioso de tiempo!",
+            "texto_pantalla": "Conmutación de Contexto: Tu enemigo 🧠\nEnergía mental desperdiciada.",
+            "transicion": "Swipe a una pantalla dividida."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Presentar una solución práctica y mostrar un ejemplo positivo.",
+            "personaje": "Mama",
+            "visual": "Mama sonríe. Escena de contraste: Papa desayunando tranquilamente mientras lee un libro. Hija jugando enfocada con sus juguetes. Mama, con calma, prepara el desayuno sin distracciones.",
+            "dialogo": "La solución es simple: haz una cosa a la vez. Dedica bloques de 15-20 minutos a una sola tarea. Verás la diferencia.",
+            "texto_pantalla": "Una tarea = un bloque de tiempo ⏰\nMenos estrés, más avance.",
+            "transicion": "Transición suave a Mama de nuevo a cámara."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Resumir beneficios y hacer una llamada a la acción conversacional.",
+            "personaje": "Mama",
+            "visual": "Mama, con expresión de alivio y sonrisa genuina, mirando directamente a cámara. Breve montaje de ella disfrutando su mañana con su familia, sin estrés.",
+            "dialogo": "Deja de robarte a ti misma tiempo y energía. Prueba esta semana a enfocarte en una cosa a la vez por la mañana. ¿Qué tarea eliminarás de tu 'multitasking' hoy? ¡Cuéntame en los comentarios!",
+            "texto_pantalla": "Recupera tu mañana 💪\nComenta: ¿Qué cambias HOY?",
+            "transicion": "Fade out."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Cocina y sala de estar de una casa moderna.",
+          "tono": "Inicialmente caótico y estresante, luego revelador, calmado y empoderador.",
+          "ritmo_edicion": "Rápido y fragmentado al inicio, luego más pausado y didáctico.",
+          "vestuario": "Ropa casual de casa, cómoda. Mama empieza algo desaliñada, termina más arreglada.",
+          "props": "Taza de café, laptop, smartphone, cepillo de pelo, plato de desayuno, juguetes de niña, libro.",
+          "musica_sfx": "Música de fondo caótica/tensionante al inicio, transiciona a música tranquila y motivadora. SFX: notificaciones de móvil, tazas, ruido ambiental de casa.",
+          "tomas_clave": [
+            "Mama haciendo varias cosas a la vez con expresión de agobio.",
+            "Primer plano de la cara de Mama frustrada o pensativa.",
+            "Mama explicando el concepto de 'conmutación de contexto' con confianza.",
+            "Papa y Hija en una mañana tranquila y enfocada.",
+            "Mama sonriendo, interactuando con la cámara para el CTA."
+          ]
+        },
+        "cta_engagement": "Deja de robarte a ti misma tiempo y energía. Prueba esta semana a enfocarte en una cosa a la vez por la mañana. ¿Qué tarea eliminarás de tu 'multitasking' hoy? ¡Cuéntame en los comentarios!"
+      }
+    ],
+    "checklist": {
+      "preproduccion": [
+        {
+          "item": "Definir hook principal",
+          "detalle": "Deja de revisar el móvil en la cama si no quieres sentirte agotado antes del mediodía."
+        },
+        {
+          "item": "Preparar locación y vestuario",
+          "detalle": "Dormitorio principal, salón/cocina. | Ropa de dormir cómoda y casual para Papa y Mama al inicio. Ropa de casa más arreglada para el resto del video."
+        },
+        {
+          "item": "Revisar props",
+          "detalle": "Móvil con alarma, cama, ventana con luz natural, elementos de desayuno, juguetes simples de Hija."
+        }
+      ],
+      "grabacion": [
+        {
+          "item": "Grabar apertura",
+          "detalle": "Persona (Papa o Mama) en la cama, estirando la mano para coger el móvil que suena."
+        },
+        {
+          "item": "Cubrir tomas clave",
+          "detalle": "Primer plano de la mano de Papa cogiendo el móvil.; Plano medio de Mama observando a Papa, luego mirando a cámara.; Plan"
+        },
+        {
+          "item": "Cerrar con CTA",
+          "detalle": "¿Ya identificaste tu ladrón de tiempo matutino? Cuéntame en los comentarios qué pequeño cambio vas a probar mañana para "
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Aplicar ritmo",
+          "detalle": "Dinámico y con cortes precisos. Transiciones suaves pero rápidas."
+        },
+        {
+          "item": "Insertar textos",
+          "detalle": "Identificar un ladrón de tiempo matutino clave."
+        },
+        {
+          "item": "Añadir música y remates",
+          "detalle": "Música de fondo suave y ascendente al principio, luego más alegre y enérgica. Sonido de alarma, suspiro, risas de Hija."
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "Cómo detectar si tu rutina de mañana te hace perder tiempo",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T22:55:42Z",
+    "platforms": [
+      "tiktok"
+    ],
+    "selected_characters": [
+      "mama",
+      "papa",
+      "hija"
+    ],
+    "source_post": null,
+    "selected_hooks": [
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "Deja de revisar el móvil en la cama si no quieres sentirte agotado antes del mediodía.",
+        "promesa_valor": "Identificar un ladrón de tiempo matutino clave.",
+        "instruccion_visual_inicio": "Persona (Papa o Mama) en la cama, estirando la mano para coger el móvil que suena."
+      },
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "¿Sabías que tu 'multitasking' matutino te está robando horas productivas?",
+        "promesa_valor": "Revelar un error común que sabotea tu mañana.",
+        "instruccion_visual_inicio": "Persona (Mama) intentando hacer varias cosas a la vez (café, responder email, peinarse) con expresión de estrés."
+      }
+    ]
+  }
+}

@@ -96,6 +96,15 @@ Este artículo debe redactarse reflejando la personalidad y el estilo del autor.
 Adapta el tono, el registro, el vocabulario y la forma de estructurar las ideas
 siguiendo estrictamente las siguientes indicaciones del autor:
 
+- Trata los datos biográficos y relacionales del perfil como hechos duros: no inventes hijos,
+  profesiones, edades, etapas vitales, creencias, pareja ni experiencias no descritas.
+- No cambies singular por plural ni plural por singular. Si el perfil indica una hija, jamás
+  escribas 'mis hijos'; si indica una sola profesión, no añadas otras.
+- Si el perfil incluye 'Formas permitidas de referirse al autor', usa solo alguna de esas fórmulas
+  cuando realmente haga falta mencionar a la persona que escribe.
+- Evita autopresentaciones inventadas o forzadas como 'cuando era joven', 'como mamá joven y psicóloga'
+  o cualquier variante no autorizada explícitamente por el perfil.
+
 {voice_profile}
 
 El lector debe sentir que el artículo fue escrito por una persona real con una voz
@@ -121,12 +130,13 @@ def _build_voice_block(voice_profile: str) -> str:
 BASE_CONTEXT = """\
 Eres un redactor SEO senior especializado en blogs de tecnología, salud y productos Amazon.
 Escribes siempre en español de España (castellano peninsular). Diríjete al lector en segunda persona SINGULAR («tú», «te», «tu»); nunca uses «vosotros» ni «os». Usa «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Tono: cercano, profesional y empático.
-FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. Si incluyes un año en el TÍTULO, usa preferentemente {current_year}. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
+FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. La mención del año en el TÍTULO es opcional: úsalo solo cuando aporte contexto real, intención de búsqueda actual o claridad; no lo fuerces por sistema. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
 Normas de formato:
   - Usa H2 para secciones principales y H3 para subsecciones.
   - Párrafos de 3-5 oraciones para favorecer la legibilidad.
   - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
   - Enlaces internos: NO incluyas ningún enlace interno (<a href>) a otros artículos del blog. Tampoco insertes títulos ni nombres de otros artículos dentro del texto (ni en negrita, ni como texto plano, ni como ancla). El artículo debe ser autosuficiente y no referenciar otros posts. Si necesitas mencionar un concepto relacionado, explícalo brevemente en el propio artículo sin simular que enlazas a otro contenido.
+  - RELIGIÓN: no propongas, desarrolles ni menciones enfoques religiosos, doctrinas, espiritualidad, iglesias, fe o consejos basados en creencias. Mantén todo el contenido en un marco laico, clínico, educativo o práctico.
 Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
   El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
   - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.
@@ -246,7 +256,7 @@ Requisitos de calidad:
 - Añade schema JSON-LD de tipo Review al final del content (dentro de <script type='application/ld+json'>).
 Devuelve SOLO este JSON:
 {{
-  "title": "Título de reseña SEO. Máx. 55 caracteres. Incluye 'opinión' o 'análisis'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / imprescindible / extraordinario / revelado / único / poderoso / honest / radical / esencial; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / espectacular / emocionante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / descubre; (4) SENTIMIENTO positivo. MAL EJEMPLO: 'Silla Ergonomínca Flexi Pro: Opinión Completa 2026'. BUEN EJEMPLO: 'Guía definitiva: la mejor silla ergonómica de 2026'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
+  "title": "Título de reseña SEO. Máx. 55 caracteres. Incluye 'opinión' o 'análisis'. REGLAS OBLIGATORIAS DE PUNTUACIÓN: (1) PALABRA POTENTEelige UNA SOLA: secreto / exclusivo / definitivo / garantizado / imprescindible / extraordinario / revelado / único / poderoso / honest / radical / esencial; (2) PALABRA EMOCIONALelige UNA SOLA: increíble / sorprendente / maravilloso / fascinante / asombroso / brillante / espectacular / emocionante; (3) PALABRA COMÚNelige UNA SOLA: cómo / qué / por qué / mejor / más / nuevo / hoy / fácil / rápido / clave / claves / tus / nunca / siempre / descubre; (4) SENTIMIENTO positivo. MAL EJEMPLO: 'Silla Ergonomínca Flexi Pro: Opinión Completa'. BUEN EJEMPLO: 'Guía definitiva: la mejor silla ergonómica'. SIN puntos al final. MAYÚSCULAS: solo la primera palabra y nombres propios.",
   "meta_description": "Meta con veredicto resumido (máximo 160 caracteres)",
   "focus_keyword": "keyword principal tipo 'X opiniones' o 'mejor X'",
   "content": "<h2>...</h2>...HTML completo del artículo incluyendo JSON-LD al final..."
@@ -267,13 +277,14 @@ PROMPT_MAP: dict[str, str] = {
 BASE_CONTEXT_LIBRE = """\
 Eres un redactor SEO senior especializado en contenido editorial de alta autoridad para blogs.
 Escribes siempre en español de España (castellano peninsular). Diríjete al lector en segunda persona SINGULAR («tú», «te», «tu»); nunca uses «vosotros» ni «os»: el artículo le habla a una sola persona. Usa «ordenador» en vez de «computadora», «móvil» en vez de «celular», «coche» en vez de «carro», etc. Adapta el tono al tópico: informativo, divulgativo o práctico.
-FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. Si incluyes un año en el TÍTULO, usa preferentemente {current_year}. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
+FECHA ACTUAL: Hoy es {today} (año {current_year}). Prioriza siempre la información más reciente disponible. La mención del año en el TÍTULO es opcional: úsalo solo cuando aporte contexto real, intención de búsqueda actual o claridad; no lo fuerces por sistema. En el cuerpo puedes citar datos de años anteriores solo cuando sean reales y relevantes; indica siempre el año del dato.
 Normas de formato:
   - Usa H2 para secciones principales y H3 para subsecciones.
   - Párrafos de 3-5 oraciones para favorecer la legibilidad.
   - El HTML debe ser limpio y semántico, listo para WordPress (sin <html>, <head>, <body>).
   - NO incluyas CTAs ni referencias a Amazon; el contenido es puramente informativo/educativo.
   - Enlaces internos: NO incluyas ningún enlace interno (<a href>) a otros artículos del blog. Tampoco insertes títulos ni nombres de otros artículos dentro del texto (ni en negrita, ni como texto plano, ni como ancla). El artículo debe ser autosuficiente y no referenciar otros posts. Si necesitas mencionar un concepto relacionado, explícalo brevemente en el propio artículo sin simular que enlazas a otro contenido.
+  - RELIGIÓN: no propongas, desarrolles ni menciones enfoques religiosos, doctrinas, espiritualidad, iglesias, fe o consejos basados en creencias. Mantén todo el contenido en un marco laico, clínico, educativo o práctico.
 Normas de posicionamiento SEO — focus_keyword (OBLIGATORIO):
   El valor que elijas para el campo "focus_keyword" es tu keyword objetivo. Aplica estas reglas sobre ella:
   - PRIMER PÁRRAFO: la focus_keyword debe aparecer de forma natural en las primeras 100 palabras del artículo.

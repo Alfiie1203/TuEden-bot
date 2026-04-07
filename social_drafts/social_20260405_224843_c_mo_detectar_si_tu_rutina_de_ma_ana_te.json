@@ -1,0 +1,633 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Señales",
+        "plantilla_base": "X señales de que tu [Producto/Hábito] te está arruinando.",
+        "gancho_texto": "5 Señales Clave: Tu Mañana Te Está Robando Tiempo y Energía",
+        "promesa_valor": "Descubre si tu rutina matutina te está agotando antes de empezar el día y cómo identificarlo rápidamente para recuperar tu tiempo.",
+        "duracion_segundos": 55,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Presentadora principal, guía a la audiencia para detectar problemas en su rutina."
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Actor secundario, ilustra situaciones de una mañana ocupada."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Actriz secundaria, ilustra situaciones de una mañana ocupada."
+          }
+        ],
+        "instruccion_visual_inicio": "Mama aparece en la cocina, apurada, mirando el reloj con estrés. Luego mira a cámara con expresión decidida.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-8",
+            "mensaje": "Captar atención, introducir el problema de la rutina matutina ineficiente.",
+            "micro_transicion": "Corte rápido a la siguiente escena."
+          },
+          {
+            "paso": 2,
+            "segundos": "8-20",
+            "mensaje": "Presentar las primeras dos señales de forma visual y concisa.",
+            "micro_transicion": "Swipe rápido de texto y corte."
+          },
+          {
+            "paso": 3,
+            "segundos": "20-32",
+            "mensaje": "Continuar con las señales 3 y 4, manteniendo el ritmo y la conexión visual.",
+            "micro_transicion": "Efecto de texto con zoom in/out."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-8",
+            "objetivo": "Captar atención, introducir el problema de la rutina matutina ineficiente.",
+            "personaje": "Mama",
+            "visual": "Mama en la cocina, apurada, mirando el reloj con frustración. Luego mira a cámara, decidida. Planos rápidos de reloj, tostadora, café.",
+            "dialogo": "¡Uf! ¿Tu mañana es un caos? Podría estar robándote tiempo y energía. ¡Atención a estas 5 señales!",
+            "texto_pantalla": "5 SEÑALES: TU MAÑANA TE ROBA TIEMPO",
+            "transicion": "Corte rápido a la siguiente escena."
+          },
+          {
+            "bloque": 2,
+            "segundos": "8-20",
+            "objetivo": "Presentar las primeras dos señales de forma visual y concisa.",
+            "personaje": "Mama",
+            "visual": "Escena 1 (8-14s): Mama en la cama, móvil en mano, haciendo scroll con expresión cansada. Escena 2 (14-20s): Mama buscando llaves apurada, casi chocando con Papa o Hija que están en el fondo, ambos ya listos.",
+            "dialogo": "Señal 1: Tu primera acción es revisar el móvil. ¡Adiós enfoque! Señal 2: Sales de casa siempre apurado, olvidando algo. ¿Te suena?",
+            "texto_pantalla": "1. MÓVIL AL DESPERTAR\n2. SIEMPRE APURADO",
+            "transicion": "Swipe rápido de texto y corte."
+          },
+          {
+            "bloque": 3,
+            "segundos": "20-32",
+            "objetivo": "Continuar con las señales 3 y 4, manteniendo el ritmo y la conexión visual.",
+            "personaje": "Mama",
+            "visual": "Escena 1 (20-26s): Mama frente al espejo, suspirando, sin tiempo para sí misma (ej. peinarse bien, estirar). Escena 2 (26-32s): Mama comiendo una tostada de pie, o agarrando algo rápido para llevar. Hija ya desayunando tranquilamente en la mesa.",
+            "dialogo": "Señal 3: Cero tiempo para ti. Ni 5 minutos de calma. Señal 4: Desayuno express o te lo saltas. Sin nutrición, sin energía.",
+            "texto_pantalla": "3. CERO TIEMPO PERSONAL\n4. DESAYUNO EXPRESS/SALTEADO",
+            "transicion": "Efecto de texto con zoom in/out."
+          },
+          {
+            "bloque": 4,
+            "segundos": "32-44",
+            "objetivo": "Cerrar las señales con la última y enfatizar el impacto negativo general.",
+            "personaje": "Mama",
+            "visual": "Escena 1 (32-38s): Mama bostezando frente al ordenador, simulando estar ya cansada a media mañana. Escena 2 (38-44s): Mama con expresión de preocupación, mirando a cámara.",
+            "dialogo": "Y Señal 5: Te sientes agotado antes del mediodía. ¡Tu rutina te está drenando la energía! Si te identificas con 3 o más...",
+            "texto_pantalla": "5. AGOTADO ANTES DEL MEDIODÍA\n¡TU RUTINA TE ROBA ENERGÍA!",
+            "transicion": "Disolvencia rápida."
+          },
+          {
+            "bloque": 5,
+            "segundos": "44-55",
+            "objetivo": "Ofrecer un primer paso de solución y fomentar la interacción en comentarios.",
+            "personaje": "Mama",
+            "visual": "Mama sentada, más relajada, con una taza de café, mirando a cámara con una sonrisa amable y empática.",
+            "dialogo": "Es hora de un cambio. Empieza por identificar una señal y decide cambiarla mañana. ¿Cuál de estas señales es la tuya? ¡Cuéntame en comentarios!",
+            "texto_pantalla": "¿CUÁL ES TU SEÑAL? 👇",
+            "transicion": "Fade out."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Hogar moderno (cocina, dormitorio, sala de estar).",
+          "tono": "Inicialmente frenético y estresado, luego informativo, y finalmente empático y motivador.",
+          "ritmo_edicion": "Rápido y dinámico en las escenas de las señales, más pausado en la introducción y el cierre.",
+          "vestuario": "Ropa casual de casa, cómoda y realista.",
+          "props": "Móvil, reloj, taza de café, tostada, llaves, mochila, ordenador portátil.",
+          "musica_sfx": "Música de fondo ligera y enérgica al inicio, volviéndose más suave y optimista en el bloque final. SFX de reloj, notificaciones de móvil, bostezo.",
+          "tomas_clave": [
+            "Mama apurada en cocina, mirando el reloj.",
+            "Mama en cama, deslizando el móvil.",
+            "Mama buscando llaves, Papa y Hija listos.",
+            "Mama frente al espejo, suspirando de cansancio.",
+            "Mama comiendo una tostada de pie, Hija desayunando sentada.",
+            "Mama bostezando frente al ordenador a media mañana.",
+            "Mama relajada con taza de café, mirando a cámara."
+          ]
+        },
+        "cta_engagement": "¿Cuál de estas señales resuena más contigo? Cuéntame en los comentarios y empecemos a recuperar tu mañana."
+      },
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "Tu rutina de mañana te roba tiempo sin que te des cuenta.",
+        "promesa_valor": "Descubre los micro-ladrones de tiempo matutinos con un método simple y recupera hasta 2 horas diarias.",
+        "duracion_segundos": 58,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Protagonista y narradora experta"
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Actor de apoyo, ilustra el caos matutino"
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Actriz de apoyo, ilustra el caos matutino"
+          }
+        ],
+        "instruccion_visual_inicio": "Inicio con Mama simulando despertarse agotada, con el móvil en la mano mientras el caos matutino (Papa buscando algo, Hija impaciente) ocurre en segundo plano o en cortes rápidos. La luz es tenue, ambiente desordenado.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-8",
+            "mensaje": "Enganche con la pregunta directa sobre la pérdida de tiempo matutina y visual de caos.",
+            "micro_transicion": "Corte rápido a Mama pensativa."
+          },
+          {
+            "paso": 2,
+            "segundos": "8-18",
+            "mensaje": "Revelación de que las micro-distracciones son los verdaderos ladrones de tiempo.",
+            "micro_transicion": "Zoom in a Mama, expresión de 'eureka'."
+          },
+          {
+            "paso": 3,
+            "segundos": "18-32",
+            "mensaje": "Presentación del método 'Cámara Invisible' para auto-auditar la rutina.",
+            "micro_transicion": "Pantalla con texto informativo y checkmark."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-8",
+            "objetivo": "Captar atención con la pregunta y mostrar el problema visualmente.",
+            "personaje": "Mama",
+            "visual": "Mama con pelo revuelto, mira el móvil en la cama. Cortes rápidos de Papa buscando llaves y Hija pidiendo desayuno. Caos matutino.",
+            "dialogo": "¿Sabías que tu rutina de mañana te está robando tiempo sin que te des cuenta?",
+            "texto_pantalla": "¿Tu mañana te roba tiempo? | El error oculto",
+            "transicion": "Corte rápido a Mama más calmada, pensativa."
+          },
+          {
+            "bloque": 2,
+            "segundos": "8-18",
+            "objetivo": "Identificar los ladrones de tiempo más comunes y sutiles.",
+            "personaje": "Mama",
+            "visual": "Mama señala 3 escenarios rápidos: 1. Mirando redes sociales. 2. Buscando objetos perdidos. 3. Dudando qué ropa ponerse.",
+            "dialogo": "No son grandes interrupciones, son micro-momentos. 'Solo 5 minutos en el móvil', '¿dónde dejé las llaves?', '¿qué me pongo hoy?'.",
+            "texto_pantalla": "Micro-ladrones de tiempo | Móvil, desorden, indecisión",
+            "transicion": "Zoom in a Mama, expresión de 'eureka'."
+          },
+          {
+            "bloque": 3,
+            "segundos": "18-32",
+            "objetivo": "Enseñar el método práctico para detectar las pérdidas de tiempo.",
+            "personaje": "Mama",
+            "visual": "Mama sentada en la mesa con cuaderno y boli. La pantalla se divide o superpone con escenas de ella 'observándose' (ej. ella misma en la mañana, como una cámara). Mama escribe notas rápidas.",
+            "dialogo": "La clave es observarte como si fueras una cámara invisible. Durante 3 días, anota *todo* lo que haces desde que te despiertas hasta que sales de casa. Cada tarea, cada distracción, cada pausa.",
+            "texto_pantalla": "Método 'Cámara Invisible' | Anota *todo* por 3 días",
+            "transicion": "Pantalla se llena de texto 'anota, anota, anota' y un checkmark."
+          },
+          {
+            "bloque": 4,
+            "segundos": "32-48",
+            "objetivo": "Mostrar el impacto del método y cómo optimizar la rutina.",
+            "personaje": "Mama",
+            "visual": "Mama sonriendo, muestra una hoja con dos columnas: 'Antes' (muchas cosas tachadas) y 'Después' (rutina optimizada, más tiempo libre). Luego, Mama, Papa e Hija desayunando tranquilamente o Mama teniendo un momento para ella.",
+            "dialogo": "Te sorprenderá lo que encuentres. Yo detecté que perdía casi 1 hora solo en indecisión y distracciones. Con esa información, pude optimizar mi rutina y recuperar mis mañanas.",
+            "texto_pantalla": "Detecta -> Optimiza -> Recupera | ¡Hasta 2 horas extra!",
+            "transicion": "Corte a Mama satisfecha, mirando directamente a cámara."
+          },
+          {
+            "bloque": 5,
+            "segundos": "48-58",
+            "objetivo": "Incentivar la interacción y dejar un mensaje final práctico.",
+            "personaje": "Mama",
+            "visual": "Mama sonriendo, ambiente más relajado y ordenado. Luz cálida.",
+            "dialogo": "Pruébalo. ¿Qué es lo primero que haces al despertar? Cuéntame en los comentarios. Quizás detectamos un ladrón de tiempo juntos y te ayudo a recuperar tu mañana.",
+            "texto_pantalla": "¿Tu primer acto matutino? | Comenta y recupera tu tiempo.",
+            "transicion": "Fade out con el texto en pantalla."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Casa (dormitorio, cocina, pasillo, sala de estar)",
+          "tono": "Inicialmente caótico y frustrado, luego empático, resolutivo y optimista.",
+          "ritmo_edicion": "Rápido al inicio y en las transiciones de 'ladrones de tiempo', luego más pausado y didáctico al explicar el método, y finalmente inspirador.",
+          "vestuario": "Mama: Pijama desarreglado al inicio, luego ropa casual cómoda y ordenada. Papa e Hija: Ropa de casa o de salir, según la escena.",
+          "props": "Móvil, taza de café, llaves, mochila, cuaderno, boli, mesa de desayuno.",
+          "musica_sfx": "Música de fondo ligera y enérgica al inicio, luego más suave y didáctica. SFX de reloj, notificaciones de móvil, sonido de escritura.",
+          "tomas_clave": [
+            "Mama despertando agotada y con el móvil.",
+            "Montaje rápido de acciones cotidianas que consumen tiempo (buscar cosas, dudar).",
+            "Mama escribiendo en un cuaderno, simulando la auto-observación.",
+            "Mama y familia disfrutando de una mañana tranquila."
+          ]
+        },
+        "cta_engagement": "¿Qué es lo primero que haces al despertar? Cuéntame en los comentarios. Quizás detectamos un ladrón de tiempo juntos y te ayudo a recuperar tu mañana."
+      },
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "estos 3 errores en tu rutina de mañana",
+        "promesa_valor": "perdiendo horas valiosas y sintiéndote agotado todo el día.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicologa",
+            "rol_en_video": "Experta que revela errores comunes en la rutina matutina y ofrece soluciones."
+          }
+        ],
+        "instruccion_visual_inicio": "Mama en la cama, despeinada, con pijama, mirando el móvil con cara de agotada. Luego levanta la vista y mira a cámara con seriedad.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-8",
+            "mensaje": "Enganchar y presentar el problema: la rutina matutina ineficiente.",
+            "micro_transicion": "Corte rápido a texto en pantalla."
+          },
+          {
+            "paso": 2,
+            "segundos": "8-18",
+            "mensaje": "Identificar el primer error común: uso inmediato del móvil.",
+            "micro_transicion": "Corte rápido a Mama en la cocina."
+          },
+          {
+            "paso": 3,
+            "segundos": "18-28",
+            "mensaje": "Identificar el segundo error: falta de intención y propósito.",
+            "micro_transicion": "Corte rápido a Mama intentando hacer malabares."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-8",
+            "objetivo": "Enganchar y presentar el problema: la rutina matutina ineficiente.",
+            "personaje": "Mama",
+            "visual": "Mama en la cama, mira el móvil con expresión de cansancio. Luego mira a cámara, seria, mientras se incorpora un poco.",
+            "dialogo": "Tu rutina de mañana te está robando tiempo sin que lo sepas. ¿Te sientes siempre corriendo y agotado antes del mediodía?",
+            "texto_pantalla": "¡TU MAÑANA TE SABOTEA!",
+            "transicion": "Corte rápido a texto en pantalla."
+          },
+          {
+            "bloque": 2,
+            "segundos": "8-18",
+            "objetivo": "Identificar el primer error común: uso inmediato del móvil.",
+            "personaje": "Mama",
+            "visual": "Mama sentada en la cama, deslizando el dedo por el móvil, con una pila de notificaciones en pantalla. Su expresión es distraída.",
+            "dialogo": "Primer error: Tu teléfono es lo primero. Despertador, notificaciones, redes. ¡Boom! 30 minutos perdidos antes de levantarte.",
+            "texto_pantalla": "ERROR #1: EL MÓVIL AL DESPERTAR",
+            "transicion": "Corte rápido a Mama en la cocina."
+          },
+          {
+            "bloque": 3,
+            "segundos": "18-28",
+            "objetivo": "Identificar el segundo error: falta de intención y propósito.",
+            "personaje": "Mama",
+            "visual": "Mama en la cocina, con una taza de café, mirando al vacío, como si no supiera qué hacer. Luego un encogimiento de hombros.",
+            "dialogo": "Segundo error: No hay intención. Haces cosas por inercia: desayunar, vestirte, sin un 'por qué' claro. ¿Qué quieres lograr hoy?",
+            "texto_pantalla": "ERROR #2: SIN INTENCIÓN CLARA",
+            "transicion": "Corte rápido a Mama intentando hacer malabares."
+          },
+          {
+            "bloque": 4,
+            "segundos": "28-40",
+            "objetivo": "Identificar el tercer error y sus consecuencias: sobrecarga de tareas.",
+            "personaje": "Mama",
+            "visual": "Mama intenta hacer varias cosas a la vez (ej. beber café, leer una agenda, estirarse) con una expresión de estrés creciente. Todo se siente forzado.",
+            "dialogo": "Tercer error: Demasiadas tareas. Quieres meditar, hacer ejercicio, leer, organizar... todo en una hora. Acabas haciendo nada bien o estresado.",
+            "texto_pantalla": "ERROR #3: RUTINA SOBRECARGADA",
+            "transicion": "Corte rápido a Mama con actitud resuelta."
+          },
+          {
+            "bloque": 5,
+            "segundos": "40-52",
+            "objetivo": "Ofrecer una solución clara y un llamado a la acción.",
+            "personaje": "Mama",
+            "visual": "Mama, ahora con ropa casual y aspecto más despierto, mira a cámara con una sonrisa amable pero decidida. Gesto de 'vamos a ello'.",
+            "dialogo": "Si te identificas, tu rutina te está saboteando. No la cambies, optimízala. Elimina distracciones, establece 1-2 prioridades. ¡Empieza HOY! ¿Cuál de estos errores vas a corregir primero? Te leo en comentarios.",
+            "texto_pantalla": "OPTIMIZA TU MAÑANA. ¡EMPIEZA HOY!",
+            "transicion": "Fade out."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Dormitorio, cocina, sala de estar de una casa moderna.",
+          "tono": "Al principio caótico y frustrado, luego informativo y empoderador.",
+          "ritmo_edicion": "Rápido y dinámico al inicio para reflejar el caos, luego más pausado y directo durante las explicaciones y el CTA.",
+          "vestuario": "Pijama/ropa cómoda al inicio, luego ropa casual y arreglada.",
+          "props": "Móvil, taza de café, agenda/libreta, elementos de desayuno (cereal, fruta).",
+          "musica_sfx": "Música de fondo ligeramente estresante/rápida al inicio, con SFX de notificaciones y tic-tac. Transición a música más ligera y motivadora hacia el final.",
+          "tomas_clave": [
+            "Mama con el móvil en la cama, zoom a la pantalla con notificaciones.",
+            "Mama mirando al vacío en la cocina con la taza de café.",
+            "Mama intentando hacer malabares con objetos que simbolizan tareas.",
+            "Mama con expresión de 'eureka' o determinación, mirando directamente a cámara."
+          ]
+        },
+        "cta_engagement": "¿Cuál de estos 3 errores vas a corregir primero en tu rutina de mañana? Cuéntame en los comentarios. ¡Quiero saber tu plan!"
+      },
+      {
+        "tipo_de_angulo": "Verdad Incómoda",
+        "plantilla_base": "Lo que nadie te cuenta sobre [Tema popular/Industria].",
+        "gancho_texto": "Tu rutina de mañana no es tan productiva como crees.",
+        "promesa_valor": "Descubre cómo identificar y eliminar los vampiros de tiempo que te roban energía y horas valiosas cada mañana.",
+        "duracion_segundos": 55,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicóloga",
+            "rol_en_video": "Narradora principal, experta, guía al espectador."
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Ejemplifica los comportamientos de pérdida de tiempo."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Representa el impacto en el tiempo familiar y la calidad de vida."
+          }
+        ],
+        "instruccion_visual_inicio": "Pantalla dividida: izquierda, reloj digital acelerado; derecha, Mama con expresión cansada, mirando su móvil con el ceño fruncido en la cama.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-10",
+            "mensaje": "La verdad incómoda de tu mañana.",
+            "micro_transicion": "Corte rápido a Mama levantándose."
+          },
+          {
+            "paso": 2,
+            "segundos": "20-35",
+            "mensaje": "Los 3 ladrones silenciosos de tiempo.",
+            "micro_transicion": "Zoom out del Papa distraído."
+          },
+          {
+            "paso": 3,
+            "segundos": "45-55",
+            "mensaje": "El test de 1 minuto para recuperar tu día.",
+            "micro_transicion": "Transición a escena familiar feliz."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-10",
+            "objetivo": "Enganchar al espectador, presentar la tesis controversial.",
+            "personaje": "Mama",
+            "visual": "Mama se levanta con cara de cansancio. Se sienta en la cama y coge el móvil, su expresión se vuelve ligeramente frustrada. Corte a Mama mirando directamente a cámara.",
+            "dialogo": "Creemos que nuestra rutina de mañana es productiva. Pero hay una verdad incómoda que nadie te cuenta...",
+            "texto_pantalla": "TU MAÑANA NO ES TAN PRODUCTIVA COMO CREES.",
+            "transicion": "Corte rápido y sonido de notificación de móvil."
+          },
+          {
+            "bloque": 2,
+            "segundos": "10-20",
+            "objetivo": "Identificar ejemplos concretos de pérdida de tiempo en la mañana.",
+            "personaje": "Mama",
+            "visual": "Montaje rápido: Papa absorto en su móvil en la cocina. Luego, Papa reorganizando meticulosamente utensilios de cocina o papeles triviales mientras el reloj avanza. Mama en voz en off.",
+            "dialogo": "Mirar noticias 30 min, revisar emails antes de ducharte, o 'optimizar' cosas que no importan... ¡Son vampiros de tiempo!",
+            "texto_pantalla": "VAMPIROS DE TIEMPO: Noticias, Emails, 'Micro-Optimizaciones'.",
+            "transicion": "Sonido de reloj acelerado y corte a Hija."
+          },
+          {
+            "bloque": 3,
+            "segundos": "20-35",
+            "objetivo": "Explicar el impacto negativo de estas rutinas en el bienestar y las relaciones.",
+            "personaje": "Mama",
+            "visual": "Hija intenta llamar la atención de Papa, que sigue en el móvil. Hija luego mira a Mama, que parece estresada o acelerada mientras se prepara. Mama se acerca a cámara con expresión seria.",
+            "dialogo": "Estas pequeñas fugas te roban energía, tiempo con los tuyos y te dejan estresado antes de empezar el día. ¿Te suena?",
+            "texto_pantalla": "EL COSTE REAL: Estrés, Cero Calidad, Tiempo Perdido.",
+            "transicion": "Disolvencia suave a Mama sentada tranquilamente."
+          },
+          {
+            "bloque": 4,
+            "segundos": "35-45",
+            "objetivo": "Proporcionar una herramienta sencilla y accionable para detectar el problema.",
+            "personaje": "Mama",
+            "visual": "Mama se sienta con un café o té, mira un reloj de pared y luego anota algo en una libreta. Mira a cámara con complicidad.",
+            "dialogo": "Haz esto: mañana, por una semana, los primeros 30 minutos de tu día, anota qué hiciste. Sin juicios, solo observa.",
+            "texto_pantalla": "EL TEST DE LOS 30 MIN: ¿Dónde se fue tu primera media hora?",
+            "transicion": "Efecto de texto superpuesto con flecha apuntando a la acción."
+          },
+          {
+            "bloque": 5,
+            "segundos": "45-55",
+            "objetivo": "Ofrecer una solución simple y un cambio de mentalidad, con un CTA.",
+            "personaje": "Mama",
+            "visual": "Mama, Papa e Hija desayunando juntos, riendo y conversando. La escena es luminosa, tranquila y feliz. Mama mira a cámara y sonríe.",
+            "dialogo": "Te sorprenderá. Prioriza lo que te da energía. Un café tranquilo, un abrazo a los tuyos. Eso SÍ es productivo.",
+            "texto_pantalla": "RECUPERA TU MAÑANA. RECUPERA TU VIDA.",
+            "transicion": "Final del video."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Hogar (dormitorio, cocina, comedor).",
+          "tono": "Revelador y directo al principio, luego empático y motivador.",
+          "ritmo_edicion": "Rápido y con cortes en los bloques de problema, más pausado y fluido en la solución y el CTA.",
+          "vestuario": "Ropa de casa cómoda y casual, pero cuidada.",
+          "props": "Teléfono móvil, taza de café/té, libreta y bolígrafo, utensilios de cocina, desayuno (cereales, fruta).",
+          "musica_sfx": "Música de fondo ligera y ligeramente tensa al inicio, luego transiciona a una melodía cálida y optimista. SFX de notificaciones de móvil, tic-tac de reloj, risas familiares.",
+          "tomas_clave": [
+            "Mama con expresión de cansancio/frustración por la mañana.",
+            "Papa absorto en el móvil ignorando a la Hija.",
+            "Hija buscando atención o con expresión de aburrimiento.",
+            "Mama haciendo el 'test' de los 30 minutos con libreta.",
+            "Familia (Mama, Papa, Hija) desayunando feliz y relajada."
+          ]
+        },
+        "cta_engagement": "¿Qué 'vampiro de tiempo' crees que te está robando la mañana? Cuéntame en los comentarios, ¡quizás podamos encontrar soluciones juntos!"
+      },
+      {
+        "tipo_de_angulo": "Hablemos Claro",
+        "plantilla_base": "Hablemos de la realidad de [Trabajo/Situación] que nadie te está contando.",
+        "gancho_texto": "Hablemos Claro: ¿Sientes que tus mañanas te agotan? Tu rutina podría estar robándote el tiempo.",
+        "promesa_valor": "Descubre 2 señales CLAVE para detectar si tu rutina matutina te está haciendo perder horas valiosas y cómo empezar a recuperarlas.",
+        "duracion_segundos": 52,
+        "personajes": [
+          {
+            "id": "mama",
+            "nombre": "Mama",
+            "perfil": "30 años, psicóloga",
+            "rol_en_video": "Presentadora principal, voz experta y empática."
+          },
+          {
+            "id": "papa",
+            "nombre": "Papa",
+            "perfil": "30 años, ingeniero de sistemas",
+            "rol_en_video": "Aparición breve en visuales para ilustrar ejemplos de ineficiencia."
+          },
+          {
+            "id": "hija",
+            "nombre": "Hija",
+            "perfil": "8 años",
+            "rol_en_video": "Aparición breve en visuales para ilustrar ejemplos de distracciones matutinas."
+          }
+        ],
+        "instruccion_visual_inicio": "Mama mira el reloj con expresión de frustración en una cocina ligeramente desordenada post-desayuno, luego mira a cámara con una ceja levantada.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Captar atención con el problema central.",
+            "micro_transicion": "Corte rápido a Mama con expresión más tranquila."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-12",
+            "mensaje": "Presentar la idea central y la primera señal de alerta.",
+            "micro_transicion": "Zoom in a Mama."
+          },
+          {
+            "paso": 3,
+            "segundos": "12-24",
+            "mensaje": "Explicar y visualizar la primera señal con ejemplos cotidianos.",
+            "micro_transicion": "Corte a pantalla dividida con Mama y un reloj acelerado."
+          }
+        ],
+        "guion_detallado": [
+          {
+            "bloque": 1,
+            "segundos": "0-3",
+            "objetivo": "Captar atención con el problema central.",
+            "personaje": "Mama",
+            "visual": "Mama mira el reloj con cara de frustración, luego a cámara. Fondo de cocina desordenada post-desayuno.",
+            "dialogo": "Hablemos claro: ¿Sientes que tus mañanas te agotan antes de empezar el día?",
+            "texto_pantalla": "¿Mañanas agotadoras?",
+            "transicion": "Corte rápido a Mama con expresión más tranquila."
+          },
+          {
+            "bloque": 2,
+            "segundos": "3-12",
+            "objetivo": "Presentar la idea central y la primera señal de alerta.",
+            "personaje": "Mama",
+            "visual": "Mama sentada en la mesa de la cocina, toma un sorbo de café. La mesa ahora está más despejada. Mira a cámara con seriedad.",
+            "dialogo": "Esa sensación es una señal. Tu rutina mañanera puede estar robándote tiempo valioso. La primera señal es: reaccionar en vez de actuar.",
+            "texto_pantalla": "Señal #1: REACCIONAR vs ACTUAR",
+            "transicion": "Zoom in a Mama."
+          },
+          {
+            "bloque": 3,
+            "segundos": "12-24",
+            "objetivo": "Explicar y visualizar la primera señal con ejemplos cotidianos.",
+            "personaje": "Mama",
+            "visual": "Mama explica. Corte rápido: Papa busca llaves frenéticamente. Corte rápido: Hija pide ayuda para un juguete. Mama en plano medio, asintiendo.",
+            "dialogo": "Despertador suena, y ya estás apagando incendios. ¿Revisas el móvil al instante? ¿Respondes mensajes urgentes? ¿Buscas las cosas a última hora? Eso es reaccionar. No tienes control.",
+            "texto_pantalla": "Despertador -> móvil -> problemas",
+            "transicion": "Corte a pantalla dividida con Mama y un reloj acelerado."
+          },
+          {
+            "bloque": 4,
+            "segundos": "24-38",
+            "objetivo": "Presentar y explicar la segunda señal de alerta.",
+            "personaje": "Mama",
+            "visual": "Mama escribe en una libreta con concentración, luego mira a cámara. Fondo organizado. Luego, Mama haciendo varias cosas a la vez (beber café, revisar móvil, hablar por teléfono) con un efecto de cámara rápida.",
+            "dialogo": "La segunda señal: tu rutina no tiene un 'foco'. Haces mil cosas, pero no sabes cuál es la prioridad. Te mueves, pero no avanzas.",
+            "texto_pantalla": "Señal #2: SIN FOCO CLARO",
+            "transicion": "Transición con efecto de reloj o barrido rápido."
+          },
+          {
+            "bloque": 5,
+            "segundos": "38-52",
+            "objetivo": "Resumir las señales, ofrecer una mini-solución y un CTA conversacional.",
+            "personaje": "Mama",
+            "visual": "Mama sonríe, relajada, con buena luz natural. Toma un sorbo de café tranquilamente. Mira a cámara directamente.",
+            "dialogo": "Para detectarlo: observa. ¿Reaccionas o actúas? ¿Tienes un foco claro? Si no, empieza por planificar una cosa importante para mañana, antes de dormir. Pequeños cambios, gran impacto.",
+            "texto_pantalla": "Observa: ¿Reaccionas o Actúas? ¿Tienes Foco?",
+            "transicion": "Fade out con texto de CTA."
+          }
+        ],
+        "plan_rodaje": {
+          "locacion": "Hogar (cocina, sala de estar), con iluminación natural que simule el amanecer.",
+          "tono": "Empático, directo, práctico y motivador.",
+          "ritmo_edicion": "Rápido y dinámico, con cortes ágiles entre escenas de Mama hablando y los ejemplos visuales.",
+          "vestuario": "Mama con ropa casual de mañana (pijama elegante o ropa cómoda). Papa y Hija con ropa de dormir/casual.",
+          "props": "Reloj de pared, móvil, taza de café, libreta y bolígrafo, llaves, juguete de niño, desayuno a medio comer.",
+          "musica_sfx": "Música de fondo ligera y optimista. SFX de despertador, notificaciones de móvil, tic-tac de reloj, voces de niños (discretas).",
+          "tomas_clave": [
+            "Primer plano de Mama frustrada mirando el reloj.",
+            "Plano medio de Mama explicando, gesticulando suavemente.",
+            "Cortes rápidos de Papa buscando llaves y Hija con juguete.",
+            "Mama escribiendo en libreta y luego haciendo múltiples tareas en cámara rápida.",
+            "Primer plano de Mama sonriendo, tomando café, con un mensaje en pantalla."
+          ]
+        },
+        "cta_engagement": "¿Cuál de estas señales te suena más en tu rutina? Cuéntame en los comentarios y empecemos a recuperar tus mañanas juntos."
+      }
+    ],
+    "checklist": {
+      "preproduccion": [
+        {
+          "item": "Definir hook principal",
+          "detalle": "5 Señales Clave: Tu Mañana Te Está Robando Tiempo y Energía"
+        },
+        {
+          "item": "Preparar locación y vestuario",
+          "detalle": "Hogar moderno (cocina, dormitorio, sala de estar). | Ropa casual de casa, cómoda y realista."
+        },
+        {
+          "item": "Revisar props",
+          "detalle": "Móvil, reloj, taza de café, tostada, llaves, mochila, ordenador portátil."
+        }
+      ],
+      "grabacion": [
+        {
+          "item": "Grabar apertura",
+          "detalle": "Mama aparece en la cocina, apurada, mirando el reloj con estrés. Luego mira a cámara con expresión decidida."
+        },
+        {
+          "item": "Cubrir tomas clave",
+          "detalle": "Mama apurada en cocina, mirando el reloj.; Mama en cama, deslizando el móvil.; Mama buscando llaves, Papa y Hija listos."
+        },
+        {
+          "item": "Cerrar con CTA",
+          "detalle": "¿Cuál de estas señales resuena más contigo? Cuéntame en los comentarios y empecemos a recuperar tu mañana."
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Aplicar ritmo",
+          "detalle": "Rápido y dinámico en las escenas de las señales, más pausado en la introducción y el cierre."
+        },
+        {
+          "item": "Insertar textos",
+          "detalle": "Descubre si tu rutina matutina te está agotando antes de empezar el día y cómo identificarlo rápidamente para recuperar "
+        },
+        {
+          "item": "Añadir música y remates",
+          "detalle": "Música de fondo ligera y enérgica al inicio, volviéndose más suave y optimista en el bloque final. SFX de reloj, notific"
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "Cómo detectar si tu rutina de mañana te hace perder tiempo",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T22:48:43Z",
+    "platforms": [
+      "tiktok"
+    ],
+    "selected_characters": [
+      "mama",
+      "papa",
+      "hija"
+    ],
+    "source_post": null
+  }
+}

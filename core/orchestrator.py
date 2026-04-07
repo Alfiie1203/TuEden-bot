@@ -159,6 +159,7 @@ class ContentOrchestrator:
         focus: str = "",
         reviewer: str = "",
         custom_titles: dict[str, str] | None = None,
+        selected_post_types: list[str] | None = None,
         username: str = "",
         badge_html: str = "",
         voice_profile: str = "",
@@ -177,6 +178,8 @@ class ContentOrchestrator:
                            específicos por tipo. Ej: {"opinion": "Mi título", "listicle": ...}
                            Si se proporciona, el título sugerido se inyecta en el focus
                            de ese tipo de post para que Gemini lo respete.
+            selected_post_types: Lista opcional de tipos a generar. Si se omite,
+                           se generan todos los del modo actual.
 
         Returns:
             Lista de 3 PostDraft con wp_post_id relleno.
@@ -188,12 +191,22 @@ class ContentOrchestrator:
 
         # 2. Elegir el set de post_types y prompt_map según el modo
         if mode == "libre" or (mode == "auto" and not affiliate_url):
-            post_types = POST_TYPES_LIBRE
+            available_post_types = POST_TYPES_LIBRE
             prompt_map = PROMPT_MAP_LIBRE
             affiliate_url = None   # nunca afiliado en modo libre
         else:
-            post_types = POST_TYPES_AMAZON
+            available_post_types = POST_TYPES_AMAZON
             prompt_map = PROMPT_MAP
+
+        if selected_post_types:
+            selected_set = {post_type for post_type in selected_post_types}
+            post_types = [post_info for post_info in available_post_types if post_info["key"] in selected_set]
+        else:
+            post_types = available_post_types
+
+        if not post_types:
+            logger.warning("No hay tipos de post seleccionados para generar.")
+            return []
 
         logger.info(
             f"🚀 Iniciando generación [{mode.upper()}] para: «{topic}»"

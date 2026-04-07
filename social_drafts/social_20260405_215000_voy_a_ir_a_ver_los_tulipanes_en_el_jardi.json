@@ -1,0 +1,194 @@
+{
+  "tiktok": {
+    "opciones": [
+      {
+        "tipo_de_angulo": "Advertencia",
+        "plantilla_base": "Deja de hacer [Acción común] si no quieres seguir [Acción].",
+        "gancho_texto": "¡ALERTA PADRES! Deja de darles la tablet si no quieres que pierdan ESTO.",
+        "instruccion_visual_inicio": "Plano cerrado y desenfocado de un niño mirando una pantalla con ojos vidriosos, luego un corte rápido a la mano del creador bloqueando la cámara para revelar tulipanes vibrantes en el fondo.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Si tus hijos pasan horas en pantallas...",
+            "micro_transicion": "Zoom rápido a tulipanes."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Están perdiendo la magia de explorar y crear.",
+            "micro_transicion": "Panorámica lenta de un sendero del jardín."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Un jardín botánico es el 'reset' que necesitan.",
+            "micro_transicion": "Transición de barrido a niños riendo entre flores."
+          }
+        ],
+        "cta_engagement": "¿Qué es lo más sorprendente que tus hijos descubren cuando se desconectan de la tecnología?"
+      },
+      {
+        "tipo_de_angulo": "Resultado Express",
+        "plantilla_base": "Cómo logré [Resultado] en solo [X días] con este cambio simple.",
+        "gancho_texto": "Cómo logré que mis hijos pidieran salir al jardín en solo 3 días con este cambio simple.",
+        "instruccion_visual_inicio": "Secuencia rápida: niño frustrado con una tablet, luego una mano suavemente aparta la tablet, y el niño sonríe al mirar un tulipán. Todo en los primeros 2 segundos.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "La pantalla era su 'niñera' favorita...",
+            "micro_transicion": "Transición de 'swipe' a un jardín soleado."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Hasta que probamos 'la píldora verde' del botánico.",
+            "micro_transicion": "Corte a niño oliendo un tulipán con curiosidad."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Ahora piden excursiones. ¡Es magia pura!",
+            "micro_transicion": "Doble exposición de niños corriendo y tulipanes."
+          }
+        ],
+        "cta_engagement": "¿Cuál es tu lugar favorito para que tus hijos exploren sin tecnología? ¡Cuéntame!"
+      },
+      {
+        "tipo_de_angulo": "Error Oculto",
+        "plantilla_base": "¿Sabías que estás haciendo esto mal?",
+        "gancho_texto": "¿Sabías que estás intentando 'desconectar' a tus hijos... pero lo estás haciendo mal?",
+        "instruccion_visual_inicio": "Padre/madre intentando quitar una tablet a un niño que protesta, con un gesto de frustración en el adulto. Corte abrupto a una toma aérea del jardín botánico.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Forzar la desconexión crea resistencia.",
+            "micro_transicion": "Texto emergente '¡ERROR!' en pantalla sobre escena de protesta."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "La clave es ofrecer una alternativa IRRESISTIBLE.",
+            "micro_transicion": "Corte a niños fascinados observando una abeja en una flor."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Un paseo entre tulipanes lo cambia todo, sin dramas.",
+            "micro_transicion": "Transición de 'zoom out' revelando la belleza del jardín."
+          }
+        ],
+        "cta_engagement": "¿Qué estrategia has intentado para reducir el tiempo de pantalla y qué resultados obtuviste?"
+      },
+      {
+        "tipo_de_angulo": "Hubiera Pagado",
+        "plantilla_base": "Hubiera pagado por saber esto antes de cumplir los [Edad/Etapa].",
+        "gancho_texto": "Hubiera pagado por saber esto antes de que mis hijos cumplieran los 5 años.",
+        "instruccion_visual_inicio": "El creador mira a la cámara con una expresión de arrepentimiento/reflexión profunda. Luego, un breve flashback borroso de niños pequeños con pantallas. Finalmente, un desenfoque para revelar un campo de tulipanes.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Perdí años valiosos con mis hijos...",
+            "micro_transicion": "Efecto de 'rewind' en el video."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Creía que la tablet era 'educativa' o 'un descanso'.",
+            "micro_transicion": "Corte a un niño tocando suavemente un pétalo de tulipán."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Pero el jardín botánico les dio la verdadera educación.",
+            "micro_transicion": "Transición de 'glitch' a una familia riendo en el jardín."
+          }
+        ],
+        "cta_engagement": "¿A qué edad te diste cuenta de la importancia de la desconexión digital para tus hijos?"
+      },
+      {
+        "tipo_de_angulo": "POV",
+        "plantilla_base": "POV: Te das cuenta de que [Situación irónica o graciosa].",
+        "gancho_texto": "POV: Llevas a tus hijos a ver tulipanes y te das cuenta de que no necesitan filtros para ser felices.",
+        "instruccion_visual_inicio": "Cámara en primera persona (POV) caminando entre tulipanes vibrantes, con sonidos de niños riendo y pájaros. De repente, una mano pequeña y regordeta señala un tulipán de cerca.",
+        "puntos_retencion": [
+          {
+            "paso": 1,
+            "segundos": "0-3",
+            "mensaje": "Pensabas que el parque era 'suficiente'...",
+            "micro_transicion": "Movimiento de cámara que sigue a un niño corriendo entre las flores."
+          },
+          {
+            "paso": 2,
+            "segundos": "3-6",
+            "mensaje": "Pero ver sus caras al descubrir un tulipán es otro nivel.",
+            "micro_transicion": "Corte a la expresión de asombro de un niño."
+          },
+          {
+            "paso": 3,
+            "segundos": "6-9",
+            "mensaje": "Aquí la única 'pantalla' es la naturaleza misma.",
+            "micro_transicion": "Transición de 'disolver' a un plano general del jardín al atardecer."
+          }
+        ],
+        "cta_engagement": "¿Qué momento en la naturaleza te hizo darte cuenta de que tus hijos no necesitan más tecnología?"
+      }
+    ],
+    "checklist": {
+      "preproduccion": [
+        {
+          "item": "Investigación del jardín",
+          "detalle": "Identificar las zonas más coloridas y con mayor variedad de tulipanes, horarios de menor afluencia para grabar con tranquilidad."
+        },
+        {
+          "item": "Permisos y reglas",
+          "detalle": "Verificar si el jardín botánico permite la grabación de video y si hay alguna restricción para niños o uso de equipos."
+        },
+        {
+          "item": "Guion y storyboard",
+          "detalle": "Crear un guion detallado para cada propuesta, incluyendo planos específicos, diálogos clave y transiciones para asegurar la fluidez y el ritmo de TikTok."
+        }
+      ],
+      "grabacion": [
+        {
+          "item": "Captura de reacciones auténticas",
+          "detalle": "Priorizar la filmación de las reacciones genuinas de los niños al interactuar con los tulipanes y la naturaleza, minimizando las tomas posadas."
+        },
+        {
+          "item": "Variedad de planos",
+          "detalle": "Utilizar planos cerrados de los tulipanes, planos medios de los niños explorando, planos generales del jardín y POV para mantener el interés visual constante."
+        },
+        {
+          "item": "Audio ambiente",
+          "detalle": "Grabar sonidos de la naturaleza (pájaros, viento, risas de niños) para enriquecer la experiencia inmersiva y contrastar con el silencio de las pantallas."
+        }
+      ],
+      "edicion": [
+        {
+          "item": "Ritmo rápido y micro-transiciones",
+          "detalle": "Asegurar que cada clip no exceda los 3 segundos y que las transiciones sean dinámicas (cortes rápidos, zooms, barridos) para mantener la atención."
+        },
+        {
+          "item": "Textos en pantalla",
+          "detalle": "Añadir texto superpuesto conciso y legible que refuerce el mensaje clave de cada micro-transición, apareciendo y desapareciendo rápidamente."
+        },
+        {
+          "item": "Música y efectos de sonido",
+          "detalle": "Seleccionar música de fondo alegre y motivadora, y usar efectos de sonido puntuales (ej. 'ding' al mostrar un beneficio, 'whoosh' en transiciones) para potenciar el engagement."
+        }
+      ]
+    }
+  },
+  "meta": {
+    "topic": "voy a ir a ver los tulipanes en el jardin botanico y quiero hacer contenido sobre la importancia de buscar espacio de re",
+    "mode": "scratch",
+    "mock": false,
+    "created_at": "2026-04-05T21:50:00Z",
+    "platforms": [
+      "tiktok"
+    ]
+  }
+}
