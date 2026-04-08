@@ -16,6 +16,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 
+from core.wp_requests import wp_request
+
 load_dotenv()
 
 st.set_page_config(
@@ -51,7 +53,8 @@ def _fetch_and_save_wp_post(wp_id: int, post_type: str, log_entry: dict) -> str 
         return None
 
     try:
-        resp = requests.get(
+        resp = wp_request(
+            "GET",
             f"{base_url}/wp-json/wp/v2/posts/{wp_id}",
             auth    = HTTPBasicAuth(username, app_password),
             timeout = 20,

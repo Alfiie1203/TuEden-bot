@@ -17,6 +17,8 @@ import requests
 from loguru import logger
 from requests.auth import HTTPBasicAuth
 
+from core.wp_requests import wp_request
+
 if TYPE_CHECKING:
     from core.gemini_client import GeminiClient
 
@@ -35,7 +37,7 @@ def fetch_categories(base_url: str, auth: HTTPBasicAuth) -> list[dict]:
     url = f"{base_url.rstrip('/')}/wp-json/wp/v2/categories"
     params = {"per_page": 100, "hide_empty": False}
     try:
-        resp = requests.get(url, params=params, auth=auth, timeout=15)
+        resp = wp_request("GET", url, params=params, auth=auth, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"[Taxonomy] {len(data)} categorías obtenidas de WordPress")
@@ -56,7 +58,7 @@ def fetch_tags(base_url: str, auth: HTTPBasicAuth) -> list[dict]:
     url = f"{base_url.rstrip('/')}/wp-json/wp/v2/tags"
     params = {"per_page": 100, "hide_empty": False}
     try:
-        resp = requests.get(url, params=params, auth=auth, timeout=15)
+        resp = wp_request("GET", url, params=params, auth=auth, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         logger.info(f"[Taxonomy] {len(data)} etiquetas obtenidas de WordPress")
@@ -76,7 +78,7 @@ def create_tag(base_url: str, auth: HTTPBasicAuth, name: str) -> int | None:
     """
     url = f"{base_url.rstrip('/')}/wp-json/wp/v2/tags"
     try:
-        resp = requests.post(url, json={"name": name}, auth=auth, timeout=15)
+        resp = wp_request("POST", url, json={"name": name}, auth=auth, timeout=15)
         resp.raise_for_status()
         tag_id = resp.json()["id"]
         logger.info(f"[Taxonomy] Etiqueta creada: '{name}' → ID {tag_id}")

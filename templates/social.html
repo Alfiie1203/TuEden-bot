@@ -565,19 +565,20 @@
       </div>
 
       <div>
-        <div class="sec-lbl">Participantes en este tema</div>
+        <div class="sec-lbl">Personajes para TikTok e Instagram</div>
         <div id="participantsSelection" class="character-grid"></div>
-        <div style="font-size:.72rem;color:var(--muted);line-height:1.45;margin-top:8px;">Por defecto no hay nadie seleccionado. Marca solo quién vaya a aparecer en el vídeo.</div>
+        <div style="font-size:.72rem;color:var(--muted);line-height:1.45;margin-top:8px;">Selecciona solo los personajes que deban aparecer. Su perfil y apariencia visual se reutilizan para mantener consistencia en Instagram.</div>
         <div class="participant-manager mt-2">
           <div class="participant-toolbar">
-            <div style="font-size:.8rem;font-weight:700;color:var(--text);">Gestionar participantes</div>
-            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="resetParticipantForm()">Nuevo</button>
+            <div style="font-size:.8rem;font-weight:700;color:var(--text);">Gestionar personajes</div>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="resetParticipantForm()">Nuevo personaje</button>
           </div>
           <div class="participant-form">
-            <input id="participantNameInput" class="form-control form-control-sm" type="text" placeholder="Nombre del participante">
-            <input id="participantProfileInput" class="form-control form-control-sm" type="text" placeholder="Perfil o descripción">
+            <input id="participantNameInput" class="form-control form-control-sm" type="text" placeholder="Nombre del personaje">
+            <input id="participantProfileInput" class="form-control form-control-sm" type="text" placeholder="Perfil profesional o rol editorial">
+            <input id="participantAppearanceInput" class="form-control form-control-sm" type="text" placeholder="Apariencia visual fija: rasgos, cabello, vestuario, energia, colores...">
             <div class="participant-form-actions">
-              <button id="participantSaveButton" class="btn btn-sm btn-outline-primary" type="button" onclick="saveParticipant()">Guardar participante</button>
+              <button id="participantSaveButton" class="btn btn-sm btn-outline-primary" type="button" onclick="saveParticipant()">Guardar personaje</button>
               <button id="participantCancelButton" class="btn btn-sm btn-outline-secondary d-none" type="button" onclick="resetParticipantForm()">Cancelar edición</button>
             </div>
           </div>
@@ -588,7 +589,7 @@
       <div class="tiktok-lock">
         <div class="sec-lbl mb-1">Salida fija</div>
         <div style="font-size:.85rem;color:var(--text);font-weight:700;">Solo <strong>TikTok 2026</strong></div>
-        <div style="font-size:.75rem;color:var(--muted);line-height:1.45;">Cada opción incluye hook, promesa, duración, reparto, guion completo de 40 a 70 segundos y plan de rodaje.</div>
+        <div style="font-size:.75rem;color:var(--muted);line-height:1.45;">El estudio social sigue centrado en TikTok. Los personajes también sirven como referencia visual para Instagram desde cada borrador.</div>
       </div>
 
       <button id="btnGenHooks" class="btn btn-primary fw-bold py-2" onclick="generarHooks()">1. Generar 5 hooks TikTok</button>
@@ -819,9 +820,10 @@ function renderParticipants() {
         <div class="character-chip" data-character="${esc(participant.id)}" onclick="toggleCharacter(this)">
           <div class="character-name">${esc(participant.nombre)}</div>
           <div class="character-desc">${esc(participant.perfil)}</div>
+          ${participant.apariencia_visual ? `<div class="character-desc" style="margin-top:4px;opacity:.85;">${esc(participant.apariencia_visual)}</div>` : ''}
         </div>
       `).join('')
-    : '<div style="font-size:.78rem;color:var(--muted);">No hay participantes creados todavía.</div>';
+    : '<div style="font-size:.78rem;color:var(--muted);">No hay personajes creados todavía.</div>';
 
   manager.innerHTML = participants.length
     ? participants.map(participant => `
@@ -830,6 +832,7 @@ function renderParticipants() {
             <div>
               <div class="character-name">${esc(participant.nombre)}</div>
               <div class="character-desc">${esc(participant.perfil)}</div>
+              ${participant.apariencia_visual ? `<div class="character-desc" style="margin-top:4px;">${esc(participant.apariencia_visual)}</div>` : ''}
             </div>
             <div class="hist-actions">
               <button class="btn btn-sm btn-outline-secondary" type="button" onclick="startEditParticipant('${esc(participant.id)}')">Editar</button>
@@ -838,7 +841,7 @@ function renderParticipants() {
           </div>
         </div>
       `).join('')
-    : '<div style="font-size:.78rem;color:var(--muted);">Crea el primer participante para empezar.</div>';
+    : '<div style="font-size:.78rem;color:var(--muted);">Crea el primer personaje para empezar.</div>';
 
   setSelectedCharacters(pendingParticipantSelection);
 }
@@ -863,7 +866,8 @@ function resetParticipantForm() {
   editingParticipantId = null;
   document.getElementById('participantNameInput').value = '';
   document.getElementById('participantProfileInput').value = '';
-  document.getElementById('participantSaveButton').textContent = 'Guardar participante';
+  document.getElementById('participantAppearanceInput').value = '';
+  document.getElementById('participantSaveButton').textContent = 'Guardar personaje';
   document.getElementById('participantCancelButton').classList.add('d-none');
 }
 
@@ -873,6 +877,7 @@ function startEditParticipant(participantId) {
   editingParticipantId = participantId;
   document.getElementById('participantNameInput').value = participant.nombre;
   document.getElementById('participantProfileInput').value = participant.perfil;
+  document.getElementById('participantAppearanceInput').value = participant.apariencia_visual || '';
   document.getElementById('participantSaveButton').textContent = 'Guardar cambios';
   document.getElementById('participantCancelButton').classList.remove('d-none');
 }
@@ -880,6 +885,7 @@ function startEditParticipant(participantId) {
 async function saveParticipant() {
   const nombre = document.getElementById('participantNameInput').value.trim();
   const perfil = document.getElementById('participantProfileInput').value.trim();
+  const apariencia_visual = document.getElementById('participantAppearanceInput').value.trim();
   if (!nombre || !perfil) {
     toast('Nombre y perfil son obligatorios', 'warning');
     return;
@@ -894,7 +900,7 @@ async function saveParticipant() {
     const response = await fetch(url, {
       method,
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({nombre, perfil})
+      body: JSON.stringify({nombre, perfil, apariencia_visual})
     });
     const payload = await response.json();
     if (!response.ok || !payload.ok) {
@@ -902,14 +908,14 @@ async function saveParticipant() {
     }
     await loadParticipants();
     resetParticipantForm();
-    toast(editingParticipantId ? 'Participante actualizado' : 'Participante creado', 'success');
+    toast(editingParticipantId ? 'Personaje actualizado' : 'Personaje creado', 'success');
   } catch (error) {
     toast(error.message, 'danger');
   }
 }
 
 async function deleteParticipant(participantId) {
-  if (!confirm('Se eliminará este participante.')) return;
+  if (!confirm('Se eliminará este personaje.')) return;
   try {
     const response = await fetch('/api/social/participants/' + encodeURIComponent(participantId), {method: 'DELETE'});
     const payload = await response.json();
@@ -918,7 +924,7 @@ async function deleteParticipant(participantId) {
     }
     await loadParticipants();
     resetParticipantForm();
-    toast('Participante eliminado', 'success');
+    toast('Personaje eliminado', 'success');
   } catch (error) {
     toast(error.message, 'danger');
   }

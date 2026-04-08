@@ -30,6 +30,9 @@
   .social-rich-cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; }
   .editor-soft-panel { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
   .editor-soft-pre { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+  .social-cast-entry { border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:var(--surface2); }
+  .social-cast-entry .form-check-input.social-cast-check { width:1.1rem; height:1.1rem; border:2px solid var(--accent); accent-color:var(--accent); cursor:pointer; margin-top:.2rem; }
+  .social-cast-entry .form-check-label { cursor:pointer; width:100%; }
 </style>
 {% endblock %}
 
@@ -132,14 +135,17 @@
 
       <!-- Redes sociales -->
       <div class="main-card p-3 mb-3">
-        <h6 class="section-title">📱 TikTok 2026</h6>
-        <p class="text-muted small mb-2">Genera 5 propuestas con reparto seleccionable, guion completo y plan de rodaje.</p>
+        <h6 class="section-title">📱 TikTok + Instagram</h6>
+        <p class="text-muted small mb-2">Usa personajes seleccionables para generar TikTok o prompts de Instagram con estilo visual consistente de Tu Eden.</p>
         <div class="border rounded p-2 mb-2">
-          <strong class="small d-block mb-2">Participantes para este tema</strong>
+          <strong class="small d-block mb-2">Personajes para este tema</strong>
           <div id="socialCastList"><div class="text-muted small">Cargando participantes…</div></div>
         </div>
-        <button class="btn btn-outline-dark w-100 mb-2" onclick="generarRedesSociales()">
+        <button class="btn btn-outline-dark w-100 mb-2" onclick="generarRedesSociales('tiktok')">
           🎵 Generar propuestas TikTok 2026
+        </button>
+        <button class="btn btn-outline-success w-100 mb-2" onclick="generarRedesSociales('instagram')">
+          🖼️ Generar Instagram con prompts de imagen
         </button>
         <div id="socialMsg" class="mt-1"></div>
       </div>
@@ -196,6 +202,7 @@ let _blocks     = [];
 let _images     = [];
 let _editingIdx = null;
 let _lastSocialData = null;
+let _lastSocialPlatform = 'tiktok';
 let _socialParticipants = [];
 
 // ── Inicialización ─────────────────────────────────────────────────────────
@@ -295,6 +302,12 @@ function poblarFormulario(d, fname) {
   const author = psiKeys.some(k => titleLower.includes(k)||contentLower.includes(k)) ? 'alejandra'
                : medKeys.some(k => titleLower.includes(k)||contentLower.includes(k)) ? 'angela' : 'luis';
   document.getElementById('metaAuthor').value = author;
+
+  const cachedPlatform = d.social_cache?.instagram ? 'instagram' : d.social_cache?.tiktok ? 'tiktok' : null;
+  const cachedChars = cachedPlatform ? (d.social_cache?.[cachedPlatform]?.selected_characters || []) : [];
+  if (cachedChars.length) {
+    setTimeout(() => setSelectedSocialCast(cachedChars), 0);
+  }
 
   // Poblar posiciones de imagen con headings
   const pos = document.getElementById('imgPos');
@@ -827,12 +840,18 @@ async function loadSocialParticipants() {
     _socialParticipants = payload.items || [];
     container.innerHTML = _socialParticipants.length
       ? _socialParticipants.map(item => `
-          <div class="form-check mb-1">
+          <div class="form-check mb-1 social-cast-entry">
             <input class="form-check-input social-cast-check" type="checkbox" value="${socialEsc(item.id)}" id="socialCast_${socialEsc(item.id)}">
-            <label class="form-check-label small" for="socialCast_${socialEsc(item.id)}">${socialEsc(item.nombre)}, ${socialEsc(item.perfil)}</label>
+            <label class="form-check-label small" for="socialCast_${socialEsc(item.id)}">
+              <strong>${socialEsc(item.nombre)}</strong>, ${socialEsc(item.perfil)}
+              ${item.apariencia_visual ? `<span class="d-block text-muted" style="margin-top:2px;line-height:1.35;">${socialEsc(item.apariencia_visual)}</span>` : ''}
+            </label>
           </div>
         `).join('')
       : '<div class="text-muted small">No hay participantes creados.</div>';
+    const cachedPlatform = _draftData?.social_cache?.instagram ? 'instagram' : _draftData?.social_cache?.tiktok ? 'tiktok' : null;
+    const cachedChars = cachedPlatform ? (_draftData?.social_cache?.[cachedPlatform]?.selected_characters || []) : [];
+    if (cachedChars.length) setSelectedSocialCast(cachedChars);
   } catch (error) {
     container.innerHTML = `<div class="text-danger small">${socialEsc(error.message)}</div>`;
   }
@@ -842,28 +861,57 @@ function getSelectedSocialCast() {
   return Array.from(document.querySelectorAll('.social-cast-check:checked')).map(element => element.value);
 }
 
-async function generarRedesSociales() {
+function setSelectedSocialCast(selectedIds) {
+  const allowed = new Set((selectedIds || []).map(value => String(value || '').trim().toLowerCase()));
+  document.querySelectorAll('.social-cast-check').forEach(element => {
+    element.checked = allowed.has(String(element.value || '').trim().toLowerCase());
+  });
+}
+
+async function generarRedesSociales(platform = 'tiktok') {
   const msgEl = document.getElementById('socialMsg');
+  const cachedEntry = _draftData?.social_cache?.[platform];
   const selectedCharacters = getSelectedSocialCast();
-  if (!selectedCharacters.length) {
+  if ((!selectedCharacters.length) && cachedEntry?.selected_characters?.length) {
+    setSelectedSocialCast(cachedEntry.selected_characters);
+  }
+  const effectiveCharacters = getSelectedSocialCast();
+  if (!effectiveCharacters.length) {
     showToast('Selecciona al menos un participante para este tema', 'warning');
     return;
   }
-  msgEl.innerHTML = '<span class="text-muted small">⏳ Generando propuestas TikTok 2026…</span>';
+  const loadingLabel = platform === 'instagram'
+    ? '⏳ Generando publicacion de Instagram con prompts de imagen…'
+    : '⏳ Generando propuestas TikTok 2026…';
+  msgEl.innerHTML = `<span class="text-muted small">${loadingLabel}</span>`;
   try {
     const r = await fetch(`/api/borrador/${encodeURIComponent(filename)}/social`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({platform: 'tiktok', selected_characters: selectedCharacters})
+      body: JSON.stringify({platform, selected_characters: effectiveCharacters})
     });
     const d = await r.json();
     msgEl.innerHTML = '';
     if (!d.ok) { showToast(d.error || 'Error generando contenido', 'danger'); return; }
     _lastSocialData = d.data || null;
-    document.getElementById('socialModalTitle').textContent = '📱 TikTok 2026';
-    document.getElementById('socialModalBody').innerHTML = renderSocialTikTok(d.data);
+    _lastSocialPlatform = d.platform || platform;
+    _draftData = _draftData || {};
+    _draftData.social_cache = _draftData.social_cache || {};
+    _draftData.social_cache[_lastSocialPlatform] = {
+      data: d.data || null,
+      generated_at: d.cache_meta?.generated_at || new Date().toISOString(),
+      selected_characters: d.cache_meta?.selected_characters || effectiveCharacters,
+    };
+    setSelectedSocialCast(_draftData.social_cache[_lastSocialPlatform].selected_characters || []);
+    document.getElementById('socialModalTitle').textContent = _lastSocialPlatform === 'instagram'
+      ? '📸 Instagram'
+      : '📱 TikTok 2026';
+    document.getElementById('socialModalBody').innerHTML = _lastSocialPlatform === 'instagram'
+      ? renderSocialInstagram(d.data)
+      : renderSocialTikTok(d.data);
     const modal = new bootstrap.Modal(document.getElementById('socialModal'));
     modal.show();
+    showToast(d.cached ? 'Contenido social cargado desde el borrador' : 'Contenido social generado y guardado en este post', d.cached ? 'info' : 'success');
   } catch(e) {
     msgEl.innerHTML = '';
     showToast('Error de red al generar contenido social', 'danger');
@@ -908,6 +956,40 @@ function socialFormatOption(option, index) {
     takes,
     `CTA: ${option.cta_engagement || ''}`,
   ].join('\n');
+}
+
+function socialFormatInstagram(data) {
+  const instagram = data?.instagram || {};
+  const sequence = (instagram.secuencia || []).map(slide => {
+    const cast = (slide.personajes || []).map(character => `${character.nombre} (${character.perfil})`).join(', ');
+    return [
+      `SLIDE ${slide.orden}`,
+      `Rol: ${slide.rol_narrativo || ''}`,
+      `Titulo: ${slide.titulo_slide || ''}`,
+      `Texto: ${slide.texto_slide || ''}`,
+      `Relacion con blog: ${slide.relacion_con_blog || ''}`,
+      `Continuidad visual: ${slide.continuidad_visual || ''}`,
+      `Continuidad textual: ${slide.continuidad_textual || ''}`,
+      `Tamano: ${slide.tamano || ''}`,
+      `Personajes: ${cast || 'Sin personajes'}`,
+      `Prompt imagen: ${slide.prompt_imagen || ''}`,
+    ].join('\n');
+  }).join('\n\n');
+
+  return [
+    `Tipo: ${instagram.tipo_publicacion || ''}`,
+    `Objetivo editorial: ${instagram.objetivo_editorial || ''}`,
+    `Cantidad de imagenes: ${instagram.cantidad_imagenes || ''}`,
+    `Justificacion: ${instagram.justificacion_cantidad || ''}`,
+    `Tamano base: ${instagram.tamano_base || ''}`,
+    `Estilo visual: ${instagram.estilo_visual_global || ''}`,
+    `Hook portada: ${instagram.hook_portada || ''}`,
+    `Caption principal: ${instagram.caption_principal || ''}`,
+    `Caption corto: ${instagram.caption_corto || ''}`,
+    `CTA: ${instagram.cta || ''}`,
+    `Hashtags: ${(instagram.hashtags || []).join(' ')}`,
+    sequence,
+  ].join('\n\n');
 }
 
 function renderSocialTikTok(data) {
@@ -1000,10 +1082,108 @@ function renderSocialTikTok(data) {
   `;
 }
 
+function renderSocialInstagram(data) {
+  const instagram = data?.instagram || {};
+  const slides = instagram.secuencia || [];
+  if (!slides.length) {
+    return '<div class="text-muted small">No se recibió ninguna propuesta de Instagram.</div>';
+  }
+
+  return `
+    <div class="social-rich-grid">
+      <div class="social-rich-card">
+        <div class="social-rich-head">
+          <div class="social-rich-title">${socialEsc(instagram.hook_portada || 'Instagram')}</div>
+          <div class="social-rich-subtitle">${socialEsc(instagram.tipo_publicacion || '')} · ${socialEsc(String(instagram.cantidad_imagenes || slides.length))} imagenes · ${socialEsc(instagram.tamano_base || '')}</div>
+        </div>
+        <div class="social-rich-body">
+          <div class="social-rich-cols">
+            <div>
+              <div class="social-rich-section-label">Objetivo editorial</div>
+              <div class="social-rich-text">${socialEsc(instagram.objetivo_editorial || '')}</div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Justificacion de cantidad</div>
+              <div class="social-rich-text">${socialEsc(instagram.justificacion_cantidad || '')}</div>
+            </div>
+          </div>
+          <div>
+            <div class="social-rich-section-label">Estilo visual global</div>
+            <div class="social-rich-text">${socialEsc(instagram.estilo_visual_global || '')}</div>
+          </div>
+          <div>
+            <div class="social-rich-section-label">Caption principal</div>
+            <div class="social-rich-text">${socialEsc(instagram.caption_principal || '')}</div>
+          </div>
+          <div class="social-rich-cols">
+            <div>
+              <div class="social-rich-section-label">Caption corto</div>
+              <div class="social-rich-mini">${socialEsc(instagram.caption_corto || '')}</div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">CTA</div>
+              <div class="social-rich-mini">${socialEsc(instagram.cta || '')}</div>
+            </div>
+          </div>
+          <div>
+            <div class="social-rich-section-label">Hashtags</div>
+            <div class="social-rich-text">${socialEsc((instagram.hashtags || []).join(' '))}</div>
+          </div>
+        </div>
+      </div>
+      ${slides.map(slide => `
+        <div class="social-rich-card">
+          <div class="social-rich-head">
+            <div class="social-rich-title">Slide ${socialEsc(slide.orden || '')}: ${socialEsc(slide.titulo_slide || '')}</div>
+            <div class="social-rich-subtitle">${socialEsc(slide.rol_narrativo || '')} · ${socialEsc(slide.tamano || '')}</div>
+          </div>
+          <div class="social-rich-body">
+            <div>
+              <div class="social-rich-section-label">Texto del slide</div>
+              <div class="social-rich-text">${socialEsc(slide.texto_slide || '')}</div>
+            </div>
+            <div class="social-rich-cols">
+              <div>
+                <div class="social-rich-section-label">Relacion con blog</div>
+                <div class="social-rich-mini">${socialEsc(slide.relacion_con_blog || '')}</div>
+              </div>
+              <div>
+                <div class="social-rich-section-label">Continuidad textual</div>
+                <div class="social-rich-mini">${socialEsc(slide.continuidad_textual || '')}</div>
+              </div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Continuidad visual</div>
+              <div class="social-rich-mini">${socialEsc(slide.continuidad_visual || '')}</div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Personajes</div>
+              <div class="social-rich-list">
+                ${(slide.personajes || []).length ? (slide.personajes || []).map(character => `
+                  <div class="social-rich-item">
+                    <div class="social-rich-text"><strong>${socialEsc(character.nombre || '')}</strong></div>
+                    <div class="social-rich-mini">${socialEsc(character.perfil || '')}</div>
+                  </div>
+                `).join('') : '<div class="social-rich-item"><div class="social-rich-mini">No aplica en este slide.</div></div>'}
+              </div>
+            </div>
+            <div>
+              <div class="social-rich-section-label">Prompt de imagen</div>
+              <pre class="rounded p-2 small editor-soft-pre" style="font-size:.78rem;white-space:pre-wrap">${socialEsc(slide.prompt_imagen || '')}</pre>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function copiarContenidoSocial() {
-  const text = _lastSocialData?.tiktok?.opciones?.length
-    ? _lastSocialData.tiktok.opciones.map((option, index) => socialFormatOption(option, index)).join('\n\n')
-    : document.getElementById('socialModalBody').textContent;
+  const text = _lastSocialPlatform === 'instagram'
+    ? socialFormatInstagram(_lastSocialData)
+    : _lastSocialData?.tiktok?.opciones?.length
+      ? _lastSocialData.tiktok.opciones.map((option, index) => socialFormatOption(option, index)).join('\n\n')
+      : document.getElementById('socialModalBody').textContent;
   navigator.clipboard.writeText(text).then(() => showToast('✅ Copiado al portapapeles'));
 }
 </script>

@@ -42,11 +42,6 @@ print("\nsrcs en HTML del content:", srcs_html[:6])
 
 # ── 2. Test taxonomy (necesita WP en live) ────────────────────────────────
 print("\n=== TEST TAXONOMY (assign_taxonomy) ===")
-try:
-    import truststore; truststore.inject_into_ssl()
-except ImportError:
-    pass
-
 base_url = os.getenv("WP_BASE_URL", "").rstrip("/")
 username = os.getenv("WP_USERNAME", "")
 password = os.getenv("WP_APP_PASSWORD", "")

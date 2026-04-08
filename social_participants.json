@@ -2,16 +2,19 @@
   {
     "id": "mama",
     "nombre": "Mama",
-    "perfil": "30 años, psicologa"
+    "perfil": "30 años, psicologa",
+    "apariencia_visual": "A photorealistic portrait of a young woman with a round face,  warm olive skin, and prominent rosy blush on her cheeks.  She has large, dark brown, expressive almond-shaped eyes,  dark defined eyebrows, and full, natural lips with a neutral  expression looking directly at the camera."
   },
   {
     "id": "papa",
     "nombre": "Papa",
-    "perfil": "30 años, ingeniero de sistemas"
+    "perfil": "30 años, ingeniero de sistemas",
+    "apariencia_visual": ""
   },
   {
     "id": "hija",
     "nombre": "Hija",
-    "perfil": "8 años"
+    "perfil": "8 años",
+    "apariencia_visual": ""
   }
 ]

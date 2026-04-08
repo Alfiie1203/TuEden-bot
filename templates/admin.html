@@ -159,6 +159,51 @@
     </div>
   </div>
 
+  <div class="col-12">
+    <div class="main-card p-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <span class="section-title mb-0">🎭 Personajes para redes</span>
+        <button class="btn btn-sm btn-primary" type="button" onclick="mostrarFormNuevoPersonajeAdmin()">+ Nuevo personaje</button>
+      </div>
+      <p class="text-muted small mb-3">Define desde Admin la identidad fija de cada personaje. El campo de prompt se reutiliza para mantener consistencia visual al publicar en Instagram.</p>
+
+      <div id="formPersonajeAdmin" class="border rounded p-3 mb-3 bg-light" style="display:none">
+        <div class="fw-semibold small mb-2" id="formPersonajeAdminTitulo">Nuevo personaje</div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Nombre</label>
+            <input type="text" id="spNombre" class="form-control form-control-sm" placeholder="Ej: Doctora Alma">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Perfil</label>
+            <input type="text" id="spPerfil" class="form-control form-control-sm" placeholder="Ej: Psicologa clinica, 35 anos">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">ID opcional</label>
+            <input type="text" id="spId" class="form-control form-control-sm" placeholder="Se genera solo si lo dejas vacio">
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">Apariencia visual</label>
+            <textarea id="spApariencia" class="form-control form-control-sm" rows="2" placeholder="Rasgos, cabello, vestuario, energia, colores base..."></textarea>
+          </div>
+          <div class="col-12">
+            <label class="form-label small mb-1">Prompt fijo del personaje</label>
+            <textarea id="spPrompt" class="form-control form-control-sm font-monospace" rows="4" placeholder="Describe exactamente como debe verse este personaje siempre en imagenes IA."></textarea>
+            <div class="text-muted small mt-1">Este prompt se inyecta como identidad persistente del personaje en los prompts de Instagram.</div>
+          </div>
+          <div class="col-12 d-flex gap-2 mt-1">
+            <button class="btn btn-sm btn-success" type="button" onclick="guardarPersonajeAdmin()">💾 Guardar personaje</button>
+            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="cancelarFormPersonajeAdmin()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="listaPersonajesAdmin">
+        <div class="text-muted text-center py-3 small">Cargando personajes…</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
@@ -168,6 +213,8 @@
 // USUARIOS
 // ══════════════════════════════════════════════════
 let _editingUser = null;
+let _editingSocialParticipant = null;
+let _socialParticipantsAdmin = [];
 const _CATS = ['medicina_relacionados','medicina_no_relacionados','psicologia_relacionados','psicologia_no_relacionados'];
 const _ROLE_CATS = {
   psicologa: ['psicologia_relacionados','psicologia_no_relacionados'],
@@ -192,6 +239,7 @@ const ROLE_BADGE = {
 document.addEventListener('DOMContentLoaded', () => {
   cargarUsuarios();
   cargarClaves();
+  cargarPersonajesAdmin();
 });
 
 function cargarUsuarios() {
@@ -379,6 +427,123 @@ async function eliminarUsuario(uname) {
   const d = await r.json();
   if (d.ok) { showToast(`Usuario ${uname} eliminado`); cargarUsuarios(); }
   else showToast(d.error || 'Error', 'danger');
+}
+
+// ══════════════════════════════════════════════════
+// PERSONAJES SOCIALES
+// ══════════════════════════════════════════════════
+
+function mostrarFormNuevoPersonajeAdmin() {
+  _editingSocialParticipant = null;
+  document.getElementById('formPersonajeAdminTitulo').textContent = 'Nuevo personaje';
+  document.getElementById('spNombre').value = '';
+  document.getElementById('spPerfil').value = '';
+  document.getElementById('spId').value = '';
+  document.getElementById('spApariencia').value = '';
+  document.getElementById('spPrompt').value = '';
+  document.getElementById('formPersonajeAdmin').style.display = 'block';
+  document.getElementById('spNombre').focus();
+}
+
+function cancelarFormPersonajeAdmin() {
+  document.getElementById('formPersonajeAdmin').style.display = 'none';
+  document.getElementById('spNombre').value = '';
+  document.getElementById('spPerfil').value = '';
+  document.getElementById('spId').value = '';
+  document.getElementById('spApariencia').value = '';
+  document.getElementById('spPrompt').value = '';
+  _editingSocialParticipant = null;
+}
+
+async function cargarPersonajesAdmin() {
+  const box = document.getElementById('listaPersonajesAdmin');
+  box.innerHTML = '<div class="text-muted text-center py-3 small">Cargando personajes…</div>';
+  try {
+    const r = await fetch('/api/social/participants');
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudieron cargar los personajes');
+    _socialParticipantsAdmin = d.items || [];
+    if (!_socialParticipantsAdmin.length) {
+      box.innerHTML = '<p class="text-muted small mb-0">No hay personajes definidos todavía.</p>';
+      return;
+    }
+    box.innerHTML = _socialParticipantsAdmin.map(item => `
+      <div class="border rounded p-3 mb-2 bg-white">
+        <div class="d-flex align-items-start justify-content-between gap-3">
+          <div style="min-width:0;">
+            <div class="fw-semibold">${item.nombre}</div>
+            <div class="text-muted small">${item.perfil}</div>
+            <div class="small mt-2"><strong>Apariencia:</strong> ${item.apariencia_visual ? item.apariencia_visual : '<span class="text-muted">Sin definir</span>'}</div>
+            <div class="small mt-2"><strong>Prompt fijo:</strong></div>
+            <pre class="rounded p-2 small mt-1 mb-0" style="background:#f8fafc;white-space:pre-wrap;font-size:.75rem;">${item.prompt_visual ? item.prompt_visual : 'Sin definir'}</pre>
+          </div>
+          <div class="d-flex gap-1 flex-shrink-0">
+            <button class="btn btn-sm btn-outline-primary" type="button" onclick="editarPersonajeAdmin(${JSON.stringify(item.id).replace(/"/g, '&quot;')})">Editar</button>
+            <button class="btn btn-sm btn-outline-danger" type="button" onclick="eliminarPersonajeAdmin(${JSON.stringify(item.id).replace(/"/g, '&quot;')})">Borrar</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    box.innerHTML = `<div class="alert alert-danger small mb-0">${error.message}</div>`;
+  }
+}
+
+function editarPersonajeAdmin(participantId) {
+  const item = _socialParticipantsAdmin.find(entry => entry.id === participantId);
+  if (!item) return;
+  _editingSocialParticipant = participantId;
+  document.getElementById('formPersonajeAdminTitulo').textContent = `Editar personaje: ${item.nombre}`;
+  document.getElementById('spNombre').value = item.nombre || '';
+  document.getElementById('spPerfil').value = item.perfil || '';
+  document.getElementById('spId').value = item.id || '';
+  document.getElementById('spApariencia').value = item.apariencia_visual || '';
+  document.getElementById('spPrompt').value = item.prompt_visual || '';
+  document.getElementById('formPersonajeAdmin').style.display = 'block';
+}
+
+async function guardarPersonajeAdmin() {
+  const nombre = document.getElementById('spNombre').value.trim();
+  const perfil = document.getElementById('spPerfil').value.trim();
+  const id = document.getElementById('spId').value.trim();
+  const apariencia_visual = document.getElementById('spApariencia').value.trim();
+  const prompt_visual = document.getElementById('spPrompt').value.trim();
+  if (!nombre || !perfil) return showToast('Nombre y perfil son obligatorios', 'warning');
+
+  const body = { nombre, perfil, apariencia_visual, prompt_visual };
+  if (!_editingSocialParticipant && id) body.id = id;
+
+  try {
+    const r = await fetch(
+      _editingSocialParticipant ? `/api/social/participants/${encodeURIComponent(_editingSocialParticipant)}` : '/api/social/participants',
+      {
+        method: _editingSocialParticipant ? 'PUT' : 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(body),
+      }
+    );
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo guardar el personaje');
+    showToast(_editingSocialParticipant ? 'Personaje actualizado' : 'Personaje creado');
+    cancelarFormPersonajeAdmin();
+    cargarPersonajesAdmin();
+  } catch (error) {
+    showToast(error.message, 'danger');
+  }
+}
+
+async function eliminarPersonajeAdmin(participantId) {
+  if (!confirm('¿Eliminar este personaje?')) return;
+  try {
+    const r = await fetch(`/api/social/participants/${encodeURIComponent(participantId)}`, { method:'DELETE' });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo eliminar el personaje');
+    showToast('Personaje eliminado');
+    cargarPersonajesAdmin();
+    if (_editingSocialParticipant === participantId) cancelarFormPersonajeAdmin();
+  } catch (error) {
+    showToast(error.message, 'danger');
+  }
 }
 
 // ══════════════════════════════════════════════════

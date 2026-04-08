@@ -2,24 +2,16 @@
 app.py  -  Blog Content Generator - Interfaz Flask
 ============================================================================
 Como ejecutar:
-    python app.py
-    (abre tu navegador en http://localhost:5000)
+        python app.py
+        (abre tu navegador en http://localhost:5000)
 
 Primera vez: se crea users.json con usuarios por defecto.
-  - luis / admin123  (admin)
-  - alejandra / alejandra123  (psicologa)
-  - angela / angela123  (medico)
+    - luis / admin123  (admin)
+    - alejandra / alejandra123  (psicologa)
+    - angela / angela123  (medico)
 Cambia las contrasenas desde el panel /admin
 """
 from __future__ import annotations
-
-# Usar el almacén de certificados del sistema operativo (necesario en redes
-# corporativas con proxies de inspección TLS como Zscaler).
-try:
-    import truststore
-    truststore.inject_into_ssl()
-except ImportError:
-    pass  # En entornos sin truststore (p.ej. Linux/servidor) funciona sin esto
 
 import json
 import os
@@ -40,6 +32,8 @@ from flask import (
 )
 from requests.auth import HTTPBasicAuth
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from core.wp_requests import wp_request
 
 load_dotenv()
 
@@ -291,7 +285,7 @@ def _wp_get_json(endpoint: str, *, params: dict | None = None):
     last_error: Exception | None = None
     for current_auth in attempts:
         try:
-            response = req_lib.get(url, params=params, auth=current_auth, timeout=20)
+            response = wp_request("GET", url, params=params, auth=current_auth, timeout=20)
             response.raise_for_status()
             return response.json(), response.headers
         except Exception as exc:
@@ -1516,7 +1510,7 @@ def serve_image(img_name):
 @app.post("/api/borrador/<path:filename>/social")
 @login_required
 def api_borrador_social(filename):
-    """Genera propuestas TikTok 2026 a partir de un borrador usando Gemini."""
+    """Genera contenido social desde un borrador para TikTok o Instagram."""
     safe = _safe_draft_path(filename)
     if safe is None or not safe.exists():
         return jsonify({"error": "No encontrado"}), 404
@@ -1526,9 +1520,25 @@ def api_borrador_social(filename):
     selected_hooks = _normalize_selected_hooks(body.get("selected_hooks"))
     if not selected_character_ids:
         return jsonify({"error": "Selecciona al menos un participante para este tema."}), 400
-    if platform != "tiktok":
-        return jsonify({"error": "Plataforma no válida. Solo se admite TikTok 2026."}), 400
+    if platform not in {"tiktok", "instagram"}:
+        return jsonify({"error": "Plataforma no válida. Usa TikTok o Instagram."}), 400
     draft_data = json.loads(safe.read_text(encoding="utf-8"))
+    social_cache = draft_data.get("social_cache") if isinstance(draft_data.get("social_cache"), dict) else {}
+    cached_entry = social_cache.get(platform) if isinstance(social_cache.get(platform), dict) else None
+    if cached_entry and isinstance(cached_entry.get("data"), dict):
+        return jsonify(
+            {
+                "ok": True,
+                "platform": platform,
+                "data": cached_entry.get("data"),
+                "content": json.dumps(cached_entry.get("data"), ensure_ascii=False, indent=2),
+                "cached": True,
+                "cache_meta": {
+                    "generated_at": cached_entry.get("generated_at"),
+                    "selected_characters": cached_entry.get("selected_characters", []),
+                },
+            }
+        )
     title      = draft_data.get("title", "")
     focus_kw   = draft_data.get("focus_keyword", "")
     # Extracto del contenido (máx. 600 palabras) para no gastar demasiados tokens
@@ -1538,43 +1548,59 @@ def api_borrador_social(filename):
                     .split())
         if not w.startswith("<") and not w.startswith(">")
     )[:3000]
-    prompt = _build_tiktok_2026_prompt(
-        topic=f"Título del borrador: {title}\nKeyword foco: {focus_kw}\nResumen útil: {plain_content}",
-        mode="borrador",
-        selected_ids=selected_character_ids,
-    )
+    topic_context = f"Título del borrador: {title}\nKeyword foco: {focus_kw}\nResumen útil: {plain_content}"
     mock_mode, _ = _get_modes()
     try:
-        if mock_mode:
-            result = _social_mock_response(
-                title or focus_kw or plain_content[:60],
+        if platform == "tiktok":
+            if mock_mode:
+                result = _social_mock_response(
+                    title or focus_kw or plain_content[:60],
+                    selected_character_ids,
+                )
+                if selected_hooks:
+                    selected_labels = {hook["tipo_de_angulo"] for hook in selected_hooks}
+                    result["tiktok"]["opciones"] = [
+                        option for option in result.get("tiktok", {}).get("opciones", [])
+                        if option.get("tipo_de_angulo") in selected_labels
+                    ]
+                    result["tiktok"]["checklist"] = _build_tiktok_checklist_from_options(result["tiktok"]["opciones"])
+            else:
+                result = _generate_tiktok_2026_result(
+                    topic_context=topic_context,
+                    mode="borrador",
+                    selected_character_ids=selected_character_ids,
+                    selected_hooks=selected_hooks,
+                )
+            _validate_tiktok_2026_payload(
+                result,
                 selected_character_ids,
+                expected_labels=[hook["tipo_de_angulo"] for hook in selected_hooks] if selected_hooks else None,
             )
-            if selected_hooks:
-                selected_labels = {hook["tipo_de_angulo"] for hook in selected_hooks}
-                result["tiktok"]["opciones"] = [
-                    option for option in result.get("tiktok", {}).get("opciones", [])
-                    if option.get("tipo_de_angulo") in selected_labels
-                ]
-                result["tiktok"]["checklist"] = _build_tiktok_checklist_from_options(result["tiktok"]["opciones"])
         else:
-            result = _generate_tiktok_2026_result(
-                topic_context=f"Título del borrador: {title}\nKeyword foco: {focus_kw}\nResumen útil: {plain_content}",
-                mode="borrador",
-                selected_character_ids=selected_character_ids,
-                selected_hooks=selected_hooks,
-            )
-        _validate_tiktok_2026_payload(
-            result,
-            selected_character_ids,
-            expected_labels=[hook["tipo_de_angulo"] for hook in selected_hooks] if selected_hooks else None,
-        )
+            if mock_mode:
+                result = _instagram_mock_response(topic_context, selected_character_ids)
+            else:
+                result = _generate_instagram_result(
+                    topic_context=topic_context,
+                    mode="borrador",
+                    selected_character_ids=selected_character_ids,
+                )
+            _validate_instagram_payload(result, selected_character_ids)
+
+        social_cache[platform] = {
+            "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "selected_characters": selected_character_ids,
+            "data": result,
+        }
+        draft_data["social_cache"] = social_cache
+        safe.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
         return jsonify(
             {
                 "ok": True,
-                "platform": "tiktok",
+                "platform": platform,
                 "data": result,
                 "content": json.dumps(result, ensure_ascii=False, indent=2),
+                "cached": False,
             }
         )
     except ValueError as e:
@@ -1638,7 +1664,8 @@ def api_historial_recuperar():
     if not (base_url and username and app_password):
         return jsonify({"error": "Credenciales WP no configuradas"}), 400
     try:
-        resp = req_lib.get(
+        resp = wp_request(
+            "GET",
             f"{base_url}/wp-json/wp/v2/posts/{wp_id}",
             auth=HTTPBasicAuth(username, app_password),
             timeout=20,
@@ -1943,10 +1970,60 @@ TIKTOK_HOOK_TEMPLATE_BY_LABEL = {
     item["label"]: item["template"] for item in TIKTOK_HOOK_LIBRARY
 }
 SOCIAL_DEFAULT_PARTICIPANTS = [
-    {"id": "mama", "nombre": "Mama", "perfil": "30 años, psicologa"},
-    {"id": "papa", "nombre": "Papa", "perfil": "30 años, ingeniero de sistemas"},
-    {"id": "hija", "nombre": "Hija", "perfil": "8 años"},
+    {
+        "id": "mama",
+        "nombre": "Mama",
+        "perfil": "30 años, psicologa",
+        "apariencia_visual": "Mujer latina de 30 anos, cabello castano oscuro ondulado a los hombros, expresion serena, ropa neutra elegante en tonos arena y verde salvia.",
+        "prompt_visual": "Personaje fijo Tu Eden. Mujer latina de 30 anos, psicologa, cabello castano oscuro ondulado a los hombros, rostro sereno, vestuario elegante en arena, marfil y verde salvia, bienestar premium, luz natural suave, editorial zen y profesional.",
+    },
+    {
+        "id": "papa",
+        "nombre": "Papa",
+        "perfil": "30 años, ingeniero de sistemas",
+        "apariencia_visual": "Hombre latino de 30 anos, cabello corto castano, barba sutil, look pulcro casual-profesional en beige, blanco roto y verde oliva suave.",
+        "prompt_visual": "Personaje fijo Tu Eden. Hombre latino de 30 anos, ingeniero de sistemas, cabello corto castano, barba sutil, look casual-profesional pulcro en beige, blanco roto y verde oliva suave, atmosfera serena, editorial wellness corporativo.",
+    },
+    {
+        "id": "hija",
+        "nombre": "Hija",
+        "perfil": "8 años",
+        "apariencia_visual": "Nina latina de 8 anos, cabello largo oscuro, rasgos dulces, vestuario sencillo en tonos crema y verde claro.",
+        "prompt_visual": "Personaje fijo Tu Eden. Nina latina de 8 anos, cabello largo oscuro, rasgos dulces, vestuario sencillo en tonos crema y verde claro, escena luminosa, sensibilidad familiar, coherencia visual serena.",
+    },
 ]
+TU_EDEN_INSTAGRAM_STYLE = (
+    "Estilo visual fijo de Tu Eden: zen, calmado y profesional; editorial wellness premium; "
+    "paleta verde salvia, arena, marfil y madera clara; luz natural suave; espacios limpios; "
+    "composicion minimalista; atmosfera serena; confianza de empresa de salud y bienestar; "
+    "sin estridencias, sin neon, sin look juvenil caotico."
+)
+INSTAGRAM_REQUIRED_KEYS = {
+    "tipo_publicacion",
+    "objetivo_editorial",
+    "cantidad_imagenes",
+    "justificacion_cantidad",
+    "tamano_base",
+    "estilo_visual_global",
+    "hook_portada",
+    "caption_principal",
+    "caption_corto",
+    "cta",
+    "hashtags",
+    "secuencia",
+}
+INSTAGRAM_REQUIRED_SLIDE_KEYS = {
+    "orden",
+    "rol_narrativo",
+    "titulo_slide",
+    "texto_slide",
+    "relacion_con_blog",
+    "continuidad_visual",
+    "continuidad_textual",
+    "tamano",
+    "personajes",
+    "prompt_imagen",
+}
 TIKTOK_REQUIRED_OPTION_KEYS = {
     "tipo_de_angulo",
     "plantilla_base",
@@ -2028,9 +2105,17 @@ def _load_social_participants() -> list[dict]:
         participant_id = _safe_social_participant_id(item.get("id") or item.get("nombre"))
         nombre = str(item.get("nombre", "")).strip()
         perfil = str(item.get("perfil", "")).strip()
+        apariencia_visual = str(item.get("apariencia_visual", "")).strip()
+        prompt_visual = str(item.get("prompt_visual", "")).strip()
         if not participant_id or not nombre or not perfil or participant_id in seen:
             continue
-        participants.append({"id": participant_id, "nombre": nombre, "perfil": perfil})
+        participants.append({
+            "id": participant_id,
+            "nombre": nombre,
+            "perfil": perfil,
+            "apariencia_visual": apariencia_visual,
+            "prompt_visual": prompt_visual,
+        })
         seen.add(participant_id)
 
     if participants:
@@ -2064,6 +2149,20 @@ def _normalize_social_character_ids(selected_ids: list[str] | None) -> list[str]
 def _selected_social_characters(selected_ids: list[str] | None) -> list[dict]:
     participants_by_id = _social_participant_map()
     return [participants_by_id[char_id] for char_id in _normalize_social_character_ids(selected_ids) if char_id in participants_by_id]
+
+
+def _social_character_bank(selected_ids: list[str] | None, *, include_visual: bool = False) -> str:
+    selected_characters = _selected_social_characters(selected_ids)
+    lines = []
+    for item in selected_characters:
+        line = f'- {item["id"]}: {item["nombre"]}, {item["perfil"]}'
+        if include_visual:
+            visual = str(item.get("apariencia_visual", "")).strip()
+            prompt_visual = str(item.get("prompt_visual", "")).strip()
+            line += f'. Apariencia consistente: {visual or "Mantener look sereno, profesional y coherente con bienestar premium."}'
+            line += f'. Prompt fijo del personaje: {prompt_visual or "Mantener la misma identidad visual y editorial en todas las publicaciones."}'
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _resolve_social_generation_context(
@@ -2249,10 +2348,7 @@ def _build_tiktok_2026_prompt(topic: str, mode: str, selected_ids: list[str] | N
     hook_bank = "\n".join(
         f'- {item["label"]}: "{item["template"]}"' for item in TIKTOK_HOOK_LIBRARY
     )
-    selected_characters = _selected_social_characters(selected_ids)
-    character_bank = "\n".join(
-        f'- {item["id"]}: {item["nombre"]}, {item["perfil"]}' for item in selected_characters
-    )
+    character_bank = _social_character_bank(selected_ids)
     return f"""Eres estratega senior de TikTok 2026 especializado en contenido de alta retención para salud, bienestar y estilo de vida.
 
 Entrada de trabajo ({mode}):
@@ -2361,6 +2457,86 @@ Control de calidad:
 """
 
 
+def _build_instagram_prompt(topic: str, mode: str, selected_ids: list[str] | None = None) -> str:
+        character_bank = _social_character_bank(selected_ids, include_visual=True)
+        return f"""Eres director creativo senior de Instagram para Tu Eden, una empresa de bienestar, salud emocional y estilo de vida consciente.
+
+Entrada de trabajo ({mode}):
+{topic}
+
+Estilo visual obligatorio de marca:
+{TU_EDEN_INSTAGRAM_STYLE}
+
+Personajes disponibles para mantener consistencia visual:
+{character_bank}
+
+Objetivo:
+- Convierte el blog en una publicacion de Instagram de alto valor guardable.
+- Decide si conviene "post_simple" o "carrusel".
+- Decide la cantidad_imagenes ideal entre 1 y 8 segun la complejidad del tema.
+- Si eliges carrusel, la secuencia debe tener un hilo narrativo claro de principio a fin.
+- La salida debe estar pensada para feed de Instagram con tamano vertical 1080x1350 px.
+- Cada prompt de imagen debe ser utilizable directamente en un generador de imagen IA.
+
+Reglas obligatorias:
+- Mantén SIEMPRE el mismo estilo visual de Tu Eden en todas las imágenes.
+- Si reutilizas personajes, conserva rasgos, ropa base, energia y apariencia visual de forma consistente entre slides.
+- Si un personaje tiene prompt fijo, debes respetarlo como identidad visual obligatoria y trasladarlo al prompt_imagen de cada slide donde aparezca.
+- Usa solo personajes del listado anterior. No inventes personajes nuevos.
+- La publicación debe apoyarse directamente en las ideas del blog, no ser genérica.
+- El caption debe sonar profesional, cercano, sereno y muy claro.
+- El tono debe ser zen, confiable y corporativo, sin parecer frío ni rígido.
+- La secuencia debe estar optimizada para lectura rápida en Instagram.
+- Cada slide debe indicar su rol narrativo: hook, problema, contexto, insight, paso, cierre o CTA.
+- Cada slide debe incluir continuidad_visual y continuidad_textual para enlazar con el siguiente.
+- Cada prompt_imagen debe mencionar el tamano 1080x1350 px y el estilo visual global.
+- Devuelve solo JSON válido. No markdown. No texto fuera del JSON.
+
+Formato exacto de salida:
+{{
+    "instagram": {{
+        "tipo_publicacion": "carrusel",
+        "objetivo_editorial": "...",
+        "cantidad_imagenes": 5,
+        "justificacion_cantidad": "...",
+        "tamano_base": "1080x1350 px",
+        "estilo_visual_global": "...",
+        "hook_portada": "...",
+        "caption_principal": "...",
+        "caption_corto": "...",
+        "cta": "...",
+        "hashtags": ["#...", "#...", "#..."],
+        "secuencia": [
+            {{
+                "orden": 1,
+                "rol_narrativo": "hook",
+                "titulo_slide": "...",
+                "texto_slide": "...",
+                "relacion_con_blog": "...",
+                "continuidad_visual": "...",
+                "continuidad_textual": "...",
+                "tamano": "1080x1350 px",
+                "personajes": [
+                    {{"id": "mama", "nombre": "Mama", "perfil": "30 años, psicologa"}}
+                ],
+                "prompt_imagen": "..."
+            }}
+        ]
+    }}
+}}
+
+Control de calidad:
+1. cantidad_imagenes debe coincidir exactamente con el numero de objetos en secuencia.
+2. Si tipo_publicacion es "post_simple", secuencia debe tener 1 slide.
+3. Si tipo_publicacion es "carrusel", secuencia debe tener 2 a 8 slides.
+4. Ningun string obligatorio puede quedar vacio.
+5. hashtags debe contener entre 3 y 12 hashtags relevantes.
+6. No uses estilos visuales opuestos al universo Tu Eden.
+7. Todo debe quedar en espanol claro, salvo que dentro del prompt_imagen uses tecnicismos visuales necesarios.
+8. JSON perfectamente valido.
+"""
+
+
 def _parse_social_json(raw: str) -> dict:
     cleaned = raw.strip()
     if cleaned.startswith("```"):
@@ -2375,6 +2551,210 @@ def _parse_social_json(raw: str) -> dict:
         if start != -1 and end != -1 and end > start:
             return json.loads(cleaned[start:end + 1])
         raise
+
+
+def _generate_instagram_result(
+    topic_context: str,
+    mode: str,
+    selected_character_ids: list[str],
+) -> dict:
+    from core.gemini_client import GeminiClient
+
+    tm = get_token_manager()
+    gemini = GeminiClient(token_manager=tm, mock_mode=False)
+    prompt = _build_instagram_prompt(topic_context, mode, selected_character_ids)
+    raw = gemini.call_raw(prompt)
+    parsed = _parse_social_json(raw)
+    _validate_instagram_payload(parsed, selected_character_ids)
+    return parsed
+
+
+def _validate_instagram_payload(data: dict, selected_ids: list[str] | None = None) -> None:
+    instagram = data.get("instagram")
+    if not isinstance(instagram, dict):
+        raise ValueError("La respuesta debe incluir el bloque instagram.")
+
+    missing = [key for key in INSTAGRAM_REQUIRED_KEYS if key not in instagram]
+    if missing:
+        raise ValueError(f"Instagram no incluye: {', '.join(missing)}.")
+
+    for key in (
+        "tipo_publicacion",
+        "objetivo_editorial",
+        "justificacion_cantidad",
+        "tamano_base",
+        "estilo_visual_global",
+        "hook_portada",
+        "caption_principal",
+        "caption_corto",
+        "cta",
+    ):
+        if not str(instagram.get(key, "")).strip():
+            raise ValueError(f"Instagram tiene el campo {key} vacío.")
+
+    tipo_publicacion = str(instagram.get("tipo_publicacion", "")).strip().lower()
+    if tipo_publicacion not in {"post_simple", "carrusel"}:
+        raise ValueError("tipo_publicacion debe ser post_simple o carrusel.")
+
+    cantidad = instagram.get("cantidad_imagenes")
+    if not isinstance(cantidad, int) or cantidad < 1 or cantidad > 8:
+        raise ValueError("cantidad_imagenes debe estar entre 1 y 8.")
+
+    hashtags = instagram.get("hashtags")
+    if not isinstance(hashtags, list) or len(hashtags) < 3 or len(hashtags) > 12:
+        raise ValueError("hashtags debe contener entre 3 y 12 elementos.")
+    if any(not str(tag).strip() for tag in hashtags):
+        raise ValueError("hashtags contiene valores vacíos.")
+
+    secuencia = instagram.get("secuencia")
+    if not isinstance(secuencia, list) or len(secuencia) != cantidad:
+        raise ValueError("cantidad_imagenes no coincide con la secuencia.")
+    if tipo_publicacion == "post_simple" and cantidad != 1:
+        raise ValueError("post_simple debe tener exactamente 1 imagen.")
+    if tipo_publicacion == "carrusel" and cantidad < 2:
+        raise ValueError("carrusel debe tener al menos 2 imágenes.")
+
+    allowed_characters = {item["id"]: item for item in _selected_social_characters(selected_ids)}
+    for index, slide in enumerate(secuencia, start=1):
+        if not isinstance(slide, dict):
+            raise ValueError(f"El slide {index} no es válido.")
+        missing_slide = [key for key in INSTAGRAM_REQUIRED_SLIDE_KEYS if key not in slide]
+        if missing_slide:
+            raise ValueError(f"El slide {index} no incluye: {', '.join(missing_slide)}.")
+        for key in (
+            "rol_narrativo",
+            "titulo_slide",
+            "texto_slide",
+            "relacion_con_blog",
+            "continuidad_visual",
+            "continuidad_textual",
+            "tamano",
+            "prompt_imagen",
+        ):
+            if not str(slide.get(key, "")).strip():
+                raise ValueError(f"El slide {index} tiene {key} vacío.")
+        if slide.get("orden") != index:
+            raise ValueError(f"El slide {index} debe conservar el orden secuencial.")
+        personajes = slide.get("personajes")
+        if not isinstance(personajes, list):
+            raise ValueError(f"El slide {index} debe incluir una lista de personajes.")
+        for personaje in personajes:
+            if not isinstance(personaje, dict):
+                raise ValueError(f"Un personaje del slide {index} no es válido.")
+            for field in ("id", "nombre", "perfil"):
+                if not str(personaje.get(field, "")).strip():
+                    raise ValueError(f"Falta {field} en un personaje del slide {index}.")
+            if allowed_characters and personaje.get("id") not in allowed_characters:
+                raise ValueError(f"Instagram usa un personaje no seleccionado: {personaje.get('id')}.")
+
+
+def _instagram_mock_response(topic: str, selected_ids: list[str] | None = None) -> dict:
+    selected_characters = _selected_social_characters(selected_ids)
+    lead = selected_characters[0]
+    support = selected_characters[1] if len(selected_characters) > 1 else lead
+    base_title = topic.split("\n", 1)[0].replace("Título del borrador:", "").strip() or "Bienestar consciente"
+    return {
+        "instagram": {
+            "tipo_publicacion": "carrusel",
+            "objetivo_editorial": "Convertir el blog en una pieza guardable, clara y visualmente consistente para Instagram.",
+            "cantidad_imagenes": 5,
+            "justificacion_cantidad": "El tema necesita una portada potente y cuatro slides para desarrollar problema, contexto, accion y cierre sin saturar.",
+            "tamano_base": "1080x1350 px",
+            "estilo_visual_global": TU_EDEN_INSTAGRAM_STYLE,
+            "hook_portada": f"{base_title}: lo esencial para entenderlo y aplicarlo con calma.",
+            "caption_principal": (
+                f"{base_title}.\n\n"
+                "En Tu Eden buscamos traducir ideas complejas en bienestar aplicable, con una estetica serena y profesional. "
+                "Desliza, guarda esta guia y vuelve a ella cuando necesites una referencia clara.\n\n"
+                "Que parte del tema sientes mas cercana hoy?"
+            ),
+            "caption_corto": f"Una guia visual de Tu Eden sobre {base_title.lower()}. Guarda este carrusel para releerlo.",
+            "cta": "Guarda este carrusel y cuentanos en comentarios que idea te gustaria profundizar.",
+            "hashtags": ["#TuEden", "#Bienestar", "#SaludMental", "#VidaConsciente", "#InstagramEducativo"],
+            "secuencia": [
+                {
+                    "orden": 1,
+                    "rol_narrativo": "hook",
+                    "titulo_slide": "La idea central",
+                    "texto_slide": f"Entiende {base_title.lower()} desde una mirada clara, serena y aplicable.",
+                    "relacion_con_blog": "Resume la promesa principal del blog.",
+                    "continuidad_visual": "Abrir con retrato editorial luminoso y tonos salvia, arena e ivory.",
+                    "continuidad_textual": "Introduce el problema y prepara el contexto del siguiente slide.",
+                    "tamano": "1080x1350 px",
+                    "personajes": [{"id": lead["id"], "nombre": lead["nombre"], "perfil": lead["perfil"]}],
+                    "prompt_imagen": (
+                        f"Instagram vertical 1080x1350 px. Portada editorial para Tu Eden. {TU_EDEN_INSTAGRAM_STYLE} "
+                        f"Personaje principal: {lead['nombre']}, {lead['perfil']}. Apariencia consistente: {lead.get('apariencia_visual') or 'look sereno y profesional'}. Prompt fijo: {lead.get('prompt_visual') or 'Mantener la misma identidad visual.'}. "
+                        f"Escena de bienestar premium, composicion limpia, luz natural suave, gesto tranquilo, espacio minimalista, sin texto incrustado. Tema: {base_title}."
+                    ),
+                },
+                {
+                    "orden": 2,
+                    "rol_narrativo": "contexto",
+                    "titulo_slide": "Por que importa",
+                    "texto_slide": "El blog explica el contexto real y por que este tema afecta decisiones, energia y bienestar diario.",
+                    "relacion_con_blog": "Traduce la introduccion y la relevancia del articulo.",
+                    "continuidad_visual": "Mantener misma paleta y misma direccion de luz; plano mas abierto.",
+                    "continuidad_textual": "Pasa del gancho a la comprension del problema.",
+                    "tamano": "1080x1350 px",
+                    "personajes": [{"id": lead["id"], "nombre": lead["nombre"], "perfil": lead["perfil"]}],
+                    "prompt_imagen": (
+                        f"Instagram vertical 1080x1350 px. Segundo slide coherente con portada, mismo universo Tu Eden. {TU_EDEN_INSTAGRAM_STYLE} "
+                        f"Mismo personaje {lead['nombre']} con apariencia consistente: {lead.get('apariencia_visual') or 'look sereno y profesional'}. Prompt fijo: {lead.get('prompt_visual') or 'Mantener la misma identidad visual.'}. "
+                        f"Entorno corporativo-wellness elegante, gesto reflexivo, composicion limpia, profundidad suave, continuidad visual con slide 1."
+                    ),
+                },
+                {
+                    "orden": 3,
+                    "rol_narrativo": "insight",
+                    "titulo_slide": "La clave",
+                    "texto_slide": "Aqui se condensa el insight mas util del blog para que se entienda en segundos.",
+                    "relacion_con_blog": "Resume el argumento o aprendizaje central del articulo.",
+                    "continuidad_visual": "Introducir detalle de manos, libreta o objeto wellness sin romper la estetica.",
+                    "continuidad_textual": "Convierte la explicacion en una idea memorable.",
+                    "tamano": "1080x1350 px",
+                    "personajes": [{"id": support["id"], "nombre": support["nombre"], "perfil": support["perfil"]}],
+                    "prompt_imagen": (
+                        f"Instagram vertical 1080x1350 px. Slide 3 de carrusel Tu Eden. {TU_EDEN_INSTAGRAM_STYLE} "
+                        f"Personaje: {support['nombre']}, {support['perfil']}. Apariencia consistente: {support.get('apariencia_visual') or 'look sereno y profesional'}. Prompt fijo: {support.get('prompt_visual') or 'Mantener la misma identidad visual.'}. "
+                        "Plano editorial con detalle de manos, cuaderno o taza de te, ambiente ordenado, luz lateral suave, elegancia zen, sin texto en imagen."
+                    ),
+                },
+                {
+                    "orden": 4,
+                    "rol_narrativo": "paso",
+                    "titulo_slide": "Como aplicarlo",
+                    "texto_slide": "El carrusel baja la idea a una accion concreta, posible y profesional.",
+                    "relacion_con_blog": "Convierte la parte practica del blog en una accion simple.",
+                    "continuidad_visual": "Escena serena de accion cotidiana, misma paleta y mismo vestuario base.",
+                    "continuidad_textual": "Lleva del insight a la aplicacion directa.",
+                    "tamano": "1080x1350 px",
+                    "personajes": [{"id": lead["id"], "nombre": lead["nombre"], "perfil": lead["perfil"]}],
+                    "prompt_imagen": (
+                        f"Instagram vertical 1080x1350 px. Slide 4 coherente con la serie Tu Eden. {TU_EDEN_INSTAGRAM_STYLE} "
+                        f"Mismo personaje {lead['nombre']} y misma apariencia: {lead.get('apariencia_visual') or 'look sereno y profesional'}. Prompt fijo: {lead.get('prompt_visual') or 'Mantener la misma identidad visual.'}. "
+                        "Mostrar una accion simple y elegante en espacio luminoso, composicion vertical, atmosfera calmada, profesional y confiable."
+                    ),
+                },
+                {
+                    "orden": 5,
+                    "rol_narrativo": "cta",
+                    "titulo_slide": "Guardalo para volver",
+                    "texto_slide": "Cierra con una invitacion suave a guardar, reflexionar y seguir aprendiendo con Tu Eden.",
+                    "relacion_con_blog": "Recoge la conclusion y la transforma en accion de comunidad.",
+                    "continuidad_visual": "Final luminoso, sensacion de calma y cierre editorial consistente.",
+                    "continuidad_textual": "Cierra la secuencia y deja una accion clara.",
+                    "tamano": "1080x1350 px",
+                    "personajes": [{"id": lead["id"], "nombre": lead["nombre"], "perfil": lead["perfil"]}],
+                    "prompt_imagen": (
+                        f"Instagram vertical 1080x1350 px. Slide final del carrusel Tu Eden. {TU_EDEN_INSTAGRAM_STYLE} "
+                        f"Mismo personaje {lead['nombre']} con apariencia consistente: {lead.get('apariencia_visual') or 'look sereno y profesional'}. Prompt fijo: {lead.get('prompt_visual') or 'Mantener la misma identidad visual.'}. "
+                        "Plano final inspirador, luz dorada suave, interiores minimalistas con elementos botanicos discretos, sensacion de paz, profesionalidad y cierre elegante."
+                    ),
+                },
+            ],
+        }
+    }
 
 
 def _build_single_tiktok_option_prompt(
@@ -2867,6 +3247,8 @@ def api_social_participants_create():
     body = request.get_json(force=True) or {}
     nombre = str(body.get("nombre", "")).strip()
     perfil = str(body.get("perfil", "")).strip()
+    apariencia_visual = str(body.get("apariencia_visual", "")).strip()
+    prompt_visual = str(body.get("prompt_visual", "")).strip()
     participant_id = _safe_social_participant_id(body.get("id") or nombre)
     if not nombre or not perfil or not participant_id:
         return jsonify({"error": "Nombre y perfil son obligatorios."}), 400
@@ -2875,9 +3257,24 @@ def api_social_participants_create():
     if any(item["id"] == participant_id for item in participants):
         return jsonify({"error": "Ya existe un participante con ese identificador."}), 409
 
-    participants.append({"id": participant_id, "nombre": nombre, "perfil": perfil})
+    participants.append({
+        "id": participant_id,
+        "nombre": nombre,
+        "perfil": perfil,
+        "apariencia_visual": apariencia_visual,
+        "prompt_visual": prompt_visual,
+    })
     _save_social_participants(participants)
-    return jsonify({"ok": True, "item": {"id": participant_id, "nombre": nombre, "perfil": perfil}})
+    return jsonify({
+        "ok": True,
+        "item": {
+            "id": participant_id,
+            "nombre": nombre,
+            "perfil": perfil,
+            "apariencia_visual": apariencia_visual,
+            "prompt_visual": prompt_visual,
+        },
+    })
 
 
 @app.put("/api/social/participants/<participant_id>")
@@ -2886,6 +3283,10 @@ def api_social_participants_update(participant_id):
     body = request.get_json(force=True) or {}
     nombre = str(body.get("nombre", "")).strip()
     perfil = str(body.get("perfil", "")).strip()
+    has_appearance = "apariencia_visual" in body
+    has_prompt = "prompt_visual" in body
+    apariencia_visual = str(body.get("apariencia_visual", "")).strip()
+    prompt_visual = str(body.get("prompt_visual", "")).strip()
     if not nombre or not perfil:
         return jsonify({"error": "Nombre y perfil son obligatorios."}), 400
 
@@ -2895,6 +3296,10 @@ def api_social_participants_update(participant_id):
         if item["id"] == participant_id:
             item["nombre"] = nombre
             item["perfil"] = perfil
+            if has_appearance:
+                item["apariencia_visual"] = apariencia_visual
+            if has_prompt:
+                item["prompt_visual"] = prompt_visual
             updated = item
             break
     if not updated:

@@ -26,6 +26,7 @@ from loguru import logger
 from requests.auth import HTTPBasicAuth
 
 from models.post_draft import PostDraft
+from core.wp_requests import build_ssl_error_help, get_wp_session
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +265,7 @@ class _RealWPClient:
         self.base_url   = base_url.rstrip("/")
         self.auth       = HTTPBasicAuth(username, app_password)
         self.headers    = {"Content-Type": "application/json"}
+        self.session    = get_wp_session()
         self._api       = f"{self.base_url}/wp-json/wp/v2"
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -295,13 +297,18 @@ class _RealWPClient:
         }
 
         try:
-            response = requests.post(
+            response = self.session.post(
                 endpoint,
                 json    = payload,
                 auth    = self.auth,
                 headers = self.headers,
                 timeout = 30,
             )
+        except requests.exceptions.SSLError as exc:
+            raise ConnectionError(
+                f"❌ No se puede validar el certificado SSL de WordPress ({self.base_url}). "
+                f"{build_ssl_error_help(exc)} Detalle: {exc}"
+            ) from exc
         except requests.exceptions.ConnectionError as exc:
             raise ConnectionError(
                 f"❌ No se puede conectar a WordPress ({self.base_url}). "
@@ -362,13 +369,18 @@ class _RealWPClient:
         }
 
         try:
-            response = requests.post(
+            response = self.session.post(
                 endpoint,
                 json    = payload,
                 auth    = self.auth,
                 headers = self.headers,
                 timeout = 30,
             )
+        except requests.exceptions.SSLError as exc:
+            raise ConnectionError(
+                f"❌ No se puede validar el certificado SSL de WordPress ({self.base_url}). "
+                f"{build_ssl_error_help(exc)} Detalle: {exc}"
+            ) from exc
         except requests.exceptions.ConnectionError as exc:
             raise ConnectionError(
                 f"❌ No se puede conectar a WordPress ({self.base_url}). "
@@ -459,7 +471,7 @@ class _RealWPClient:
                         "analysis":  {},
                     }
                 }
-            resp = requests.post(
+            resp = self.session.post(
                 f"{self.base_url}/wp-json/aioseo/v1/post",
                 json    = payload,
                 auth    = self.auth,
@@ -526,7 +538,7 @@ class _RealWPClient:
             mime      = mimetypes.guess_type(str(path))[0] or "image/jpeg"
             upload_name = path.name
 
-        response = requests.post(
+        response = self.session.post(
                 f"{self._api}/media",
                 auth    = self.auth,
                 headers = {
@@ -544,7 +556,7 @@ class _RealWPClient:
 
         if alt_text:
             # Actualizar el alt text via PATCH
-            requests.post(
+            self.session.post(
                 f"{self._api}/media/{media_id}",
                 auth    = self.auth,
                 headers = {"Content-Type": "application/json"},
@@ -624,7 +636,7 @@ class _RealWPClient:
     def test_connection(self) -> bool:
         """Hace un GET a la REST API para verificar conectividad y credenciales."""
         try:
-            response = requests.get(
+            response = self.session.get(
                 f"{self._api}/users/me",
                 auth    = self.auth,
                 timeout = 10,
