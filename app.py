@@ -3728,6 +3728,78 @@ def editor_page():
     return render_template("editor.html")
 
 
+@app.post("/api/editor/instagram")
+@login_required
+def api_editor_instagram():
+    """
+    Prepara la imagen editada para Instagram:
+    - Sin límite de tamaño (calidad máxima).
+    - Respeta el encuadre 1:1 enviado por el cliente.
+    - Añade marca de agua del servidor.
+    - Devuelve el PNG en base64 para descarga directa en el cliente.
+    """
+    import base64
+    from io import BytesIO
+    from PIL import Image
+
+    data = request.get_json(force=True)
+    image_b64 = data.get("image", "")
+    filename = re.sub(r'[^a-zA-Z0-9_\-]', '_', data.get("filename", "instagram").strip()) or "instagram"
+
+    try:
+        header, b64data = image_b64.split(",", 1)
+        img_bytes = base64.b64decode(b64data)
+    except Exception:
+        return jsonify({"error": "Imagen inválida"}), 400
+
+    try:
+        img = Image.open(BytesIO(img_bytes)).convert("RGBA")
+    except Exception:
+        return jsonify({"error": "No se pudo procesar la imagen"}), 400
+
+    # Marca de agua (logo)
+    wm_path = Path(__file__).parent / "static" / "pieDeFoto.png"
+    if wm_path.exists():
+        try:
+            from PIL import ImageDraw as ID3, ImageChops
+            wm_logo = Image.open(wm_path).convert("RGBA")
+            wm_w = max(150, img.width // 8)
+            wm_scale = wm_w / wm_logo.width
+            wm_h = int(wm_logo.height * wm_scale)
+            wm_logo = wm_logo.resize((wm_w, wm_h), Image.LANCZOS)
+            mask = Image.new("L", (wm_w, wm_h), 0)
+            mask_draw = ID3.Draw(mask)
+            radius = int(min(wm_w, wm_h) * 0.25)
+            mask_draw.rounded_rectangle([0, 0, wm_w - 1, wm_h - 1], radius=radius, fill=255)
+            mask_draw.rectangle([wm_w - radius, 0, wm_w - 1, radius], fill=255)
+            mask_draw.rectangle([wm_w - radius, wm_h - radius, wm_w - 1, wm_h - 1], fill=255)
+            from PIL import ImageChops as IC2
+            logo_alpha = wm_logo.getchannel("A")
+            final_alpha = IC2.multiply(logo_alpha, mask)
+            wm_logo.putalpha(final_alpha)
+            x = img.width - wm_w
+            y = img.height - wm_h - 10
+            img.paste(wm_logo, (x, y), wm_logo)
+        except Exception:
+            pass
+
+    # Guardar como PNG (sin pérdida, máxima calidad para Instagram)
+    buf = BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    img_final = buf.getvalue()
+
+    result_b64 = base64.b64encode(img_final).decode("ascii")
+    size_kb = len(img_final) / 1024
+
+    return jsonify({
+        "ok": True,
+        "image": f"data:image/png;base64,{result_b64}",
+        "filename": f"{filename}.png",
+        "size_kb": round(size_kb, 1),
+        "dimensions": f"{img.width}×{img.height}",
+    })
+
+
 @app.post("/api/editor/quitar-fondo")
 @login_required
 def api_editor_quitar_fondo():

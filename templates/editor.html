@@ -85,6 +85,18 @@
   .size-warn { background:rgba(255,209,102,.15); color:var(--amber); }
   .size-over { background:rgba(255,112,112,.15); color:var(--red); }
 
+  /* ── Mode toggle ── */
+  .mode-toggle { display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:14px; }
+  .mode-btn {
+    flex:1; padding:7px 4px; font-size:.8rem; font-weight:600; border:none;
+    background: var(--surface2); color:var(--muted); cursor:pointer; transition: all .15s;
+  }
+  .mode-btn.active-wp  { background:#2196f3; color:#fff; }
+  .mode-btn.active-ig  { background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888); color:#fff; }
+  .mode-btn:not(.active-wp):not(.active-ig):hover { background:var(--bg); color:var(--text); }
+  .ig-badge { display:inline-block; font-size:.65rem; background:rgba(188,24,136,.18); color:#e040fb; border-radius:5px; padding:1px 5px; margin-left:4px; vertical-align:middle; }
+  .wp-badge { display:inline-block; font-size:.65rem; background:rgba(33,150,243,.18); color:#2196f3; border-radius:5px; padding:1px 5px; margin-left:4px; vertical-align:middle; }
+
   /* ── Responsive ── */
   @media (max-width:992px) {
     .editor-wrap { flex-direction:column; height:auto; gap:10px; }
@@ -107,6 +119,21 @@
 
   <!-- ════════ SIDEBAR ════════ -->
   <div class="editor-sidebar">
+
+    <!-- MODE SELECTOR -->
+    <div class="sidebar-section" style="margin-bottom:10px;">
+      <h6>🎯 Destino</h6>
+      <div class="mode-toggle">
+        <button class="mode-btn active-wp" id="btnModeWP" onclick="setEditorMode('wordpress')" title="Guardar en la biblioteca de medios de WordPress">
+          🌐 WordPress
+        </button>
+        <button class="mode-btn" id="btnModeIG" onclick="setEditorMode('instagram')" title="Exportar cuadrado para Instagram — descarga directa">
+          📸 Instagram
+        </button>
+      </div>
+      <div id="modeDescWP" class="small text-muted" style="line-height:1.35;">Formato libre · Máx 2 MB · Se sube a la biblioteca de medios.</div>
+      <div id="modeDescIG" class="small text-muted" style="display:none;line-height:1.35;">Recorte cuadrado automático · Sin límite de tamaño · Descarga al dispositivo.</div>
+    </div>
 
     <!-- UPLOAD -->
     <div class="sidebar-section">
@@ -197,7 +224,9 @@
         <label class="small text-muted">Nombre del archivo:</label>
         <input type="text" id="fileName" class="form-control form-control-sm" placeholder="mi-imagen">
       </div>
-      <button class="btn btn-sm btn-success w-100 mb-2" onclick="saveImage()">💾 Guardar imagen</button>
+      <button class="btn btn-sm btn-success w-100 mb-2" id="btnSaveWP" onclick="saveImage()">💾 Subir a WordPress</button>
+      <button class="btn btn-sm w-100 mb-2" id="btnSaveIG" onclick="saveInstagram()" style="display:none;background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);border:none;color:#fff;font-weight:600;">📥 Descargar para Instagram</button>
+      <div id="igCropHelp" style="display:none;" class="small text-muted mb-2">En modo Instagram el lienzo principal pasa a 1:1. Arrastra la imagen dentro del cuadrado para elegir el encuadre.</div>
       <button class="btn btn-sm btn-outline-danger w-100" onclick="resetCanvas()">🗑️ Limpiar todo</button>
     </div>
 
@@ -223,8 +252,98 @@
    ══════════════════════════════════════════════════════════════════════════ */
 
 // ── Constants ──
-const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB (WordPress mode)
 const WATERMARK_IMG_URL = '/static/pieDeFoto.png';
+const DEFAULT_CANVAS_MAX_W = 1200;
+const DEFAULT_CANVAS_MAX_H = 800;
+
+// ── Editor mode ──
+let editorMode = 'wordpress'; // 'wordpress' | 'instagram'
+
+function setEditorMode(mode) {
+  editorMode = mode;
+  const isIG = mode === 'instagram';
+
+  document.getElementById('btnModeWP').className = 'mode-btn' + (isIG ? '' : ' active-wp');
+  document.getElementById('btnModeIG').className = 'mode-btn' + (isIG ? ' active-ig' : '');
+
+  document.getElementById('modeDescWP').style.display = isIG ? 'none' : '';
+  document.getElementById('modeDescIG').style.display = isIG ? '' : 'none';
+
+  document.getElementById('btnSaveWP').style.display = isIG ? 'none' : '';
+  document.getElementById('btnSaveIG').style.display = isIG ? '' : 'none';
+  document.getElementById('igCropHelp').style.display = isIG ? '' : 'none';
+
+  // Upload hint
+  const hint = document.querySelector('.upload-zone .small.text-muted');
+  if (hint) hint.textContent = isIG ? 'PNG, JPG, WebP · Sin límite de tamaño' : 'PNG, JPG, WebP (máx 2 MB)';
+
+  resizeCanvasForMode(true);
+  updateSizeEstimate();
+}
+
+function getCanvasDimensionsForMode() {
+  const area = document.getElementById('canvasArea');
+  const availableWidth = Math.max(280, area.clientWidth - 40);
+  const availableHeight = Math.max(280, area.clientHeight - 40);
+  if (editorMode === 'instagram') {
+    const side = Math.min(availableWidth, availableHeight, 900);
+    return { width: side, height: side };
+  }
+  return {
+    width: Math.min(availableWidth, DEFAULT_CANVAS_MAX_W),
+    height: Math.min(availableHeight, DEFAULT_CANVAS_MAX_H),
+  };
+}
+
+function constrainCurrentImage() {
+  if (!currentImage || editorMode !== 'instagram') return;
+  const scaledWidth = currentImage.getScaledWidth();
+  const scaledHeight = currentImage.getScaledHeight();
+  const minLeft = canvas.width - scaledWidth / 2;
+  const maxLeft = scaledWidth / 2;
+  const minTop = canvas.height - scaledHeight / 2;
+  const maxTop = scaledHeight / 2;
+
+  currentImage.set({
+    left: Math.min(maxLeft, Math.max(minLeft, currentImage.left)),
+    top: Math.min(maxTop, Math.max(minTop, currentImage.top)),
+  });
+}
+
+function applyCurrentImageMode(resetPosition = false) {
+  if (!currentImage || !canvas) return;
+  const scaleX = canvas.width / currentImage.width;
+  const scaleY = canvas.height / currentImage.height;
+  const scale = Math.max(scaleX, scaleY);
+
+  currentImage.set({
+    originX: 'center',
+    originY: 'center',
+    scaleX: scale,
+    scaleY: scale,
+    left: resetPosition ? canvas.width / 2 : currentImage.left,
+    top: resetPosition ? canvas.height / 2 : currentImage.top,
+    selectable: editorMode === 'instagram',
+    evented: editorMode === 'instagram',
+    lockRotation: true,
+    hasControls: false,
+    hoverCursor: editorMode === 'instagram' ? 'move' : 'default',
+    moveCursor: editorMode === 'instagram' ? 'move' : 'default',
+  });
+
+  constrainCurrentImage();
+  canvas.sendToBack(currentImage);
+  canvas.renderAll();
+}
+
+function resizeCanvasForMode(resetImagePosition = false) {
+  if (!canvas) return;
+  const dims = getCanvasDimensionsForMode();
+  canvas.setDimensions({ width: dims.width, height: dims.height });
+  applyCurrentImageMode(resetImagePosition);
+  canvas.renderAll();
+}
 
 const FONTS = [
   'Roboto','Open Sans','Lato','Montserrat','Poppins','Playfair Display',
@@ -311,9 +430,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initCanvas() {
-  const area = document.getElementById('canvasArea');
-  canvasWidth = Math.min(area.clientWidth - 40, 1200);
-  canvasHeight = Math.min(area.clientHeight - 40, 800);
+  const dims = getCanvasDimensionsForMode();
+  canvasWidth = dims.width;
+  canvasHeight = dims.height;
 
   canvas = new fabric.Canvas('editorCanvas', {
     width: canvasWidth,
@@ -329,6 +448,11 @@ function initCanvas() {
   // Update text properties from selected object
   canvas.on('selection:created', syncTextProps);
   canvas.on('selection:updated', syncTextProps);
+  canvas.on('object:moving', event => {
+    if (event.target === currentImage && editorMode === 'instagram') {
+      constrainCurrentImage();
+    }
+  });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', e => {
@@ -367,7 +491,8 @@ function initUpload() {
 }
 
 function loadImage(file) {
-  if (file.size > MAX_SIZE_BYTES) {
+  // En modo WordPress limitar a 2 MB; en Instagram sin límite
+  if (editorMode !== 'instagram' && file.size > MAX_SIZE_BYTES) {
     showToast('La imagen supera 2 MB', 'danger');
     return;
   }
@@ -393,8 +518,7 @@ function loadImage(file) {
       });
       currentImage = img;
       canvas.add(img);
-      canvas.sendToBack(img);
-      canvas.renderAll();
+      applyCurrentImageMode(true);
       updateSizeEstimate();
       document.getElementById('btnRemoveBg').disabled = false;
     });
@@ -437,8 +561,7 @@ async function removeBackground() {
         });
         currentImage = newImg;
         canvas.add(newImg);
-        canvas.sendToBack(newImg);
-        canvas.renderAll();
+        applyCurrentImageMode(true);
         updateSizeEstimate();
         showToast('✅ Fondo eliminado', 'success');
         status.textContent = 'Fondo eliminado correctamente';
@@ -714,6 +837,7 @@ function resetCanvas() {
   canvas.clear();
   canvas.setBackgroundColor('#1a1a2e', canvas.renderAll.bind(canvas));
   currentImage = null;
+  resizeCanvasForMode(false);
   updateSizeEstimate();
 }
 
@@ -766,7 +890,9 @@ function updateSizeEstimate() {
   } else {
     el.textContent = (sizeBytes/(1024*1024)).toFixed(2) + ' MB';
   }
-  el.className = 'size-badge ' + (sizeBytes > MAX_SIZE_BYTES ? 'size-over' : sizeBytes > MAX_SIZE_BYTES*0.8 ? 'size-warn' : 'size-ok');
+  // En modo Instagram no existe límite: siempre verde
+  const isIG = editorMode === 'instagram';
+  el.className = 'size-badge ' + (isIG ? 'size-ok' : (sizeBytes > MAX_SIZE_BYTES ? 'size-over' : sizeBytes > MAX_SIZE_BYTES*0.8 ? 'size-warn' : 'size-ok'));
 }
 
 function updateQualityLabel() {
@@ -774,7 +900,55 @@ function updateQualityLabel() {
   updateSizeEstimate();
 }
 
-// ── Save ──
+// ── Save para Instagram (descarga directa) ──
+async function saveInstagram() {
+  const fileName = document.getElementById('fileName').value.trim();
+  if (!fileName) { showToast('Escribe un nombre para el archivo', 'warning'); return; }
+  const safeName = fileName.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  if (!canvas || !currentImage) {
+    showToast('Carga una imagen y ajusta su encuadre en el lienzo principal', 'warning');
+    return;
+  }
+
+  constrainCurrentImage();
+  canvas.renderAll();
+  const dataUrl = canvas.toDataURL({ format: 'png', multiplier: 1 });
+
+  const btn = document.getElementById('btnSaveIG');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Preparando...';
+
+  try {
+    const resp = await fetch('/api/editor/instagram', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ image: dataUrl, filename: safeName }),
+    });
+    const data = await resp.json();
+    if (!data.ok) {
+      showToast('❌ Error: ' + (data.error || 'desconocido'), 'danger');
+      return;
+    }
+
+    // Disparar descarga directamente en el navegador
+    const a = document.createElement('a');
+    a.href = data.image;
+    a.download = data.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    showToast(`✅ Descargando ${data.filename} · ${data.dimensions} · ${data.size_kb} KB`, 'success');
+
+  } catch(err) {
+    showToast('❌ Error de conexión', 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '📥 Descargar para Instagram';
+  }
+}
+
+// ── Save para WordPress ──
 async function saveImage() {
   const fileName = document.getElementById('fileName').value.trim();
   if (!fileName) { showToast('Escribe un nombre para el archivo', 'warning'); return; }
