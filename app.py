@@ -18,6 +18,7 @@ import os
 import queue
 import re
 import threading
+import time
 import uuid
 from datetime import date, datetime, timedelta
 from functools import wraps
@@ -85,6 +86,8 @@ def get_token_manager():
 
 # -- Colas de progreso para generacion asincrona -----------------------------------
 _progress_queues: dict[str, queue.Queue] = {}
+_STREAM_POLL_INTERVAL_SECONDS = 1.0
+_STREAM_KEEPALIVE_SECONDS = 5.0
 
 
 # -- Helpers modo ------------------------------------------------------------------
@@ -905,14 +908,19 @@ def api_progreso(task_id):
         return Response(not_found(), mimetype="text/event-stream")
 
     def stream():
+        last_sent_at = time.monotonic()
+        yield "retry: 3000\n: stream-open\n\n"
         while True:
             try:
-                msg = q.get(timeout=20)
+                msg = q.get(timeout=_STREAM_POLL_INTERVAL_SECONDS)
             except queue.Empty:
-                # Heartbeat para evitar que Gunicorn mate al worker por inactividad
-                yield ": keepalive\n\n"
+                now = time.monotonic()
+                if (now - last_sent_at) >= _STREAM_KEEPALIVE_SECONDS:
+                    yield ": keepalive\n\n"
+                    last_sent_at = now
                 continue
             yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
+            last_sent_at = time.monotonic()
             if msg.get("type") in ("done", "error"):
                 _progress_queues.pop(task_id, None)
                 return

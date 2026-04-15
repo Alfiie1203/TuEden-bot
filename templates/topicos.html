@@ -565,8 +565,35 @@ function listenTopicProgress(taskId, totalTopics) {
   const msg = document.getElementById('progressMsg');
   const tp  = document.getElementById('topicsProgress');
   let allResults = [];
+  let finished = false;
+  let reconnectTimer = null;
+
+  function clearReconnectTimer() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function scheduleReconnectFailure() {
+    if (finished || reconnectTimer) return;
+    msg.textContent = 'Reconectando con el servidor…';
+    reconnectTimer = setTimeout(() => {
+      if (finished || es.readyState === EventSource.OPEN) return;
+      finished = true;
+      es.close();
+      showToast('La tarea perdió la conexión con el servidor antes de terminar.','danger');
+      document.getElementById('btnGenerar').disabled = false;
+      updateGenerateButtonLabel();
+    }, 15000);
+  }
+
+  es.onopen = () => {
+    clearReconnectTimer();
+  };
 
   es.onmessage = evt => {
+    clearReconnectTimer();
     const d = JSON.parse(evt.data);
     if (d.type === 'topic_start') {
       const pct = Math.round((d.idx / d.total) * 100);
@@ -583,18 +610,23 @@ function listenTopicProgress(taskId, totalTopics) {
     } else if (d.type === 'topic_error') {
       tp.innerHTML += `<div class="text-danger small">❌ ${d.topic}: ${d.message}</div>`;
     } else if (d.type === 'done') {
+      finished = true;
       es.close();
       bar.style.width = '100%';
       bar.classList.remove('progress-bar-animated');
       mostrarResultados(d.results || allResults);
       updateGenerateButtonLabel();
     } else if (d.type === 'error') {
+      finished = true;
       es.close();
       showToast(d.message, 'danger');
       document.getElementById('btnGenerar').disabled = false;
     }
   };
-  es.onerror = () => { es.close(); showToast('Se perdió conexión con el servidor.','danger'); };
+  es.onerror = () => {
+    if (finished) return;
+    scheduleReconnectFailure();
+  };
 }
 
 function mostrarResultados(results) {

@@ -180,14 +180,41 @@ function listenProgress(taskId) {
   const es = new EventSource(`/api/progreso/${taskId}`);
   const bar = document.getElementById('progressBar');
   const msg = document.getElementById('progressMsg');
+  let finished = false;
+  let reconnectTimer = null;
+
+  function clearReconnectTimer() {
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+  }
+
+  function scheduleReconnectFailure() {
+    if (finished || reconnectTimer) return;
+    msg.textContent = 'Reconectando con el servidor…';
+    reconnectTimer = setTimeout(() => {
+      if (finished || es.readyState === EventSource.OPEN) return;
+      finished = true;
+      es.close();
+      showToast('La tarea perdió la conexión con el servidor antes de terminar.','danger');
+      resetBtn();
+    }, 15000);
+  }
+
+  es.onopen = () => {
+    clearReconnectTimer();
+  };
 
   es.onmessage = evt => {
+    clearReconnectTimer();
     const d = JSON.parse(evt.data);
     if (d.type === 'progress') {
       const pct = Math.round((d.step / d.total) * 100);
       bar.style.width = pct + '%';
       msg.textContent = `Paso ${d.step}/${d.total}: ${d.message}`;
     } else if (d.type === 'done') {
+      finished = true;
       es.close();
       bar.style.width = '100%';
       bar.classList.remove('progress-bar-animated');
@@ -196,12 +223,16 @@ function listenProgress(taskId) {
       resetBtn();
       cargarEstadisticas();
     } else if (d.type === 'error') {
+      finished = true;
       es.close();
       showToast('Error: ' + d.message, 'danger');
       resetBtn();
     }
   };
-  es.onerror = () => { es.close(); showToast('Se perdió la conexión con el servidor.','danger'); resetBtn(); };
+  es.onerror = () => {
+    if (finished) return;
+    scheduleReconnectFailure();
+  };
 }
 
 function mostrarResultados(drafts, topic) {
