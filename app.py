@@ -983,6 +983,48 @@ def api_progreso(task_id):
     )
 
 
+@app.get("/api/progreso_poll/<task_id>")
+@login_required
+def api_progreso_poll(task_id):
+    """Devuelve eventos de progreso por sondeo corto para entornos Gunicorn sync."""
+    task_path = _progress_task_path(task_id)
+    q = _progress_queues.get(task_id)
+
+    try:
+        cursor = max(0, int(request.args.get("cursor", "0")))
+    except ValueError:
+        cursor = 0
+
+    if not task_path.exists():
+        if q is not None:
+            return jsonify({"ok": True, "events": [], "next_cursor": cursor, "done": False})
+        return jsonify({"ok": False, "error": "Tarea no encontrada"}), 404
+
+    events: list[dict] = []
+    next_cursor = cursor
+    done = False
+
+    with task_path.open("r", encoding="utf-8") as f:
+        for idx, line in enumerate(f):
+            if idx < cursor:
+                continue
+            line = line.strip()
+            if not line:
+                next_cursor = idx + 1
+                continue
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                next_cursor = idx + 1
+                continue
+            events.append(msg)
+            next_cursor = idx + 1
+            if msg.get("type") in ("done", "error"):
+                done = True
+
+    return jsonify({"ok": True, "events": events, "next_cursor": next_cursor, "done": done})
+
+
 # ==================================================================================
 # API - TOPICOS DEL DIA
 # ==================================================================================

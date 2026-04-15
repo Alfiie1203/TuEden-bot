@@ -177,45 +177,24 @@ function iniciarGeneracion() {
 }
 
 function listenProgress(taskId) {
-  const es = new EventSource(`/api/progreso/${taskId}`);
   const bar = document.getElementById('progressBar');
   const msg = document.getElementById('progressMsg');
+  let cursor = 0;
   let finished = false;
-  let reconnectTimer = null;
+  let errorStartedAt = null;
 
-  function clearReconnectTimer() {
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
+  function scheduleNextPoll(delay = 1500) {
+    if (finished) return;
+    setTimeout(pollProgress, delay);
   }
 
-  function scheduleReconnectFailure() {
-    if (finished || reconnectTimer) return;
-    msg.textContent = 'Reconectando con el servidor…';
-    reconnectTimer = setTimeout(() => {
-      if (finished || es.readyState === EventSource.OPEN) return;
-      finished = true;
-      es.close();
-      showToast('La tarea perdió la conexión con el servidor antes de terminar.','danger');
-      resetBtn();
-    }, 15000);
-  }
-
-  es.onopen = () => {
-    clearReconnectTimer();
-  };
-
-  es.onmessage = evt => {
-    clearReconnectTimer();
-    const d = JSON.parse(evt.data);
+  function handleProgressEvent(d) {
     if (d.type === 'progress') {
       const pct = Math.round((d.step / d.total) * 100);
       bar.style.width = pct + '%';
       msg.textContent = `Paso ${d.step}/${d.total}: ${d.message}`;
     } else if (d.type === 'done') {
       finished = true;
-      es.close();
       bar.style.width = '100%';
       bar.classList.remove('progress-bar-animated');
       msg.textContent = '¡Completado!';
@@ -224,15 +203,44 @@ function listenProgress(taskId) {
       cargarEstadisticas();
     } else if (d.type === 'error') {
       finished = true;
-      es.close();
       showToast('Error: ' + d.message, 'danger');
       resetBtn();
     }
-  };
-  es.onerror = () => {
+  }
+
+  function pollProgress() {
     if (finished) return;
-    scheduleReconnectFailure();
-  };
+    fetch(`/api/progreso_poll/${taskId}?cursor=${cursor}`, {cache:'no-store'})
+      .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+      .then(({ok, data}) => {
+        if (!ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo consultar el progreso');
+        }
+        errorStartedAt = null;
+        cursor = data.next_cursor || cursor;
+        for (const event of (data.events || [])) {
+          handleProgressEvent(event);
+          if (finished) return;
+        }
+        scheduleNextPoll(data.events && data.events.length ? 500 : 1500);
+      })
+      .catch(() => {
+        if (finished) return;
+        if (!errorStartedAt) {
+          errorStartedAt = Date.now();
+          msg.textContent = 'Reconectando con el servidor…';
+        }
+        if ((Date.now() - errorStartedAt) >= 15000) {
+          finished = true;
+          showToast('La tarea perdió la conexión con el servidor antes de terminar.','danger');
+          resetBtn();
+          return;
+        }
+        scheduleNextPoll(2000);
+      });
+  }
+
+  pollProgress();
 }
 
 function mostrarResultados(drafts, topic) {
