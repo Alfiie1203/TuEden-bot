@@ -63,6 +63,7 @@ app.permanent_session_lifetime = timedelta(days=7)
 DRAFTS_DIR = Path("drafts_output")
 IMAGES_DIR = DRAFTS_DIR / "images"
 LOG_PATH   = Path("logs/generation_log.jsonl")
+PROGRESS_DIR = Path("logs/progress_tasks")
 USERS_FILE = Path("users.json")
 ENV_FILE   = Path(".env")
 
@@ -106,6 +107,29 @@ def _find_draft_file(wp_post_id, post_type: str) -> str | None:
     for f in DRAFTS_DIR.glob(f"draft_{wp_post_id}_*.json"):
         return f.name
     return None
+
+
+def _progress_task_path(task_id: str) -> Path:
+    return PROGRESS_DIR / f"{task_id}.jsonl"
+
+
+def _init_progress_task(task_id: str) -> Path:
+    PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
+    task_path = _progress_task_path(task_id)
+    task_path.write_text("", encoding="utf-8")
+    return task_path
+
+
+def _append_progress_event(task_id: str, payload: dict) -> None:
+    task_path = _progress_task_path(task_id)
+    task_path.parent.mkdir(parents=True, exist_ok=True)
+    with task_path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def _emit_progress_event(task_id: str, q: queue.Queue, payload: dict) -> None:
+    q.put(payload)
+    _append_progress_event(task_id, payload)
 
 
 def _safe_draft_path(filename: str) -> Path | None:
@@ -854,6 +878,7 @@ def api_generar():
     task_id = str(uuid.uuid4())
     q       = queue.Queue()
     _progress_queues[task_id] = q
+    _init_progress_task(task_id)
     _current_username = (get_current_user() or {}).get("username", "")
     _current_badge    = (get_current_user() or {}).get("professional_badge", "")
     _current_voice    = (get_current_user() or {}).get("voice_profile", {}).get("compiled", "")
@@ -865,7 +890,7 @@ def api_generar():
             tm = get_token_manager()
 
             def progress_cb(step: int, total: int, message: str):
-                q.put({"type": "progress", "step": step, "total": total, "message": message})
+                _emit_progress_event(task_id, q, {"type": "progress", "step": step, "total": total, "message": message})
 
             orchestrator = ContentOrchestrator.from_env(
                 progress_cb=progress_cb,
@@ -888,9 +913,9 @@ def api_generar():
                     "is_error":         draft.title.startswith("[ERROR]"),
                     "error_msg":        draft.content[:300] if draft.title.startswith("[ERROR]") else "",
                 })
-            q.put({"type": "done", "drafts": result, "topic": user_input})
+            _emit_progress_event(task_id, q, {"type": "done", "drafts": result, "topic": user_input})
         except Exception as e:
-            q.put({"type": "error", "message": str(e)})
+            _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify({"task_id": task_id})
@@ -901,11 +926,35 @@ def api_generar():
 def api_progreso(task_id):
     """Server-Sent Events - stream de progreso de generacion."""
     q = _progress_queues.get(task_id)
+    task_path = _progress_task_path(task_id)
 
-    if q is None:
+    if q is None and not task_path.exists():
         def not_found():
             yield 'data: {"type":"error","message":"Tarea no encontrada"}\n\n'
         return Response(not_found(), mimetype="text/event-stream")
+
+    def stream_from_file():
+        last_sent_at = time.monotonic()
+        yield "retry: 3000\n: stream-open\n\n"
+        with task_path.open("r", encoding="utf-8") as f:
+            while True:
+                line = f.readline()
+                if line:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    msg = json.loads(line)
+                    yield f"data: {json.dumps(msg, ensure_ascii=False)}\n\n"
+                    last_sent_at = time.monotonic()
+                    if msg.get("type") in ("done", "error"):
+                        return
+                    continue
+
+                now = time.monotonic()
+                if (now - last_sent_at) >= _STREAM_KEEPALIVE_SECONDS:
+                    yield ": keepalive\n\n"
+                    last_sent_at = now
+                time.sleep(_STREAM_POLL_INTERVAL_SECONDS)
 
     def stream():
         last_sent_at = time.monotonic()
@@ -926,7 +975,7 @@ def api_progreso(task_id):
                 return
 
     return Response(
-        stream_with_context(stream()),
+        stream_with_context(stream() if q is not None else stream_from_file()),
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -1019,6 +1068,7 @@ def api_topicos_generar():
     task_id = str(uuid.uuid4())
     q       = queue.Queue()
     _progress_queues[task_id] = q
+    _init_progress_task(task_id)
     _current_username = (get_current_user() or {}).get("username", "")
     _current_badge    = (get_current_user() or {}).get("professional_badge", "")
     _current_voice    = (get_current_user() or {}).get("voice_profile", {}).get("compiled", "")
@@ -1034,7 +1084,7 @@ def api_topicos_generar():
             for t_idx, job in enumerate(topic_jobs):
                 topic = job["topic"]
                 selected_types = job["post_types"]
-                q.put({"type": "topic_start", "topic": topic, "idx": t_idx, "total": total_topics})
+                _emit_progress_event(task_id, q, {"type": "topic_start", "topic": topic, "idx": t_idx, "total": total_topics})
                 ct = {
                     pt: edited_titles.get(f"{topic}:{pt}", "")
                     for pt in selected_types
@@ -1043,7 +1093,7 @@ def api_topicos_generar():
 
                 def make_cb(idx):
                     def cb(step, total, msg):
-                        q.put({"type": "progress", "idx": idx, "step": step, "total": total, "message": msg})
+                        _emit_progress_event(task_id, q, {"type": "progress", "idx": idx, "step": step, "total": total, "message": msg})
                     return cb
 
                 try:
@@ -1077,14 +1127,14 @@ def api_topicos_generar():
                             "is_error":      d.title.startswith("[ERROR]"),
                         })
                     all_results.append({"topic": topic, "drafts": topic_drafts})
-                    q.put({"type": "topic_done", "topic": topic, "idx": t_idx, "drafts": topic_drafts})
+                    _emit_progress_event(task_id, q, {"type": "topic_done", "topic": topic, "idx": t_idx, "drafts": topic_drafts})
                 except Exception as e:
-                    q.put({"type": "topic_error", "topic": topic, "idx": t_idx, "message": str(e)})
+                    _emit_progress_event(task_id, q, {"type": "topic_error", "topic": topic, "idx": t_idx, "message": str(e)})
                     all_results.append({"topic": topic, "drafts": [], "error": str(e)})
 
-            q.put({"type": "done", "results": all_results})
+            _emit_progress_event(task_id, q, {"type": "done", "results": all_results})
         except Exception as e:
-            q.put({"type": "error", "message": str(e)})
+            _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
 
     threading.Thread(target=run, daemon=True).start()
     return jsonify({"task_id": task_id, "filtered_out": removed_topics})
