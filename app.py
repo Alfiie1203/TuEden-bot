@@ -852,8 +852,10 @@ def api_tokens_activar():
     alias = data.get("alias", "")
     tm = get_token_manager()
     if tm and alias:
-        tm.set_active_key(alias)
-        return jsonify({"ok": True})
+        changed = tm.set_active_key(alias)
+        if changed:
+            return jsonify({"ok": True, "alias": tm.active_key.alias})
+        return jsonify({"ok": False, "error": f"No se pudo activar {alias}"}), 400
     return jsonify({"ok": False})
 
 

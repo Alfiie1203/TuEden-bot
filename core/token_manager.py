@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
@@ -42,6 +43,7 @@ WARN_THRESHOLD_PCT     = 0.75       # Alerta cuando se usa el 75% de requests
 
 # Ruta del archivo de persistencia
 _STATE_FILE = Path("logs/token_usage.json")
+_GEMINI_KEY_PATTERN = re.compile(r"^AIza[0-9A-Za-z_-]{20,}$")
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +73,7 @@ class ApiKeyStats:
 
     @property
     def is_valid(self) -> bool:
-        return bool(self.key) and "REEMPLAZA" not in self.key and len(self.key) > 20
+        return bool(self.key) and "REEMPLAZA" not in self.key and bool(_GEMINI_KEY_PATTERN.match(self.key))
 
     @property
     def requests_remaining_today(self) -> int:
@@ -193,15 +195,24 @@ class TokenManager:
     def from_env(cls) -> "TokenManager":
         """
         Lee las claves desde variables de entorno.
-        Soporta: GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3
-        (también acepta GEMINI_API_KEY como clave 1 si no hay GEMINI_API_KEY_1)
+        Soporta cualquier variable GEMINI_API_KEY_<n> ordenada por <n>.
+        También acepta GEMINI_API_KEY como clave 1 si no hay numeradas.
         """
-        keys = []
-        # Intentar GEMINI_API_KEY_1, _2, _3, ..., _9
-        for i in range(1, 10):
-            k = os.getenv(f"GEMINI_API_KEY_{i}", "").strip()
-            if k:
-                keys.append(k)
+        keys: list[str] = []
+        indexed_keys: list[tuple[int, str]] = []
+
+        for env_name, env_value in os.environ.items():
+            if not env_name.startswith("GEMINI_API_KEY_"):
+                continue
+            suffix = env_name.removeprefix("GEMINI_API_KEY_")
+            if not suffix.isdigit():
+                continue
+            key_value = env_value.strip()
+            if key_value:
+                indexed_keys.append((int(suffix), key_value))
+
+        indexed_keys.sort(key=lambda item: item[0])
+        keys.extend(value for _, value in indexed_keys)
 
         # Fallback: GEMINI_API_KEY (clave única antigua)
         if not keys:
@@ -292,6 +303,12 @@ class TokenManager:
         """Selecciona una clave específica por alias (para cambio manual desde GUI)."""
         for i, k in enumerate(self._keys):
             if k.alias == alias:
+                if not k.is_valid:
+                    logger.warning(f"[TokenManager] No se puede activar {alias}: clave inválida.")
+                    return False
+                if not k.active:
+                    logger.warning(f"[TokenManager] No se puede activar {alias}: clave desactivada.")
+                    return False
                 self._active_idx = i
                 logger.info(f"[TokenManager] Cambio manual a: {alias}")
                 self._save_state()
@@ -377,15 +394,26 @@ class TokenManager:
             with open(_STATE_FILE, "r", encoding="utf-8") as f:
                 state = json.load(f)
 
-            self._active_idx = state.get("active_idx", 0)
-            saved_keys       = state.get("keys", [])
+            saved_keys = state.get("keys", [])
+            saved_by_preview = {
+                saved.get("key_preview"): saved
+                for saved in saved_keys
+                if saved.get("key_preview")
+            }
 
-            for i, saved in enumerate(saved_keys):
-                if i < len(self._keys):
-                    self._keys[i].load_from_dict(saved)
-                    # Preservar alias del estado guardado si coincide el índice
-                    if saved.get("alias"):
-                        self._keys[i].alias = saved["alias"]
+            for key_stats in self._keys:
+                saved = saved_by_preview.get(key_stats.key_preview)
+                if saved:
+                    key_stats.load_from_dict(saved)
+
+            saved_active_idx = state.get("active_idx", 0)
+            if 0 <= saved_active_idx < len(saved_keys):
+                saved_active_preview = (saved_keys[saved_active_idx] or {}).get("key_preview")
+                if saved_active_preview:
+                    for i, key_stats in enumerate(self._keys):
+                        if key_stats.key_preview == saved_active_preview:
+                            self._active_idx = i
+                            break
 
             logger.debug("[TokenManager] Estado cargado desde disco.")
         except (json.JSONDecodeError, KeyError) as exc:

@@ -353,7 +353,15 @@ function loadTokens() {
 
 function activarClave(alias) {
   fetch('/api/tokens/activar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({alias})})
-    .then(r=>r.json()).then(()=>{ loadTokens(); showToast(`Clave activada: ${alias}`); });
+    .then(r=>r.json().then(d => ({ok: r.ok, data: d})))
+    .then(({ok, data}) => {
+      if (!ok || !data.ok) {
+        showToast(data.error || `No se pudo activar ${alias}`, 'warning');
+        return;
+      }
+      loadTokens();
+      showToast(`Clave activada: ${data.alias || alias}`);
+    });
 }
 
 function rotarClave() {
