@@ -585,7 +585,9 @@ function listenTopicProgress(taskId, totalTopics) {
       msg.textContent = `Tópico ${d.idx+1}/${totalTopics}: ${d.message}`;
     } else if (d.type === 'topic_done') {
       allResults.push({topic: d.topic, drafts: d.drafts});
-      tp.innerHTML += `<div class="text-success small">✅ ${d.topic} — ${d.drafts.length} posts</div>`;
+      const successCount = (d.drafts || []).filter(x => !x.is_error).length;
+      const statusClass = successCount > 0 ? 'text-success' : 'text-warning';
+      tp.innerHTML += `<div class="${statusClass} small">✅ ${d.topic} — ${successCount}/${(d.drafts || []).length} posts correctos</div>`;
     } else if (d.type === 'topic_error') {
       tp.innerHTML += `<div class="text-danger small">❌ ${d.topic}: ${d.message}</div>`;
     } else if (d.type === 'done') {
@@ -640,8 +642,10 @@ function listenTopicProgress(taskId, totalTopics) {
 function mostrarResultados(results) {
   const sec = document.getElementById('resultsSection');
   sec.style.display = '';
-  const total = results.reduce((a,r) => a + r.drafts.length, 0);
-  let html = `<div class="alert alert-success py-2">✅ <strong>${results.length} tópico(s) generados</strong> · ${total} posts.</div>`;
+  const total = results.reduce((a, r) => a + (r.drafts || []).filter(d => !d.is_error).length, 0);
+  const attempted = results.reduce((a, r) => a + (r.drafts || []).length, 0);
+  const summaryClass = total === attempted ? 'alert-success' : 'alert-warning';
+  let html = `<div class="alert ${summaryClass} py-2">✅ <strong>${results.length} tópico(s) procesados</strong> · ${total}/${attempted} posts correctos.</div>`;
 
   results.forEach(r => {
     html += `<div class="card mb-3">
@@ -654,7 +658,7 @@ function mostrarResultados(results) {
         const icon  = TYPE_ICONS[d.post_type] || '📄';
         const label = TYPE_LABELS[d.post_type] || d.post_type;
         if (d.is_error) {
-          html += `<div class="text-danger small mb-2">❌ ${label}: Error</div>`;
+          html += `<div class="text-danger small mb-2">❌ ${label}: ${d.error_msg || 'Error'}</div>`;
         } else {
           html += `<div class="d-flex justify-content-between align-items-center mb-2">
             <div>

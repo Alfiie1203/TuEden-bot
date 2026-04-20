@@ -350,11 +350,29 @@ class TokenManager:
         return sum(1 for k in self._keys if k.is_valid)
 
     @property
-    def any_key_available(self) -> bool:
-        return any(
-            k.is_valid and k.active and not k.is_exhausted_today
+    def available_keys_count(self) -> int:
+        return sum(
+            1
             for k in self._keys
+            if k.is_valid and k.active and not k.is_exhausted_today
         )
+
+    @property
+    def any_key_available(self) -> bool:
+        return self.available_keys_count > 0
+
+    def mark_key_exhausted(self, alias: str | None = None) -> bool:
+        """Marca una clave como agotada hoy para evitar reutilizarla tras un 429."""
+        target_alias = alias or self.active_key.alias
+        for key_stats in self._keys:
+            if key_stats.alias != target_alias:
+                continue
+            key_stats.today_requests = FREE_TIER_RPD
+            key_stats.last_used = datetime.now().isoformat()
+            self._save_state()
+            logger.warning(f"[TokenManager] {target_alias} marcada como agotada hoy.")
+            return True
+        return False
 
     def get_summary(self) -> dict:
         """Resumen completo del pool para mostrar en la GUI."""
@@ -366,6 +384,7 @@ class TokenManager:
             "pool_total_tokens":    self.pool_total_tokens,
             "pool_today_tokens":    self.pool_today_tokens,
             "pool_today_requests":  self.pool_today_requests,
+            "available_keys":       self.available_keys_count,
             "pool_blogs_remaining": self.pool_blogs_remaining_today,
             "tokens_per_blog_est":  TOKENS_PER_BLOG_EST,
             "free_tier_rpd":        FREE_TIER_RPD,

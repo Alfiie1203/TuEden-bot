@@ -1169,6 +1169,7 @@ def api_topicos_generar():
                             "wp_post_id":    d.wp_post_id,
                             "draft_file":    df,
                             "is_error":      d.title.startswith("[ERROR]"),
+                            "error_msg":     d.content[:300] if d.title.startswith("[ERROR]") else "",
                         })
                     all_results.append({"topic": topic, "drafts": topic_drafts})
                     _emit_progress_event(task_id, q, {"type": "topic_done", "topic": topic, "idx": t_idx, "drafts": topic_drafts})

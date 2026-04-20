@@ -33,6 +33,10 @@ from core.token_manager import FREE_TIER_RPD
 _CALL_TIMEOUT = 45          # segundos máximo por llamada a Gemini
 _RETRY_WAITS  = (2, 4, 8)   # backoff entre reintentos (segundos)
 
+
+class QuotaExceededError(RuntimeError):
+    """Se lanza cuando una clave o el pool ya no pueden seguir llamando a Gemini."""
+
 # Dominios que el DNS corporativo bloquea → resolvemos via DNS público
 _BLOCKED_DOMAINS = (
     "generativelanguage.googleapis.com",
@@ -509,6 +513,8 @@ class GeminiClient:
         """Llama a la API de Gemini con hasta 3 reintentos y registra tokens reales."""
         # Rotar clave si la activa está agotada antes de intentar
         self.token_manager.rotate_if_exhausted()
+        if not self.token_manager.any_key_available:
+            raise QuotaExceededError("No quedan API keys disponibles con cuota para hoy.")
         self._init_model(self.token_manager.get_active_key())
 
         active_map = prompt_map if prompt_map is not None else PROMPT_MAP
@@ -529,7 +535,11 @@ class GeminiClient:
         )
 
         last_exc: Exception | None = None
-        for attempt in range(1, 4):       # 3 intentos
+        retry_attempt = 0
+        quota_rotations = 0
+        max_quota_rotations = max(1, self.token_manager.available_keys_count)
+
+        while True:
             try:
                 # ── Timeout real: se aplica con signal/threading via wrapper ─
                 response = _call_with_timeout(
@@ -598,10 +608,13 @@ class GeminiClient:
                 if net_error:
                     # Error de red: no tiene sentido esperar mucho, reintentar rápido
                     last_exc = exc
-                    wait = _RETRY_WAITS[attempt - 1]
+                    retry_attempt += 1
+                    if retry_attempt > len(_RETRY_WAITS):
+                        break
+                    wait = _RETRY_WAITS[retry_attempt - 1]
                     logger.warning(
                         f"[Red] {net_error} | "
-                        f"Intento {attempt}/3 — reintentando en {wait}s…"
+                        f"Intento {retry_attempt}/3 — reintentando en {wait}s…"
                     )
                     time.sleep(wait)
                     continue
@@ -609,44 +622,43 @@ class GeminiClient:
                 # ── Error de cuota (429) ───────────────────────────────────
                 if _is_quota_error(error_str):
                     self.token_manager.record_error()
-
-                    # Extraer retry_delay que la API nos indica (ej: "retry_delay { seconds: 23 }")
-                    retry_match = re.search(
-                        r'retry[_\s]*delay[^0-9]*(\d+(?:\.\d+)?)', error_str
-                    ) or re.search(r'retry[^0-9]*(\d+(?:\.\d+)?)\s*s', error_str)
-                    suggested_wait = float(retry_match.group(1)) + 2 if retry_match else 30
+                    exhausted_alias = self.token_manager.active_key.alias
+                    self.token_manager.mark_key_exhausted(exhausted_alias)
+                    quota_rotations += 1
 
                     logger.warning(
                         f"[TokenManager] Cuota agotada en "
-                        f"{self.token_manager.active_key.alias} "
-                        f"(límite diario: {FREE_TIER_RPD} req). Rotando clave…"
+                        f"{exhausted_alias} "
+                        f"(límite diario: {FREE_TIER_RPD} req). Probando otra clave…"
                     )
                     rotated = self.token_manager.rotate(reason="quota-error")
                     if rotated:
                         self._init_model(self.token_manager.get_active_key())
                         last_exc = exc
-                        logger.info(f"[Gemini] Nueva clave activa. Esperando {suggested_wait}s…")
-                        time.sleep(suggested_wait)
+                        logger.info(f"[Gemini] Nueva clave activa: {self.token_manager.active_key.alias}")
                         continue
-                    else:
-                        # No hay más claves — esperar el tiempo sugerido y reintentar misma clave
-                        logger.warning(
-                            f"[TokenManager] Sin claves alternativas. "
-                            f"Esperando {suggested_wait}s para respetar rate limit…"
-                        )
+
+                    if quota_rotations >= max_quota_rotations or not self.token_manager.any_key_available:
                         last_exc = exc
-                        time.sleep(suggested_wait)
-                        continue
+                        break
+
+                    last_exc = exc
+                    continue
 
                 # ── Cualquier otro error ───────────────────────────────────
                 last_exc = exc
-                wait = _RETRY_WAITS[attempt - 1]
+                retry_attempt += 1
+                if retry_attempt > len(_RETRY_WAITS):
+                    break
+                wait = _RETRY_WAITS[retry_attempt - 1]
                 logger.warning(
-                    f"[Gemini] Intento {attempt}/3 falló: {exc}. "
+                    f"[Gemini] Intento {retry_attempt}/3 falló: {exc}. "
                     f"Reintentando en {wait}s…"
                 )
                 time.sleep(wait)
 
+        if isinstance(last_exc, Exception) and _is_quota_error(str(last_exc)):
+            raise QuotaExceededError(f"Gemini falló por cuota tras agotar las claves disponibles: {last_exc}") from last_exc
         raise RuntimeError(f"Gemini falló tras 3 intentos: {last_exc}") from last_exc
 
     # ------------------------------------------------------------------
@@ -703,10 +715,16 @@ class GeminiClient:
     def _call_raw_real(self, prompt: str) -> str:
         """Llama a la API de Gemini con un prompt libre y devuelve el texto plano."""
         self.token_manager.rotate_if_exhausted()
+        if not self.token_manager.any_key_available:
+            raise QuotaExceededError("No quedan API keys disponibles con cuota para hoy.")
         self._init_model(self.token_manager.get_active_key())
 
         last_exc: Exception | None = None
-        for attempt in range(1, 4):
+        retry_attempt = 0
+        quota_rotations = 0
+        max_quota_rotations = max(1, self.token_manager.available_keys_count)
+
+        while True:
             try:
                 response = _call_with_timeout(self._model, prompt, timeout=_CALL_TIMEOUT)
 
@@ -731,20 +749,30 @@ class GeminiClient:
 
                 if _is_quota_error(error_str):
                     self.token_manager.record_error()
+                    exhausted_alias = self.token_manager.active_key.alias
+                    self.token_manager.mark_key_exhausted(exhausted_alias)
+                    quota_rotations += 1
                     rotated = self.token_manager.rotate(reason="quota-raw")
                     if rotated:
                         self._init_model(self.token_manager.get_active_key())
                         continue
-                    time.sleep(30)
+
+                    if quota_rotations >= max_quota_rotations or not self.token_manager.any_key_available:
+                        break
                     continue
 
-                wait = _RETRY_WAITS[attempt - 1]
+                retry_attempt += 1
+                if retry_attempt > len(_RETRY_WAITS):
+                    break
+                wait = _RETRY_WAITS[retry_attempt - 1]
                 logger.warning(
-                    f"[Gemini raw] Intento {attempt}/3 falló: {exc}. "
+                    f"[Gemini raw] Intento {retry_attempt}/3 falló: {exc}. "
                     f"Reintentando en {wait}s…"
                 )
                 time.sleep(wait)
 
+        if isinstance(last_exc, Exception) and _is_quota_error(str(last_exc)):
+            raise QuotaExceededError(f"Gemini (raw) falló por cuota tras agotar las claves disponibles: {last_exc}") from last_exc
         raise RuntimeError(
             f"Gemini (raw) falló tras 3 intentos: {last_exc}"
         ) from last_exc

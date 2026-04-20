@@ -22,7 +22,7 @@ from typing import Callable
 from loguru import logger
 
 from core.amazon_parser import extract_product_name, is_amazon_url
-from core.gemini_client import GeminiClient
+from core.gemini_client import GeminiClient, QuotaExceededError
 from core.wp_client import WordPressClient
 from models.post_draft import PostDraft, PostType
 
@@ -349,6 +349,19 @@ class ContentOrchestrator:
                     "seo_keywords":  _seo_kws,
                 })
 
+            except QuotaExceededError as exc:
+                logger.error(f"❌ Cuota agotada generando {label}: {exc}")
+                collected.append({"ok": False, "step": step, "post_info": post_info, "exc": exc})
+
+                for remaining_info in post_types[step:]:
+                    collected.append({
+                        "ok": False,
+                        "step": total,
+                        "post_info": remaining_info,
+                        "exc": RuntimeError("Generación interrumpida: no quedan claves disponibles con cuota."),
+                    })
+                break
+
             except Exception as exc:
                 logger.error(f"❌ Error generando {label}: {exc}")
                 collected.append({"ok": False, "step": step, "post_info": post_info, "exc": exc})
@@ -415,8 +428,12 @@ class ContentOrchestrator:
 
             logger.success(f"✅ {label} listo | WP ID: {wp_id}")
 
-        self.progress_cb(total, total, "¡Generación completada!")
-        logger.success(f"🎉 Sesión {session_id} completada: {len(drafts)} borradores.")
+        success_count = sum(1 for draft in drafts if not draft.title.startswith("[ERROR]"))
+        final_message = "¡Generación completada!" if success_count == len(drafts) else "Generación completada con incidencias."
+        self.progress_cb(total, total, final_message)
+        logger.success(
+            f"🎉 Sesión {session_id} completada: {success_count}/{len(drafts)} borradores correctos."
+        )
         return drafts
 
     # ------------------------------------------------------------------

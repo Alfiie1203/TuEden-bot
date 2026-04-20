@@ -246,7 +246,10 @@ function listenProgress(taskId) {
 function mostrarResultados(drafts, topic) {
   const sec = document.getElementById('resultsSection');
   sec.style.display = '';
-  let html = `<p class="text-muted small mb-3">✅ 3 borradores generados para: <em>${topic}</em></p>`;
+  const successCount = drafts.filter(d => !d.is_error).length;
+  const totalCount = drafts.length;
+  const summaryClass = successCount === totalCount ? 'text-muted' : 'text-warning';
+  let html = `<p class="${summaryClass} small mb-3">✅ ${successCount} de ${totalCount} borradores generados para: <em>${topic}</em></p>`;
 
   drafts.forEach(d => {
     const icon  = TYPE_ICONS[d.post_type] || '📄';
