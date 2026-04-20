@@ -541,6 +541,7 @@ class GeminiClient:
 
         while True:
             try:
+                self.token_manager.acquire_request_slot()
                 # ── Timeout real: se aplica con signal/threading via wrapper ─
                 response = _call_with_timeout(
                     self._model, prompt, timeout=_CALL_TIMEOUT
@@ -623,13 +624,23 @@ class GeminiClient:
                 if _is_quota_error(error_str):
                     self.token_manager.record_error()
                     exhausted_alias = self.token_manager.active_key.alias
-                    self.token_manager.mark_key_exhausted(exhausted_alias)
+                    quota_id = _extract_quota_id(error_str)
+                    retry_delay = _extract_retry_delay_seconds(error_str)
+
+                    if _is_daily_quota_id(quota_id):
+                        self.token_manager.mark_key_exhausted(exhausted_alias)
+                    elif _is_minute_quota_id(quota_id):
+                        logger.warning(
+                            f"[TokenManager] Límite por minuto alcanzado en {exhausted_alias}. "
+                            f"retry_delay={retry_delay or 0:.1f}s"
+                        )
+
                     quota_rotations += 1
 
                     logger.warning(
                         f"[TokenManager] Cuota agotada en "
                         f"{exhausted_alias} "
-                        f"(límite diario: {FREE_TIER_RPD} req). Probando otra clave…"
+                        f"(quota_id: {quota_id or 'desconocido'}). Probando otra clave…"
                     )
                     rotated = self.token_manager.rotate(reason="quota-error")
                     if rotated:
@@ -639,6 +650,12 @@ class GeminiClient:
                         continue
 
                     if quota_rotations >= max_quota_rotations or not self.token_manager.any_key_available:
+                        if _is_minute_quota_id(quota_id) and retry_delay:
+                            logger.warning(
+                                f"[Gemini] Sin más claves inmediatas. Esperando {retry_delay:.1f}s por límite por minuto…"
+                            )
+                            time.sleep(retry_delay)
+                            continue
                         last_exc = exc
                         break
 
@@ -726,6 +743,7 @@ class GeminiClient:
 
         while True:
             try:
+                self.token_manager.acquire_request_slot()
                 response = _call_with_timeout(self._model, prompt, timeout=_CALL_TIMEOUT)
 
                 prompt_tokens = 0
@@ -750,7 +768,10 @@ class GeminiClient:
                 if _is_quota_error(error_str):
                     self.token_manager.record_error()
                     exhausted_alias = self.token_manager.active_key.alias
-                    self.token_manager.mark_key_exhausted(exhausted_alias)
+                    quota_id = _extract_quota_id(error_str)
+                    retry_delay = _extract_retry_delay_seconds(error_str)
+                    if _is_daily_quota_id(quota_id):
+                        self.token_manager.mark_key_exhausted(exhausted_alias)
                     quota_rotations += 1
                     rotated = self.token_manager.rotate(reason="quota-raw")
                     if rotated:
@@ -758,6 +779,12 @@ class GeminiClient:
                         continue
 
                     if quota_rotations >= max_quota_rotations or not self.token_manager.any_key_available:
+                        if _is_minute_quota_id(quota_id) and retry_delay:
+                            logger.warning(
+                                f"[Gemini raw] Esperando {retry_delay:.1f}s por límite por minuto antes de reintentar…"
+                            )
+                            time.sleep(retry_delay)
+                            continue
                         break
                     continue
 
@@ -967,3 +994,26 @@ def _is_quota_error(error_str: str) -> bool:
     """Devuelve True si el error indica cuota agotada (HTTP 429)."""
     lower = error_str.lower()
     return any(k in lower for k in ("429", "quota", "exhausted", "resource_exhausted"))
+
+
+def _extract_quota_id(error_str: str) -> str:
+    match = re.search(r'quota_id:\s*"([^"]+)"', error_str, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def _extract_retry_delay_seconds(error_str: str) -> float | None:
+    retry_match = re.search(
+        r'retry[_\s]*delay[^0-9]*(\d+(?:\.\d+)?)', error_str,
+        re.IGNORECASE,
+    ) or re.search(r'retry[^0-9]*(\d+(?:\.\d+)?)\s*s', error_str, re.IGNORECASE)
+    if not retry_match:
+        return None
+    return float(retry_match.group(1)) + 1
+
+
+def _is_daily_quota_id(quota_id: str) -> bool:
+    return "PerDayPerProjectPerModel" in (quota_id or "")
+
+
+def _is_minute_quota_id(quota_id: str) -> bool:
+    return "PerMinutePerProjectPerModel" in (quota_id or "")

@@ -296,47 +296,15 @@ class ContentOrchestrator:
                     )
                     raw["meta_description"] = self.gemini.call_raw(_fallback_prompt)[:160]
 
-                # Generar prompts de imagen antes de guardar el borrador
-                self.progress_cb(step, total, f"Generando prompts de imagen para {label}…")
-                from core.image_prompt_generator import generate_image_prompts
-                img_prompts = generate_image_prompts(
-                    self.gemini,
-                    title     = raw["title"],
-                    content   = raw["content"],
-                    post_type = post_type,
-                    reviewer  = reviewer,
-                )
+                # Los prompts de imagen se generan manualmente desde el editor
+                # para no consumir una request adicional de Gemini por post.
+                img_prompts = {}
 
-                # Clasificar categoría y etiquetas (siempre que haya credenciales WP disponibles)
+                # La clasificación SEO/taxonomía se hace manualmente desde el editor
+                # para no consumir requests extra durante la generación base.
                 wp_categories: list[int] = []
                 wp_tags: list[int] = []
                 _seo_kws: list[str] = []
-                _tax_base_url = (
-                    getattr(self.wp, "base_url", None)
-                    or os.getenv("WP_BASE_URL", "")
-                ).rstrip("/")
-                _tax_auth = getattr(self.wp, "auth", None)
-                if not _tax_auth:
-                    _wp_user = os.getenv("WP_USERNAME", "")
-                    _wp_pass = os.getenv("WP_APP_PASSWORD", "")
-                    if _wp_user and _wp_pass:
-                        from requests.auth import HTTPBasicAuth
-                        _tax_auth = HTTPBasicAuth(_wp_user, _wp_pass)
-                if _tax_base_url and _tax_auth:
-                    try:
-                        self.progress_cb(step, total, f"Clasificando categorías y etiquetas para {label}…")
-                        from core.wp_taxonomy import assign_taxonomy
-                        wp_categories, wp_tags, _seo_kws = assign_taxonomy(
-                            gemini        = self.gemini,
-                            base_url      = _tax_base_url,
-                            auth          = _tax_auth,
-                            title         = raw["title"],
-                            content       = raw["content"],
-                            post_type     = post_type,
-                            focus_keyword = raw.get("focus_keyword", ""),
-                        )
-                    except Exception as tax_exc:
-                        logger.warning(f"[Orchestrator] No se pudo clasificar taxonomy: {tax_exc}")
 
                 collected.append({
                     "ok":            True,

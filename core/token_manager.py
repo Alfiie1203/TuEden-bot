@@ -24,6 +24,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import time
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
@@ -43,6 +45,7 @@ WARN_THRESHOLD_PCT     = 0.75       # Alerta cuando se usa el 75% de requests
 
 # Ruta del archivo de persistencia
 _STATE_FILE = Path("logs/token_usage.json")
+_LOCK_FILE = Path("logs/token_usage.lock")
 _GEMINI_KEY_PATTERN = re.compile(r"^AIza[0-9A-Za-z_-]{20,}$")
 
 
@@ -176,6 +179,8 @@ class TokenManager:
             self._keys.append(stats)
 
         self._active_idx: int = 0
+        self._recent_requests: list[float] = []
+        self._process_lock = threading.Lock()
         _STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         self._load_state()
         self._check_daily_resets()
@@ -254,6 +259,33 @@ class TokenManager:
         """Registra un error (ej. 429 quota exceeded) en la clave activa."""
         self.active_key.record_error()
         self._save_state()
+
+    def acquire_request_slot(self) -> None:
+        """Bloquea hasta que haya hueco respetando el límite global de RPM."""
+        while True:
+            wait_seconds = 0.0
+            with self._process_lock:
+                self._acquire_file_lock()
+                try:
+                    self._load_state()
+                    now = time.time()
+                    self._prune_recent_requests(now)
+                    if len(self._recent_requests) < FREE_TIER_RPM:
+                        self._recent_requests.append(now)
+                        self._save_state()
+                        logger.debug(
+                            f"[TokenManager] Slot RPM reservado: {len(self._recent_requests)}/{FREE_TIER_RPM} en los últimos 60s"
+                        )
+                        return
+                    oldest = min(self._recent_requests)
+                    wait_seconds = max(1.0, 60 - (now - oldest) + 0.25)
+                finally:
+                    self._release_file_lock()
+
+            logger.warning(
+                f"[TokenManager] Límite interno de {FREE_TIER_RPM} RPM alcanzado. Esperando {wait_seconds:.1f}s…"
+            )
+            time.sleep(wait_seconds)
 
     # ------------------------------------------------------------------
     # Rotación de claves
@@ -400,6 +432,7 @@ class TokenManager:
         state = {
             "saved_at":   datetime.now().isoformat(),
             "active_idx": self._active_idx,
+            "recent_requests": self._recent_requests,
             "keys":       [k.to_dict() for k in self._keys],
         }
         with open(_STATE_FILE, "w", encoding="utf-8") as f:
@@ -414,6 +447,12 @@ class TokenManager:
                 state = json.load(f)
 
             saved_keys = state.get("keys", [])
+            self._recent_requests = [
+                float(ts)
+                for ts in state.get("recent_requests", [])
+                if isinstance(ts, (int, float))
+            ]
+            self._prune_recent_requests(time.time())
             saved_by_preview = {
                 saved.get("key_preview"): saved
                 for saved in saved_keys
@@ -444,6 +483,39 @@ class TokenManager:
         for k in self._keys:
             if k.last_reset_date != today:
                 k.reset_daily_counters()
+
+    def _prune_recent_requests(self, now: float) -> None:
+        self._recent_requests = [ts for ts in self._recent_requests if (now - ts) < 60]
+
+    def _acquire_file_lock(self) -> None:
+        deadline = time.time() + 10
+        while True:
+            try:
+                fd = os.open(str(_LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                os.write(fd, str(os.getpid()).encode("ascii", errors="ignore"))
+                self._lock_fd = fd
+                return
+            except FileExistsError:
+                if time.time() >= deadline:
+                    try:
+                        _LOCK_FILE.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    deadline = time.time() + 10
+                time.sleep(0.05)
+
+    def _release_file_lock(self) -> None:
+        fd = getattr(self, "_lock_fd", None)
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            self._lock_fd = None
+        try:
+            _LOCK_FILE.unlink(missing_ok=True)
+        except Exception:
+            pass
 
     def _select_best_key(self):
         """Al iniciar, selecciona la clave con más requests disponibles hoy."""

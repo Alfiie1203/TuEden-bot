@@ -1065,20 +1065,32 @@ def api_topicos_sugerir():
     mock_mode, _ = _get_modes()
     if not topics:
         return jsonify({"ok": False, "error": "No hay tópicos válidos para sugerir títulos."})
-    try:
-        from core.post_type_advisor import suggest_post_structure
-        from core.gemini_client     import GeminiClient
-        tm     = get_token_manager()
-        gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
-        sugs   = suggest_post_structure(gemini, topics)
-        _token_manager = gemini.token_manager
-        return jsonify({
-            "ok": True,
-            "suggestions": [s.to_dict() for s in sugs],
-            "filtered_out": removed_topics,
-        })
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+
+    task_id = str(uuid.uuid4())
+    q       = queue.Queue()
+    _progress_queues[task_id] = q
+    _init_progress_task(task_id)
+
+    def run():
+        global _token_manager
+        try:
+            from core.post_type_advisor import suggest_post_structure
+            from core.gemini_client     import GeminiClient
+
+            tm     = get_token_manager()
+            gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
+            sugs   = suggest_post_structure(gemini, topics)
+            _token_manager = gemini.token_manager
+            _emit_progress_event(task_id, q, {
+                "type": "done",
+                "suggestions": [s.to_dict() for s in sugs],
+                "filtered_out": removed_topics,
+            })
+        except Exception as e:
+            _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"ok": True, "task_id": task_id, "filtered_out": removed_topics})
 
 
 @app.post("/api/topicos/generar")
@@ -1297,6 +1309,66 @@ def api_borrador_guardar(filename):
     return jsonify({"ok": True})
 
 
+@app.post("/api/borrador/<path:filename>/image-prompts")
+@login_required
+def api_borrador_image_prompts(filename):
+    global _token_manager
+    safe = _safe_draft_path(filename)
+    if safe is None or not safe.exists():
+        return jsonify({"error": "No encontrado"}), 404
+
+    incoming = request.get_json() or {}
+    task_id = str(uuid.uuid4())
+    q = queue.Queue()
+    _progress_queues[task_id] = q
+    _init_progress_task(task_id)
+
+    def run():
+        global _token_manager
+        try:
+            from core.gemini_client import GeminiClient
+            from core.image_prompt_generator import generate_image_prompts
+
+            draft_data = json.loads(safe.read_text(encoding="utf-8"))
+            if incoming:
+                draft_data.update({
+                    "title": incoming.get("title", draft_data.get("title", "")),
+                    "content": incoming.get("content", draft_data.get("content", "")),
+                    "focus_keyword": incoming.get("focus_keyword", draft_data.get("focus_keyword", "")),
+                    "meta_description": incoming.get("meta_description", draft_data.get("meta_description", "")),
+                    "affiliate_url": incoming.get("affiliate_url", draft_data.get("affiliate_url", "")),
+                    "images": incoming.get("images", draft_data.get("images", [])),
+                    "categories": incoming.get("categories", draft_data.get("categories", [])),
+                    "tags": incoming.get("tags", draft_data.get("tags", [])),
+                })
+
+            title = str(draft_data.get("title", "")).strip()
+            content = str(draft_data.get("content", "")).strip()
+            raw_pt = str(draft_data.get("post_type", "")).lower().replace("posttype.", "")
+            if not title or not content:
+                raise ValueError("El borrador necesita título y contenido antes de generar prompts de imagen.")
+
+            mock_mode, _ = _get_modes()
+            tm = get_token_manager()
+            gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
+            prompts = generate_image_prompts(
+                gemini,
+                title=title,
+                content=content,
+                post_type=raw_pt,
+            )
+            _token_manager = gemini.token_manager
+
+            draft_data["image_prompts"] = prompts
+            safe.write_text(json.dumps(draft_data, ensure_ascii=False, indent=2), encoding="utf-8")
+            _emit_progress_event(task_id, q, {"type": "done", "image_prompts": prompts})
+        except Exception as e:
+            _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"ok": True, "task_id": task_id})
+
+
 @app.post("/api/borrador/<path:filename>/regenerar")
 @login_required
 def api_borrador_regenerar(filename):
@@ -1463,33 +1535,6 @@ def api_borrador_publicar(filename):
             else:
                 author_key = session.get("username", "luis")
                 wp = WordPressClient.from_env(user_key=author_key)
-
-            # Asignar categorías y etiquetas si el borrador las tiene vacías
-            if not categories or not tags:
-                try:
-                    from requests.auth import HTTPBasicAuth
-                    from core.wp_taxonomy import assign_taxonomy
-                    from core.gemini_client import GeminiClient
-                    _tax_auth = HTTPBasicAuth(wp_username or os.getenv("WP_USERNAME", ""),
-                                             wp_password or os.getenv("WP_APP_PASSWORD", ""))
-                    _gem      = GeminiClient()
-                    _cats, _tags, _kws = assign_taxonomy(
-                        gemini        = _gem,
-                        base_url      = base_url,
-                        auth          = _tax_auth,
-                        title         = draft_data.get("title", ""),
-                        content       = draft_data.get("content", ""),
-                        post_type     = draft_data.get("post_type", ""),
-                        focus_keyword = draft_data.get("focus_keyword", ""),
-                    )
-                    if not categories: categories = _cats
-                    if not tags:       tags       = _tags
-                    # Actualizar el PostDraft con taxonomy y keywords resueltas
-                    post_draft.categories   = categories
-                    post_draft.tags         = tags
-                    post_draft.seo_keywords = _kws
-                except Exception as _tax_exc:
-                    logger.warning(f"[Publicar] No se pudo resolver taxonomy: {_tax_exc}")
 
             # Bloquear publicación si no hay categorías asignadas
             if not post_draft.categories:

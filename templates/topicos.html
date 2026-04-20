@@ -321,16 +321,90 @@ function sugerirTitulos() {
   btn.disabled = true; btn.textContent = 'Consultando Gemini…';
 
   fetch('/api/topicos/sugerir', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({topics})})
-    .then(r=>r.json())
+    .then(async r => {
+      const raw = await r.text();
+      try {
+        return JSON.parse(raw);
+      } catch {
+        throw new Error(raw.startsWith('<') ? 'El servidor devolvió HTML en lugar de JSON. Revisa los logs del backend.' : raw || 'Respuesta inválida del servidor');
+      }
+    })
     .then(d => {
-      btn.disabled = false; btn.textContent = '🔎 Sugerir títulos (1 request a Gemini)';
-      if (!d.ok) { showToast(d.error || 'Error', 'danger'); return; }
-      notifyFilteredOut(d.filtered_out || []);
-      _suggestions = d.suggestions;
-      _disabledPosts = new Set();
-      mostrarSugerencias(d.suggestions);
+      if (!d.ok) {
+        btn.disabled = false;
+        btn.textContent = '🔎 Sugerir títulos (1 request a Gemini)';
+        showToast(d.error || 'Error', 'danger');
+        return;
+      }
+      listenSuggestProgress(d.task_id, btn, d.filtered_out || []);
     })
     .catch(e => { btn.disabled = false; btn.textContent = '🔎 Sugerir títulos'; showToast('Error: '+e,'danger'); });
+}
+
+function listenSuggestProgress(taskId, btn, initialFilteredOut = []) {
+  let cursor = 0;
+  let finished = false;
+  let errorStartedAt = null;
+
+  function scheduleNextPoll(delay = 1200) {
+    if (finished) return;
+    setTimeout(pollProgress, delay);
+  }
+
+  function finishButton() {
+    btn.disabled = false;
+    btn.textContent = '🔎 Sugerir títulos (1 request a Gemini)';
+  }
+
+  function handleEvent(d) {
+    if (d.type === 'done') {
+      finished = true;
+      finishButton();
+      notifyFilteredOut(d.filtered_out || initialFilteredOut || []);
+      _suggestions = d.suggestions || [];
+      _disabledPosts = new Set();
+      mostrarSugerencias(_suggestions);
+      return;
+    }
+    if (d.type === 'error') {
+      finished = true;
+      finishButton();
+      showToast(d.message || 'Error sugiriendo títulos', 'danger');
+    }
+  }
+
+  function pollProgress() {
+    if (finished) return;
+    fetch(`/api/progreso_poll/${taskId}?cursor=${cursor}`, {cache:'no-store'})
+      .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+      .then(({ok, data}) => {
+        if (!ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo consultar el progreso');
+        }
+        errorStartedAt = null;
+        cursor = data.next_cursor || cursor;
+        for (const event of (data.events || [])) {
+          handleEvent(event);
+          if (finished) return;
+        }
+        scheduleNextPoll(data.events && data.events.length ? 400 : 1200);
+      })
+      .catch(() => {
+        if (finished) return;
+        if (!errorStartedAt) {
+          errorStartedAt = Date.now();
+        }
+        if ((Date.now() - errorStartedAt) >= 15000) {
+          finished = true;
+          finishButton();
+          showToast('La sugerencia perdió conexión con el servidor antes de terminar.', 'danger');
+          return;
+        }
+        scheduleNextPoll(1500);
+      });
+  }
+
+  scheduleNextPoll(250);
 }
 
 function isTopicRemoved(topic) {

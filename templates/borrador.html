@@ -181,8 +181,14 @@
 
       <!-- Prompts de imagen IA -->
       <div class="main-card p-3">
-        <h6 class="section-title">🎨 Prompts de Imagen IA</h6>
-        <p class="text-muted small">Copia cada prompt en Gemini (chat) para generar la imagen.</p>
+        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+          <div>
+            <h6 class="section-title mb-1">🎨 Prompts de Imagen IA</h6>
+            <p class="text-muted small mb-2">Se generan bajo demanda para ahorrar cuota. Copia cada prompt en Gemini o en tu generador de imágenes.</p>
+          </div>
+          <button id="btnImagePrompts" class="btn btn-sm btn-outline-primary" onclick="generarPromptsImagen()">🎨 Generar prompts</button>
+        </div>
+        <div id="imagePromptsStatus" class="small text-muted mb-2"></div>
         <div id="imagePrompts"></div>
       </div>
     </div>
@@ -491,7 +497,7 @@ function renderImagePrompts() {
   const labels = {portada:'🖼️ Portada — Hero 16:9', img1:'📷 Imagen 1 — Introducción',
                   img2:'📷 Imagen 2 — Contenido', img3:'📷 Imagen 3 — Cierre'};
   if (!Object.keys(prompts).length) {
-    panel.innerHTML = '<p class="text-muted small">Se generan automáticamente al crear el post.</p>';
+    panel.innerHTML = '<p class="text-muted small">Aún no hay prompts generados para este borrador.</p>';
     return;
   }
   let html = '';
@@ -499,6 +505,104 @@ function renderImagePrompts() {
     if (prompts[k]) html += `<strong class="small">${v}</strong><pre class="rounded p-2 small editor-soft-pre" style="font-size:.75rem;white-space:pre-wrap">${prompts[k]}</pre>`;
   }
   panel.innerHTML = html || '<p class="text-muted small">Sin prompts.</p>';
+}
+
+function generarPromptsImagen() {
+  const btn = document.getElementById('btnImagePrompts');
+  const status = document.getElementById('imagePromptsStatus');
+  const payload = buildDraftData();
+
+  btn.disabled = true;
+  btn.textContent = 'Generando…';
+  status.textContent = 'Guardando borrador y solicitando prompts de imagen…';
+
+  fetch(`/api/borrador/${encodeURIComponent(filename)}/image-prompts`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+    .then(({ok, data}) => {
+      if (!ok || !data.ok) {
+        throw new Error(data.error || 'No se pudo iniciar la generación de prompts');
+      }
+      listenImagePromptProgress(data.task_id, btn, status);
+    })
+    .catch(e => {
+      btn.disabled = false;
+      btn.textContent = '🎨 Generar prompts';
+      status.textContent = '';
+      showToast('Error: ' + e.message, 'danger');
+    });
+}
+
+function listenImagePromptProgress(taskId, btn, statusEl) {
+  let cursor = 0;
+  let finished = false;
+  let errorStartedAt = null;
+
+  function resetButton() {
+    btn.disabled = false;
+    btn.textContent = '🎨 Generar prompts';
+  }
+
+  function scheduleNextPoll(delay = 1200) {
+    if (finished) return;
+    setTimeout(pollProgress, delay);
+  }
+
+  function handleEvent(event) {
+    if (event.type === 'done') {
+      finished = true;
+      resetButton();
+      statusEl.textContent = 'Prompts de imagen actualizados.';
+      _draftData.image_prompts = event.image_prompts || {};
+      renderImagePrompts();
+      showToast('✅ Prompts de imagen generados');
+      return;
+    }
+    if (event.type === 'error') {
+      finished = true;
+      resetButton();
+      statusEl.textContent = '';
+      showToast(event.message || 'Error generando prompts de imagen', 'danger');
+    }
+  }
+
+  function pollProgress() {
+    if (finished) return;
+    fetch(`/api/progreso_poll/${taskId}?cursor=${cursor}`, {cache:'no-store'})
+      .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+      .then(({ok, data}) => {
+        if (!ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo consultar el progreso');
+        }
+        errorStartedAt = null;
+        cursor = data.next_cursor || cursor;
+        for (const event of (data.events || [])) {
+          handleEvent(event);
+          if (finished) return;
+        }
+        scheduleNextPoll(data.events && data.events.length ? 400 : 1200);
+      })
+      .catch(() => {
+        if (finished) return;
+        if (!errorStartedAt) {
+          errorStartedAt = Date.now();
+          statusEl.textContent = 'Reconectando con el servidor…';
+        }
+        if ((Date.now() - errorStartedAt) >= 15000) {
+          finished = true;
+          resetButton();
+          statusEl.textContent = '';
+          showToast('La generación de prompts perdió conexión antes de terminar.', 'danger');
+          return;
+        }
+        scheduleNextPoll(1500);
+      });
+  }
+
+  scheduleNextPoll(250);
 }
 
 // ── Imágenes - añadir ──────────────────────────────────────────────────────
