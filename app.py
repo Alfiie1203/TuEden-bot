@@ -860,6 +860,24 @@ def api_tokens_activar():
     return jsonify({"ok": False})
 
 
+@app.post("/api/tokens/reset-diario")
+@admin_required
+def api_tokens_reset_diario():
+    mock_mode, _ = _get_modes()
+    tm = get_token_manager()
+    if not tm:
+        return jsonify({"ok": False, "error": "No hay TokenManager"}), 500
+
+    actor = session.get("username", "admin")
+    summary = tm.reset_daily_pool(triggered_by=actor)
+    return jsonify({
+        "ok": True,
+        "mock_mode": mock_mode,
+        "summary": summary,
+        "note": "Reset local aplicado. Gemini no expone un endpoint para leer saldo real de cuota en tiempo real.",
+    })
+
+
 # ==================================================================================
 # API - GENERACION DE BORRADORES
 # ==================================================================================

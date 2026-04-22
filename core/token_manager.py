@@ -422,6 +422,35 @@ class TokenManager:
             return True
         return False
 
+    def reset_daily_pool(self, triggered_by: str = "admin") -> dict:
+        """Resetea contadores diarios del pool completo y limpia el limitador RPM."""
+        today = str(date.today())
+        with self._process_lock:
+            self._acquire_file_lock()
+            try:
+                self._load_state()
+                for key_stats in self._keys:
+                    key_stats.today_tokens = 0
+                    key_stats.today_requests = 0
+                    key_stats.errors_today = 0
+                    key_stats.last_reset_date = today
+                self._recent_requests = []
+                self._select_best_key()
+                self._save_state()
+            finally:
+                self._release_file_lock()
+
+        logger.warning(f"[TokenManager] Reset diario manual ejecutado por {triggered_by}.")
+        return {
+            "reset_date": today,
+            "active_alias": self.active_key.alias,
+            "available_keys": self.available_keys_count,
+            "pool_today_requests": self.pool_today_requests,
+            "pool_today_tokens": self.pool_today_tokens,
+            "free_tier_rpd": FREE_TIER_RPD,
+            "free_tier_rpm": FREE_TIER_RPM,
+        }
+
     def get_summary(self) -> dict:
         """Resumen completo del pool para mostrar en la GUI."""
         self._ensure_fresh_day()

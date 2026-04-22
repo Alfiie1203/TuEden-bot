@@ -138,6 +138,14 @@
         <div class="text-muted text-center py-3 small">Cargando...</div>
       </div>
 
+      <div class="d-grid mt-2">
+        <button class="btn btn-sm btn-outline-warning" type="button" onclick="resetPoolDiarioAdmin()">♻️ Reset pool diario (admin)</button>
+      </div>
+
+      <div class="small text-muted mt-2">
+        Este reset limpia contadores locales diarios para forzar recálculo con la siguiente llamada real a Gemini.
+      </div>
+
       <div class="mt-3 small text-muted border-top pt-2">
         💡 Las claves se guardan en el archivo <code>.env</code>. El sistema las rota automáticamente cuando se agotan.
       </div>
@@ -599,6 +607,22 @@ async function eliminarClave(n) {
   const d = await r.json();
   if (d.ok) { showToast(`Clave ${n} eliminada`); cargarClaves(); }
   else showToast(d.error || 'Error', 'danger');
+}
+
+async function resetPoolDiarioAdmin() {
+  if (!confirm('Esto limpiará el estado diario local de TODAS las claves. ¿Continuar?')) return;
+  try {
+    const r = await fetch('/api/tokens/reset-diario', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo resetear el pool diario');
+
+    const active = d.summary?.active_alias ? ` Activa: ${d.summary.active_alias}.` : '';
+    showToast(`Pool diario reseteado.${active}`);
+    cargarClaves();
+    if (typeof loadTokens === 'function') loadTokens();
+  } catch (error) {
+    showToast(error.message || 'Error al resetear pool diario', 'danger');
+  }
 }
 
 // ══════════════════════════════════════════════════
