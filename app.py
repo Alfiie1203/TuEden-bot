@@ -1036,24 +1036,48 @@ def api_topicos_cargar():
     data      = request.get_json() or {}
     force     = data.get("force", False)
     mock_mode, _ = _get_modes()
-    try:
-        from core.topic_discovery import get_topics
-        from core.gemini_client   import GeminiClient
-        tm     = get_token_manager()
-        gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
-        topics = get_topics(gemini, force_refresh=force)
-        _token_manager = gemini.token_manager
-        topics, removed_topics = _sanitize_topics_payload(topics)
-        user    = get_current_user()
-        topics = _apply_role_topic_visibility(topics, user)
-        return jsonify({
-            "ok": True,
-            "data": topics,
-            "from_cache": not force,
-            "filtered_out": removed_topics,
-        })
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+    task_id = str(uuid.uuid4())
+    q       = queue.Queue()
+    _progress_queues[task_id] = q
+    _init_progress_task(task_id)
+
+    def run():
+        global _token_manager
+        try:
+            from core.topic_discovery import get_topics, load_cached_topics
+            from core.gemini_client   import GeminiClient
+
+            _emit_progress_event(task_id, q, {"type": "progress", "message": "Preparando consulta de tópicos…"})
+
+            tm     = get_token_manager()
+            from_cache = False
+            if not force:
+                cached = load_cached_topics()
+                from_cache = cached is not None
+
+            if from_cache:
+                _emit_progress_event(task_id, q, {"type": "progress", "message": "Cargando tópicos guardados de hoy…"})
+            else:
+                _emit_progress_event(task_id, q, {"type": "progress", "message": "Consultando Gemini para tópicos del día…"})
+
+            gemini = GeminiClient(token_manager=tm, mock_mode=mock_mode)
+            topics = get_topics(gemini, force_refresh=force)
+            _token_manager = gemini.token_manager
+            topics, removed_topics = _sanitize_topics_payload(topics)
+            user    = get_current_user()
+            topics = _apply_role_topic_visibility(topics, user)
+
+            _emit_progress_event(task_id, q, {
+                "type": "done",
+                "data": topics,
+                "from_cache": from_cache,
+                "filtered_out": removed_topics,
+            })
+        except Exception as e:
+            _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
+
+    threading.Thread(target=run, daemon=True).start()
+    return jsonify({"ok": True, "task_id": task_id})
 
 
 @app.post("/api/topicos/sugerir")

@@ -145,24 +145,120 @@ let _topicsData     = null;
 
 function cargarTopicos(force) {
   const btn = document.querySelector(force ? 'button[onclick="cargarTopicos(true)"]' : 'button[onclick="cargarTopicos(false)"]');
+  const progressEl = document.getElementById('topicsProgress');
   if (btn) { btn.disabled = true; btn.textContent = 'Consultando Gemini…'; }
+  if (progressEl) progressEl.innerHTML = '<div class="text-muted small">Preparando carga de tópicos…</div>';
 
   fetch('/api/topicos/cargar', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({force})})
-    .then(r=>r.json())
+    .then(async r => {
+      const raw = await r.text();
+      try {
+        return JSON.parse(raw);
+      } catch {
+        throw new Error(raw.startsWith('<') ? 'El servidor devolvió HTML en lugar de JSON. Revisa los logs del backend.' : raw || 'Respuesta inválida del servidor');
+      }
+    })
     .then(d => {
-      if (btn) { btn.disabled = false; btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día'; }
-      if (!d.ok) { showToast(d.error || 'Error al cargar tópicos', 'danger'); return; }
+      if (!d.ok) {
+        if (btn) { btn.disabled = false; btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día'; }
+        if (progressEl) progressEl.innerHTML = '';
+        showToast(d.error || 'Error al cargar tópicos', 'danger');
+        return;
+      }
+      listenTopicLoadProgress(d.task_id, btn, force);
+    })
+    .catch(e => {
+      if(btn){
+        btn.disabled=false;
+        btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día';
+      }
+      if (progressEl) progressEl.innerHTML = '';
+      showToast('Error: ' + e, 'danger');
+    });
+}
+
+function listenTopicLoadProgress(taskId, btn, force) {
+  const progressEl = document.getElementById('topicsProgress');
+  let cursor = 0;
+  let finished = false;
+  let errorStartedAt = null;
+
+  function finishButton() {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = force ? '🔄 Refrescar (nueva consulta)' : '🔍 Cargar tópicos del día';
+    }
+  }
+
+  function scheduleNextPoll(delay = 1200) {
+    if (finished) return;
+    setTimeout(pollProgress, delay);
+  }
+
+  function handleEvent(event) {
+    if (event.type === 'progress') {
+      if (progressEl) progressEl.innerHTML = `<div class="text-muted small">${event.message || 'Procesando…'}</div>`;
+      return;
+    }
+
+    if (event.type === 'done') {
+      finished = true;
+      finishButton();
+      if (progressEl) progressEl.innerHTML = '';
       _selectedTopics = new Set();
       _editedTitles = {};
       _suggestions = [];
       _disabledPosts = new Set();
       document.getElementById('suggestionsPanel').style.display = 'none';
       document.getElementById('suggestionsContent').innerHTML = '';
-      mostrarTopicos(d.data, d.from_cache, {preserveSelection:false});
-      notifyFilteredOut(d.filtered_out || []);
+      mostrarTopicos(event.data, event.from_cache, {preserveSelection:false});
+      notifyFilteredOut(event.filtered_out || []);
       setSavedStateMessage('Puedes guardar esta selección y retomarla más tarde sin perder títulos editados.');
-    })
-    .catch(e => { if(btn){btn.disabled=false;} showToast('Error: ' + e, 'danger'); });
+      return;
+    }
+
+    if (event.type === 'error') {
+      finished = true;
+      finishButton();
+      if (progressEl) progressEl.innerHTML = '';
+      showToast(event.message || 'Error al cargar tópicos', 'danger');
+    }
+  }
+
+  function pollProgress() {
+    if (finished) return;
+    fetch(`/api/progreso_poll/${taskId}?cursor=${cursor}`, {cache:'no-store'})
+      .then(r => r.json().then(d => ({ok: r.ok, data: d})))
+      .then(({ok, data}) => {
+        if (!ok || !data.ok) {
+          throw new Error(data.error || 'No se pudo consultar el progreso');
+        }
+        errorStartedAt = null;
+        cursor = data.next_cursor || cursor;
+        for (const event of (data.events || [])) {
+          handleEvent(event);
+          if (finished) return;
+        }
+        scheduleNextPoll(data.events && data.events.length ? 400 : 1200);
+      })
+      .catch(() => {
+        if (finished) return;
+        if (!errorStartedAt) {
+          errorStartedAt = Date.now();
+          if (progressEl) progressEl.innerHTML = '<div class="text-muted small">Reconectando con el servidor…</div>';
+        }
+        if ((Date.now() - errorStartedAt) >= 15000) {
+          finished = true;
+          finishButton();
+          if (progressEl) progressEl.innerHTML = '';
+          showToast('La carga de tópicos perdió conexión antes de terminar.', 'danger');
+          return;
+        }
+        scheduleNextPoll(1500);
+      });
+  }
+
+  scheduleNextPoll(250);
 }
 
 function escapeHtml(value) {
