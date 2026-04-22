@@ -295,8 +295,9 @@ function loadTokens() {
         <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_today_tokens||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Tokens hoy</div></div></div>
         <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_today_requests||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Requests hoy</div></div></div>
         <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--accent)">${(data.pool_total_tokens||0).toLocaleString()}</div><div style="font-size:.7rem;color:var(--muted)">Tokens total</div></div></div>
-        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--green)">${data.pool_blogs_remaining||0}</div><div style="font-size:.7rem;color:var(--muted)">Blogs restantes</div></div></div>
+        <div class="col-6"><div class="rounded p-2 text-center" style="background:var(--surface2);border:1px solid var(--border)"><div class="fw-bold" style="color:var(--green)">${data.pool_blogs_remaining||0}</div><div style="font-size:.7rem;color:var(--muted)">Blogs estimados</div></div></div>
       </div>
+      <div class="text-muted mt-2" style="font-size:.72rem">Límite actual: ${data.free_tier_rpm || 5} req/min por proyecto-modelo. El cálculo de blogs es aproximado.</div>
     </div><hr>`;
     // Keys
     const keys = data.keys || [];

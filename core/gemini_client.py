@@ -627,7 +627,7 @@ class GeminiClient:
                     quota_id = _extract_quota_id(error_str)
                     retry_delay = _extract_retry_delay_seconds(error_str)
 
-                    if _is_daily_quota_id(quota_id):
+                    if _is_daily_quota_id(quota_id) and _should_mark_daily_exhausted(retry_delay):
                         self.token_manager.mark_key_exhausted(exhausted_alias)
                     elif _is_minute_quota_id(quota_id):
                         logger.warning(
@@ -770,7 +770,7 @@ class GeminiClient:
                     exhausted_alias = self.token_manager.active_key.alias
                     quota_id = _extract_quota_id(error_str)
                     retry_delay = _extract_retry_delay_seconds(error_str)
-                    if _is_daily_quota_id(quota_id):
+                    if _is_daily_quota_id(quota_id) and _should_mark_daily_exhausted(retry_delay):
                         self.token_manager.mark_key_exhausted(exhausted_alias)
                     quota_rotations += 1
                     rotated = self.token_manager.rotate(reason="quota-raw")
@@ -1017,3 +1017,12 @@ def _is_daily_quota_id(quota_id: str) -> bool:
 
 def _is_minute_quota_id(quota_id: str) -> bool:
     return "PerMinutePerProjectPerModel" in (quota_id or "")
+
+
+def _should_mark_daily_exhausted(retry_delay: float | None) -> bool:
+    """
+    Evita falsos positivos: si Gemini pide reintentar en segundos, no es agotamiento diario real.
+    """
+    if retry_delay is None:
+        return True
+    return retry_delay >= 3600

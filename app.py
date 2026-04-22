@@ -815,7 +815,7 @@ def api_perfil_update():
 def api_tokens():
     mock_mode, _ = _get_modes()
     try:
-        from core.token_manager import FREE_TIER_RPD, TOKENS_PER_BLOG_EST
+        from core.token_manager import FREE_TIER_RPD, FREE_TIER_RPM, TOKENS_PER_BLOG_EST
         tm = get_token_manager()
         if tm is None:
             return jsonify({"error": "TokenManager no disponible", "mock_mode": mock_mode})
@@ -823,6 +823,7 @@ def api_tokens():
         summary.update({
             "mock_mode":       mock_mode,
             "free_tier_rpd":   FREE_TIER_RPD,
+            "free_tier_rpm":   FREE_TIER_RPM,
             "tokens_per_blog": TOKENS_PER_BLOG_EST,
         })
         return jsonify(summary)
@@ -1145,6 +1146,75 @@ def api_topicos_generar():
     if not topic_jobs:
         return jsonify({"error": "No hay títulos activos para generar."}), 400
 
+    # Modo estricto: recorta automáticamente el lote según presupuesto de requests
+    strict_enabled = os.getenv("STRICT_BATCH_MODE", "true").lower() in ("1", "true", "yes")
+    strict_req_per_post = max(1, int(os.getenv("STRICT_REQ_PER_POST", "2")))
+    strict_window_minutes = max(1, int(os.getenv("STRICT_RPM_WINDOW_MINUTES", "2")))
+    strict_meta = None
+
+    if strict_enabled:
+        try:
+            from core.token_manager import FREE_TIER_RPM
+
+            tm_for_budget = get_token_manager()
+            available_keys = [k for k in tm_for_budget.get_all_keys() if k.is_valid and k.active and not k.is_exhausted_today]
+            requests_remaining_today = sum(k.requests_remaining_today for k in available_keys)
+            requests_window_budget = FREE_TIER_RPM * strict_window_minutes
+            safe_requests = min(requests_remaining_today, requests_window_budget)
+            max_posts_safe = max(1, safe_requests // strict_req_per_post)
+
+            requested_posts = sum(len(job["post_types"]) for job in topic_jobs)
+            if requested_posts > max_posts_safe:
+                trimmed_jobs: list[dict] = []
+                remaining_posts = max_posts_safe
+                dropped_posts = 0
+
+                for job in topic_jobs:
+                    original_types = list(job["post_types"])
+                    if remaining_posts <= 0:
+                        dropped_posts += len(original_types)
+                        continue
+
+                    kept_types = original_types[:remaining_posts]
+                    dropped_posts += max(0, len(original_types) - len(kept_types))
+                    remaining_posts -= len(kept_types)
+
+                    if kept_types:
+                        trimmed_jobs.append({"topic": job["topic"], "post_types": kept_types})
+
+                topic_jobs = trimmed_jobs
+                strict_meta = {
+                    "applied": True,
+                    "requested_posts": requested_posts,
+                    "allowed_posts": sum(len(job["post_types"]) for job in topic_jobs),
+                    "dropped_posts": dropped_posts,
+                    "safe_requests": safe_requests,
+                    "requests_remaining_today": requests_remaining_today,
+                    "rpm_window_requests": requests_window_budget,
+                    "req_per_post": strict_req_per_post,
+                }
+            else:
+                strict_meta = {
+                    "applied": False,
+                    "requested_posts": requested_posts,
+                    "allowed_posts": requested_posts,
+                    "dropped_posts": 0,
+                    "safe_requests": safe_requests,
+                    "requests_remaining_today": requests_remaining_today,
+                    "rpm_window_requests": requests_window_budget,
+                    "req_per_post": strict_req_per_post,
+                }
+        except Exception as strict_exc:
+            logger.warning(f"[StrictBatch] No se pudo calcular presupuesto estricto: {strict_exc}")
+
+    if not topic_jobs:
+        return jsonify({
+            "error": (
+                "No hay presupuesto suficiente para iniciar el lote en modo estricto. "
+                "Espera a que se libere cuota por minuto o reduce la cantidad de posts."
+            )
+        }), 429
+
     task_id = str(uuid.uuid4())
     q       = queue.Queue()
     _progress_queues[task_id] = q
@@ -1218,7 +1288,13 @@ def api_topicos_generar():
             _emit_progress_event(task_id, q, {"type": "error", "message": str(e)})
 
     threading.Thread(target=run, daemon=True).start()
-    return jsonify({"task_id": task_id, "filtered_out": removed_topics})
+    return jsonify({
+        "task_id": task_id,
+        "filtered_out": removed_topics,
+        "topic_count": len(topic_jobs),
+        "active_posts": sum(len(job["post_types"]) for job in topic_jobs),
+        "strict": strict_meta,
+    })
 
 
 @app.get("/api/topicos/estado")

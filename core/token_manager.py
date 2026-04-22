@@ -35,10 +35,10 @@ from loguru import logger
 # ---------------------------------------------------------------------------
 # Constantes del tier gratuito de Gemini (actualizado marzo 2026)
 # ---------------------------------------------------------------------------
-# gemini-2.5-flash free tier: 20 RPD, 10 RPM por proyecto
+# gemini-2.5-flash free tier observado: 20 RPD, 5 RPM por proyecto
 # Fuente: error 429 API → quota_id GenerateRequestsPerDayPerProjectPerModel-FreeTier
 FREE_TIER_RPD          = 20         # Requests por día máximo (tier gratuito, por proyecto)
-FREE_TIER_RPM          = 10         # Requests por minuto (tier gratuito)
+FREE_TIER_RPM          = int(os.getenv("GEMINI_FREE_TIER_RPM", "5"))
 TOKENS_PER_BLOG_EST    = 6_000      # Estimación de tokens por sesión de 3 posts
 TOKENS_PER_POST_EST    = 2_000      # Estimación por post individual
 WARN_THRESHOLD_PCT     = 0.75       # Alerta cuando se usa el 75% de requests
@@ -437,6 +437,7 @@ class TokenManager:
             "pool_blogs_remaining": self.pool_blogs_remaining_today,
             "tokens_per_blog_est":  TOKENS_PER_BLOG_EST,
             "free_tier_rpd":        FREE_TIER_RPD,
+            "free_tier_rpm":        FREE_TIER_RPM,
             "keys":                 [k.to_dict() for k in self._keys],
         }
 

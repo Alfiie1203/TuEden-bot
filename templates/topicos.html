@@ -626,7 +626,13 @@ function iniciarGeneracion() {
     .then(d => {
       if (d.error) { showToast(d.error,'danger'); document.getElementById('btnGenerar').disabled=false; return; }
       notifyFilteredOut(d.filtered_out || []);
-      listenTopicProgress(d.task_id, plan.topics.length);
+      if (d.strict && d.strict.applied) {
+        showToast(
+          `Modo estricto activo: lote recortado de ${d.strict.requested_posts} a ${d.strict.allowed_posts} post(s) para evitar agotar cuota.`,
+          'warning'
+        );
+      }
+      listenTopicProgress(d.task_id, d.topic_count || plan.topics.length);
     })
     .catch(e => { showToast('Error: '+e,'danger'); document.getElementById('btnGenerar').disabled=false; });
 }
