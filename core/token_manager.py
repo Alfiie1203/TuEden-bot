@@ -241,9 +241,11 @@ class TokenManager:
 
     def get_active_key(self) -> str:
         """Devuelve el valor de la API key activa."""
+        self._ensure_fresh_day()
         return self.active_key.key
 
     def get_all_keys(self) -> list[ApiKeyStats]:
+        self._ensure_fresh_day()
         return list(self._keys)
 
     # ------------------------------------------------------------------
@@ -252,16 +254,19 @@ class TokenManager:
 
     def record_usage(self, prompt_tokens: int, response_tokens: int):
         """Registra tokens consumidos en la clave activa y guarda estado."""
+        self._ensure_fresh_day()
         self.active_key.record_usage(prompt_tokens, response_tokens)
         self._save_state()
 
     def record_error(self):
         """Registra un error (ej. 429 quota exceeded) en la clave activa."""
+        self._ensure_fresh_day()
         self.active_key.record_error()
         self._save_state()
 
     def acquire_request_slot(self) -> None:
         """Bloquea hasta que haya hueco respetando el límite global de RPM."""
+        self._ensure_fresh_day()
         while True:
             wait_seconds = 0.0
             with self._process_lock:
@@ -298,6 +303,7 @@ class TokenManager:
         Returns:
             True si se rotó exitosamente, False si no hay más claves disponibles.
         """
+        self._ensure_fresh_day()
         start_idx = self._active_idx
         total     = len(self._keys)
 
@@ -323,6 +329,7 @@ class TokenManager:
 
     def rotate_if_exhausted(self) -> bool:
         """Rota automáticamente si la clave activa está agotada."""
+        self._ensure_fresh_day()
         if self.active_key.is_exhausted_today:
             logger.warning(
                 f"[TokenManager] {self.active_key.alias} agotada hoy "
@@ -333,6 +340,7 @@ class TokenManager:
 
     def set_active_key(self, alias: str) -> bool:
         """Selecciona una clave específica por alias (para cambio manual desde GUI)."""
+        self._ensure_fresh_day()
         for i, k in enumerate(self._keys):
             if k.alias == alias:
                 if not k.is_valid:
@@ -349,6 +357,7 @@ class TokenManager:
 
     def deactivate_key(self, alias: str):
         """Desactiva una clave (la excluye de la rotación)."""
+        self._ensure_fresh_day()
         for k in self._keys:
             if k.alias == alias:
                 k.active = False
@@ -362,27 +371,33 @@ class TokenManager:
 
     @property
     def pool_total_tokens(self) -> int:
+        self._ensure_fresh_day()
         return sum(k.total_tokens for k in self._keys)
 
     @property
     def pool_today_tokens(self) -> int:
+        self._ensure_fresh_day()
         return sum(k.today_tokens for k in self._keys)
 
     @property
     def pool_today_requests(self) -> int:
+        self._ensure_fresh_day()
         return sum(k.today_requests for k in self._keys)
 
     @property
     def pool_blogs_remaining_today(self) -> int:
         """Blogs completos que quedan en TODO el pool hoy."""
+        self._ensure_fresh_day()
         return sum(k.blogs_remaining_today for k in self._keys if k.is_valid and k.active)
 
     @property
     def valid_keys_count(self) -> int:
+        self._ensure_fresh_day()
         return sum(1 for k in self._keys if k.is_valid)
 
     @property
     def available_keys_count(self) -> int:
+        self._ensure_fresh_day()
         return sum(
             1
             for k in self._keys
@@ -395,6 +410,7 @@ class TokenManager:
 
     def mark_key_exhausted(self, alias: str | None = None) -> bool:
         """Marca una clave como agotada hoy para evitar reutilizarla tras un 429."""
+        self._ensure_fresh_day()
         target_alias = alias or self.active_key.alias
         for key_stats in self._keys:
             if key_stats.alias != target_alias:
@@ -408,6 +424,7 @@ class TokenManager:
 
     def get_summary(self) -> dict:
         """Resumen completo del pool para mostrar en la GUI."""
+        self._ensure_fresh_day()
         return {
             "active_alias":         self.active_key.alias,
             "active_preview":       self.active_key.key_preview,
@@ -477,12 +494,21 @@ class TokenManager:
         except (json.JSONDecodeError, KeyError) as exc:
             logger.warning(f"[TokenManager] No se pudo cargar estado: {exc}")
 
-    def _check_daily_resets(self):
+    def _check_daily_resets(self) -> bool:
         """Resetea contadores de claves cuya fecha de reset es de ayer o anterior."""
         today = str(date.today())
+        changed = False
         for k in self._keys:
             if k.last_reset_date != today:
                 k.reset_daily_counters()
+                changed = True
+        return changed
+
+    def _ensure_fresh_day(self) -> None:
+        """Aplica reset diario aunque el proceso lleve días en ejecución."""
+        with self._process_lock:
+            if self._check_daily_resets():
+                self._save_state()
 
     def _prune_recent_requests(self, now: float) -> None:
         self._recent_requests = [ts for ts in self._recent_requests if (now - ts) < 60]
