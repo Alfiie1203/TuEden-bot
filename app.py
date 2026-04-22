@@ -1036,6 +1036,7 @@ def api_topicos_cargar():
     data      = request.get_json() or {}
     force     = data.get("force", False)
     mock_mode, _ = _get_modes()
+    user_snapshot = get_current_user()
     task_id = str(uuid.uuid4())
     q       = queue.Queue()
     _progress_queues[task_id] = q
@@ -1064,8 +1065,7 @@ def api_topicos_cargar():
             topics = get_topics(gemini, force_refresh=force)
             _token_manager = gemini.token_manager
             topics, removed_topics = _sanitize_topics_payload(topics)
-            user    = get_current_user()
-            topics = _apply_role_topic_visibility(topics, user)
+            topics = _apply_role_topic_visibility(topics, user_snapshot)
 
             _emit_progress_event(task_id, q, {
                 "type": "done",
