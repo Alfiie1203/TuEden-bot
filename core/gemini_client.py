@@ -30,8 +30,8 @@ from core.token_manager import FREE_TIER_RPD
 # ---------------------------------------------------------------------------
 # Constantes
 # ---------------------------------------------------------------------------
-_CALL_TIMEOUT = 45          # segundos máximo por llamada a Gemini
-_RETRY_WAITS  = (2, 4, 8)   # backoff entre reintentos (segundos)
+_CALL_TIMEOUT = int(os.getenv("GEMINI_CALL_TIMEOUT_SECONDS", "60"))
+_RETRY_WAITS  = (2, 4, 8, 15)   # backoff entre reintentos (segundos)
 
 
 class QuotaExceededError(RuntimeError):
@@ -613,9 +613,16 @@ class GeminiClient:
                     if retry_attempt > len(_RETRY_WAITS):
                         break
                     wait = _RETRY_WAITS[retry_attempt - 1]
+                    if _is_gateway_timeout(error_str):
+                        rotated = self.token_manager.rotate(reason="transient-504")
+                        if rotated:
+                            self._init_model(self.token_manager.get_active_key())
+                            logger.warning(
+                                f"[Gemini] 504 timeout; se rota a {self.token_manager.active_key.alias} para reintentar."
+                            )
                     logger.warning(
                         f"[Red] {net_error} | "
-                        f"Intento {retry_attempt}/3 — reintentando en {wait}s…"
+                        f"Intento {retry_attempt}/{len(_RETRY_WAITS)} — reintentando en {wait}s…"
                     )
                     time.sleep(wait)
                     continue
@@ -669,14 +676,14 @@ class GeminiClient:
                     break
                 wait = _RETRY_WAITS[retry_attempt - 1]
                 logger.warning(
-                    f"[Gemini] Intento {retry_attempt}/3 falló: {exc}. "
+                    f"[Gemini] Intento {retry_attempt}/{len(_RETRY_WAITS)} falló: {exc}. "
                     f"Reintentando en {wait}s…"
                 )
                 time.sleep(wait)
 
         if isinstance(last_exc, Exception) and _is_quota_error(str(last_exc)):
             raise QuotaExceededError(f"Gemini falló por cuota tras agotar las claves disponibles: {last_exc}") from last_exc
-        raise RuntimeError(f"Gemini falló tras 3 intentos: {last_exc}") from last_exc
+        raise RuntimeError(f"Gemini falló tras {len(_RETRY_WAITS)} intentos: {last_exc}") from last_exc
 
     # ------------------------------------------------------------------
     # Llamada raw (texto libre, sin post_type ni JSON forzado)
@@ -792,8 +799,15 @@ class GeminiClient:
                 if retry_attempt > len(_RETRY_WAITS):
                     break
                 wait = _RETRY_WAITS[retry_attempt - 1]
+                if _is_gateway_timeout(error_str):
+                    rotated = self.token_manager.rotate(reason="transient-504-raw")
+                    if rotated:
+                        self._init_model(self.token_manager.get_active_key())
+                        logger.warning(
+                            f"[Gemini raw] 504 timeout; se rota a {self.token_manager.active_key.alias} para reintentar."
+                        )
                 logger.warning(
-                    f"[Gemini raw] Intento {retry_attempt}/3 falló: {exc}. "
+                    f"[Gemini raw] Intento {retry_attempt}/{len(_RETRY_WAITS)} falló: {exc}. "
                     f"Reintentando en {wait}s…"
                 )
                 time.sleep(wait)
@@ -801,7 +815,7 @@ class GeminiClient:
         if isinstance(last_exc, Exception) and _is_quota_error(str(last_exc)):
             raise QuotaExceededError(f"Gemini (raw) falló por cuota tras agotar las claves disponibles: {last_exc}") from last_exc
         raise RuntimeError(
-            f"Gemini (raw) falló tras 3 intentos: {last_exc}"
+            f"Gemini (raw) falló tras {len(_RETRY_WAITS)} intentos: {last_exc}"
         ) from last_exc
 
     def test_connection(self) -> bool:
@@ -988,6 +1002,11 @@ def _classify_network_error(error_str: str) -> str | None:
         if pattern in lower:
             return message
     return None
+
+
+def _is_gateway_timeout(error_str: str) -> bool:
+    lower = (error_str or "").lower()
+    return "504" in lower or "gateway timeout" in lower
 
 
 def _is_quota_error(error_str: str) -> bool:

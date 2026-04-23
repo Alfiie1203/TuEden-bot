@@ -1166,8 +1166,9 @@ def api_topicos_generar():
 
     # Modo estricto: recorta automáticamente el lote según presupuesto de requests
     strict_enabled = os.getenv("STRICT_BATCH_MODE", "true").lower() in ("1", "true", "yes")
-    strict_req_per_post = max(1, int(os.getenv("STRICT_REQ_PER_POST", "2")))
+    strict_req_per_post = max(1, int(os.getenv("STRICT_REQ_PER_POST", "1")))
     strict_window_minutes = max(1, int(os.getenv("STRICT_RPM_WINDOW_MINUTES", "2")))
+    strict_limit_window = os.getenv("STRICT_LIMIT_RPM_WINDOW", "false").lower() in ("1", "true", "yes")
     strict_meta = None
 
     if strict_enabled:
@@ -1178,8 +1179,8 @@ def api_topicos_generar():
             available_keys = [k for k in tm_for_budget.get_all_keys() if k.is_valid and k.active and not k.is_exhausted_today]
             requests_remaining_today = sum(k.requests_remaining_today for k in available_keys)
             requests_window_budget = FREE_TIER_RPM * strict_window_minutes
-            safe_requests = min(requests_remaining_today, requests_window_budget)
-            max_posts_safe = max(1, safe_requests // strict_req_per_post)
+            safe_requests = min(requests_remaining_today, requests_window_budget) if strict_limit_window else requests_remaining_today
+            max_posts_safe = safe_requests // strict_req_per_post
 
             requested_posts = sum(len(job["post_types"]) for job in topic_jobs)
             if requested_posts > max_posts_safe:
@@ -1193,8 +1194,11 @@ def api_topicos_generar():
                         dropped_posts += len(original_types)
                         continue
 
-                    kept_types = original_types[:remaining_posts]
-                    dropped_posts += max(0, len(original_types) - len(kept_types))
+                    if remaining_posts < len(original_types):
+                        dropped_posts += len(original_types)
+                        continue
+
+                    kept_types = original_types
                     remaining_posts -= len(kept_types)
 
                     if kept_types:
@@ -1210,6 +1214,7 @@ def api_topicos_generar():
                     "requests_remaining_today": requests_remaining_today,
                     "rpm_window_requests": requests_window_budget,
                     "req_per_post": strict_req_per_post,
+                    "limit_rpm_window": strict_limit_window,
                 }
             else:
                 strict_meta = {
@@ -1221,6 +1226,7 @@ def api_topicos_generar():
                     "requests_remaining_today": requests_remaining_today,
                     "rpm_window_requests": requests_window_budget,
                     "req_per_post": strict_req_per_post,
+                    "limit_rpm_window": strict_limit_window,
                 }
         except Exception as strict_exc:
             logger.warning(f"[StrictBatch] No se pudo calcular presupuesto estricto: {strict_exc}")
