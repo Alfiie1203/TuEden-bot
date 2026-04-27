@@ -42,6 +42,7 @@ FREE_TIER_RPM          = int(os.getenv("GEMINI_FREE_TIER_RPM", "5"))
 TOKENS_PER_BLOG_EST    = 6_000      # Estimación de tokens por sesión de 3 posts
 TOKENS_PER_POST_EST    = 2_000      # Estimación por post individual
 WARN_THRESHOLD_PCT     = 0.75       # Alerta cuando se usa el 75% de requests
+DAILY_QUOTA_SCOPE      = os.getenv("GEMINI_DAILY_QUOTA_SCOPE", "project").strip().lower()  # project|key
 
 # Ruta del archivo de persistencia
 _STATE_FILE = Path("logs/token_usage.json")
@@ -304,6 +305,11 @@ class TokenManager:
             True si se rotó exitosamente, False si no hay más claves disponibles.
         """
         self._ensure_fresh_day()
+        if DAILY_QUOTA_SCOPE == "project" and self.effective_requests_remaining_today <= 0:
+            logger.warning(
+                "[TokenManager] Rotación omitida: cuota diaria de proyecto agotada."
+            )
+            return False
         start_idx = self._active_idx
         total     = len(self._keys)
 
@@ -385,9 +391,19 @@ class TokenManager:
         return sum(k.today_requests for k in self._keys)
 
     @property
+    def effective_requests_remaining_today(self) -> int:
+        """Requests restantes efectivos según el alcance de cuota diario configurado."""
+        self._ensure_fresh_day()
+        if DAILY_QUOTA_SCOPE == "project":
+            return max(0, FREE_TIER_RPD - self.pool_today_requests)
+        return sum(k.requests_remaining_today for k in self._keys if k.is_valid and k.active)
+
+    @property
     def pool_blogs_remaining_today(self) -> int:
         """Blogs completos que quedan en TODO el pool hoy."""
         self._ensure_fresh_day()
+        if DAILY_QUOTA_SCOPE == "project":
+            return self.effective_requests_remaining_today // 3
         return sum(k.blogs_remaining_today for k in self._keys if k.is_valid and k.active)
 
     @property
@@ -398,6 +414,8 @@ class TokenManager:
     @property
     def available_keys_count(self) -> int:
         self._ensure_fresh_day()
+        if DAILY_QUOTA_SCOPE == "project" and self.effective_requests_remaining_today <= 0:
+            return 0
         return sum(
             1
             for k in self._keys
@@ -421,6 +439,18 @@ class TokenManager:
             logger.warning(f"[TokenManager] {target_alias} marcada como agotada hoy.")
             return True
         return False
+
+    def mark_all_keys_exhausted(self, reason: str = "daily-project-quota") -> None:
+        """Marca todo el pool como agotado para cortar reintentos inútiles en cuota diaria de proyecto."""
+        self._ensure_fresh_day()
+        now_iso = datetime.now().isoformat()
+        for key_stats in self._keys:
+            if not key_stats.is_valid or not key_stats.active:
+                continue
+            key_stats.today_requests = FREE_TIER_RPD
+            key_stats.last_used = now_iso
+        self._save_state()
+        logger.warning(f"[TokenManager] Pool completo marcado como agotado ({reason}).")
 
     def reset_daily_pool(self, triggered_by: str = "admin") -> dict:
         """Resetea contadores diarios del pool completo y limpia el limitador RPM."""
@@ -464,6 +494,8 @@ class TokenManager:
             "pool_today_requests":  self.pool_today_requests,
             "available_keys":       self.available_keys_count,
             "pool_blogs_remaining": self.pool_blogs_remaining_today,
+            "requests_remaining_today_effective": self.effective_requests_remaining_today,
+            "daily_quota_scope": DAILY_QUOTA_SCOPE,
             "tokens_per_blog_est":  TOKENS_PER_BLOG_EST,
             "free_tier_rpd":        FREE_TIER_RPD,
             "free_tier_rpm":        FREE_TIER_RPM,

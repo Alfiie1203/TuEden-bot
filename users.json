@@ -178,7 +178,7 @@
     }
   },
   "angela": {
-    "password_hash": "scrypt:32768:8:1$0nqmYIKNbnnd8OQz$fdf0b9aee275b301b80d5215360ed5d2deddff719d6b73f69092a81d6b23c066568e607208b154dc829020f1a96c327576a86a2e4d6af357e5d20372fa778d49",
+    "password_hash": "scrypt:32768:8:1$lwBfTrBECp8pV4Ft$f6829373169e7a274f9df85cd01c2954bfc2660f7cfc1b8105bc948119c4fe91392f762e2685fe102afd71a701b11eaf145364f1c036e31fe82551ad9811bbaf",
     "role": "medico",
     "display_name": "Angela",
     "wp_username": "angela",

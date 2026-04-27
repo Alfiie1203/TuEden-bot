@@ -25,13 +25,14 @@ import time
 from loguru import logger
 
 from core.prompt_templates import PROMPT_MAP, build_prompt
-from core.token_manager import FREE_TIER_RPD
+from core.token_manager import DAILY_QUOTA_SCOPE, FREE_TIER_RPD
 
 # ---------------------------------------------------------------------------
 # Constantes
 # ---------------------------------------------------------------------------
 _CALL_TIMEOUT = int(os.getenv("GEMINI_CALL_TIMEOUT_SECONDS", "60"))
 _RETRY_WAITS  = (2, 4, 8, 15)   # backoff entre reintentos (segundos)
+_MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "3072"))
 
 
 class QuotaExceededError(RuntimeError):
@@ -423,7 +424,7 @@ class GeminiClient:
             model_name=self._model_name,
             generation_config=self._genai.GenerationConfig(
                 temperature=0.7,
-                max_output_tokens=8192,   # máximo del tier gratuito gemini-2.5-flash
+                max_output_tokens=_MAX_OUTPUT_TOKENS,
             ),
         )
 
@@ -614,12 +615,10 @@ class GeminiClient:
                         break
                     wait = _RETRY_WAITS[retry_attempt - 1]
                     if _is_gateway_timeout(error_str):
-                        rotated = self.token_manager.rotate(reason="transient-504")
-                        if rotated:
-                            self._init_model(self.token_manager.get_active_key())
-                            logger.warning(
-                                f"[Gemini] 504 timeout; se rota a {self.token_manager.active_key.alias} para reintentar."
-                            )
+                        logger.warning(
+                            "[Gemini] 504 timeout detectado. Se reintenta con la misma clave "
+                            "(rotar por 504 suele desperdiciar cuota en errores transitorios)."
+                        )
                     logger.warning(
                         f"[Red] {net_error} | "
                         f"Intento {retry_attempt}/{len(_RETRY_WAITS)} — reintentando en {wait}s…"
@@ -634,8 +633,22 @@ class GeminiClient:
                     quota_id = _extract_quota_id(error_str)
                     retry_delay = _extract_retry_delay_seconds(error_str)
 
-                    if _is_daily_quota_id(quota_id) and _should_mark_daily_exhausted(retry_delay):
-                        self.token_manager.mark_key_exhausted(exhausted_alias)
+                    daily_quota_project_scope = DAILY_QUOTA_SCOPE == "project"
+                    should_cut_pool = _is_daily_quota_id(quota_id) and (
+                        daily_quota_project_scope or _should_mark_daily_exhausted(retry_delay)
+                    )
+
+                    if should_cut_pool:
+                        self.token_manager.mark_all_keys_exhausted(reason="daily-project-quota")
+                        logger.warning(
+                            "[TokenManager] Corte del pool por cuota diaria de proyecto. "
+                            f"scope={DAILY_QUOTA_SCOPE} | quota_id={quota_id or 'desconocido'} | "
+                            f"retry_delay={retry_delay if retry_delay is not None else 'n/a'}"
+                        )
+                        raise QuotaExceededError(
+                            "Cuota diaria de proyecto agotada en Gemini (GenerateRequestsPerDayPerProjectPerModel). "
+                            "Espera al reset diario de Google o usa otro proyecto de GCP."
+                        ) from exc
                     elif _is_minute_quota_id(quota_id):
                         logger.warning(
                             f"[TokenManager] Límite por minuto alcanzado en {exhausted_alias}. "
@@ -777,8 +790,21 @@ class GeminiClient:
                     exhausted_alias = self.token_manager.active_key.alias
                     quota_id = _extract_quota_id(error_str)
                     retry_delay = _extract_retry_delay_seconds(error_str)
-                    if _is_daily_quota_id(quota_id) and _should_mark_daily_exhausted(retry_delay):
-                        self.token_manager.mark_key_exhausted(exhausted_alias)
+                    daily_quota_project_scope = DAILY_QUOTA_SCOPE == "project"
+                    should_cut_pool = _is_daily_quota_id(quota_id) and (
+                        daily_quota_project_scope or _should_mark_daily_exhausted(retry_delay)
+                    )
+                    if should_cut_pool:
+                        self.token_manager.mark_all_keys_exhausted(reason="daily-project-quota")
+                        logger.warning(
+                            "[TokenManager] Corte del pool por cuota diaria de proyecto (raw). "
+                            f"scope={DAILY_QUOTA_SCOPE} | quota_id={quota_id or 'desconocido'} | "
+                            f"retry_delay={retry_delay if retry_delay is not None else 'n/a'}"
+                        )
+                        raise QuotaExceededError(
+                            "Cuota diaria de proyecto agotada en Gemini (GenerateRequestsPerDayPerProjectPerModel). "
+                            "Espera al reset diario de Google o usa otro proyecto de GCP."
+                        ) from exc
                     quota_rotations += 1
                     rotated = self.token_manager.rotate(reason="quota-raw")
                     if rotated:
@@ -800,12 +826,10 @@ class GeminiClient:
                     break
                 wait = _RETRY_WAITS[retry_attempt - 1]
                 if _is_gateway_timeout(error_str):
-                    rotated = self.token_manager.rotate(reason="transient-504-raw")
-                    if rotated:
-                        self._init_model(self.token_manager.get_active_key())
-                        logger.warning(
-                            f"[Gemini raw] 504 timeout; se rota a {self.token_manager.active_key.alias} para reintentar."
-                        )
+                    logger.warning(
+                        "[Gemini raw] 504 timeout detectado. Se reintenta con la misma clave "
+                        "(rotar por 504 suele desperdiciar cuota en errores transitorios)."
+                    )
                 logger.warning(
                     f"[Gemini raw] Intento {retry_attempt}/{len(_RETRY_WAITS)} falló: {exc}. "
                     f"Reintentando en {wait}s…"

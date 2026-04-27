@@ -1176,8 +1176,7 @@ def api_topicos_generar():
             from core.token_manager import FREE_TIER_RPM
 
             tm_for_budget = get_token_manager()
-            available_keys = [k for k in tm_for_budget.get_all_keys() if k.is_valid and k.active and not k.is_exhausted_today]
-            requests_remaining_today = sum(k.requests_remaining_today for k in available_keys)
+            requests_remaining_today = tm_for_budget.effective_requests_remaining_today
             requests_window_budget = FREE_TIER_RPM * strict_window_minutes
             safe_requests = min(requests_remaining_today, requests_window_budget) if strict_limit_window else requests_remaining_today
             max_posts_safe = safe_requests // strict_req_per_post

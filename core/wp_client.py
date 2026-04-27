@@ -575,7 +575,7 @@ class _RealWPClient:
 
         Maneja dos formatos de src:
           - Path local puro:  'drafts_output/images/img_xxx.png'
-          - Prefijo [LOCAL]:  '[LOCAL] drafts_output\images\img_xxx.png'
+          - Prefijo [LOCAL]:  '[LOCAL] drafts_output\\images\\img_xxx.png'
             (generado por el cliente simulado; se extrae el path real)
         """
         content = draft.content

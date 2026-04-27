@@ -250,19 +250,36 @@ class ContentOrchestrator:
                     voice_profile = voice_profile,
                 )
 
-                # ── Validar calidad del contenido; reintentar si es deficiente ──
-                for _quality_attempt in range(2):
-                    _ok, _reason = check_content_quality(raw.get("content", ""))
-                    if _ok:
+                # ── Validar calidad y regenerar de forma adaptativa según cuota restante ──
+                max_quality_retries = int(os.getenv("GEMINI_MAX_QUALITY_RETRIES", "0"))
+                try:
+                    remaining_requests = self.gemini.token_manager.effective_requests_remaining_today
+                    remaining_posts_in_batch = total - step + 1
+                    # Si vamos justos de cuota, priorizar cobertura (1 request por post) sobre perfección.
+                    if remaining_requests <= remaining_posts_in_batch:
+                        max_quality_retries = 0
+                except Exception:
+                    # Fallback seguro: mantener la configuración base.
+                    pass
+
+                quality_ok = False
+                quality_reason = ""
+                for _quality_attempt in range(max_quality_retries + 1):
+                    quality_ok, quality_reason = check_content_quality(raw.get("content", ""))
+                    if quality_ok:
                         break
+                    if _quality_attempt >= max_quality_retries:
+                        break
+
                     logger.warning(
                         f"[Orchestrator] Contenido de '{post_type}' deficiente "
-                        f"({_reason}) — reintentando (intento {_quality_attempt + 1}/2)…"
+                        f"({quality_reason}) — reintentando "
+                        f"(intento {_quality_attempt + 1}/{max_quality_retries})…"
                     )
                     self.progress_cb(step, total, f"Contenido demasiado corto, regenerando {label}…")
                     _retry_focus = (
                         individual_focus
-                        + f'\nIMPORTANTE: el intento anterior generó un artículo {_reason}. '
+                        + f'\nIMPORTANTE: el intento anterior generó un artículo {quality_reason}. '
                         f'Esta vez escribe un artículo COMPLETO con mínimo 600 palabras, '
                         f'al menos 4 secciones H2 y sin cortar el JSON.'
                     )
@@ -273,14 +290,12 @@ class ContentOrchestrator:
                         reviewer      = reviewer,
                         voice_profile = voice_profile,
                     )
-                else:
-                    # Ambos reintentos fallaron — loguear pero continuar con lo que hay
-                    _ok2, _reason2 = check_content_quality(raw.get("content", ""))
-                    if not _ok2:
-                        logger.error(
-                            f"[Orchestrator] '{post_type}' sigue siendo deficiente tras 2 reintentos "
-                            f"({_reason2}). Se guarda tal como está."
-                        )
+
+                if not quality_ok:
+                    logger.error(
+                        f"[Orchestrator] '{post_type}' sigue siendo deficiente "
+                        f"({quality_reason}). Se guarda tal como está."
+                    )
 
                 # Garantizar que meta_description siempre tiene contenido
                 if not raw.get("meta_description", "").strip():
